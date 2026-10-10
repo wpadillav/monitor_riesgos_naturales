@@ -1,0 +1,446 @@
+import { describe, expect, it, vi } from 'vitest';
+import { crearEstado } from '../../../public/js/estado.js';
+import { filtrosPorDefecto } from '../../../public/js/filtros.js';
+import {
+  ESPERAS_S,
+  SIN_CONEXION_MS,
+  SIN_DATOS_MS,
+  aplicarEvento,
+  crearAnunciadorNuevos,
+  crearConexionVivo,
+  parsearEvento,
+  urlStream,
+} from '../../../public/js/stream.js';
+
+const T0 = Date.parse('2026-10-10T12:00:00Z');
+
+/** @param {Record<string, unknown>} c */
+const sismo = (c = {}) => ({
+  id: 'emsc:1',
+  tiempo: '2026-10-10T11:50:00Z',
+  lat: 8,
+  lon: -77,
+  magnitud: 3,
+  pais: 'CO',
+  lugar: 'NORTHERN COLOMBIA',
+  revision: 1,
+  ...c,
+});
+
+/** @param {string} tipo @param {unknown} datos @param {Record<string, unknown>} [extra] */
+const data = (tipo, datos, extra = {}) =>
+  JSON.stringify({ tipo, version: 1, ocurridoEn: '2026-10-10T12:00:00Z', datos, ...extra });
+
+describe('urlStream (contrato GET /api/stream)', () => {
+  const f = filtrosPorDefecto();
+  it('filtros por defecto, sin avisoMin ni ultimoId', () => {
+    expect(urlStream(f)).toBe('/api/stream?paises=ES%2CCO%2CPA&magMin=2.0&periodo=24h');
+  });
+  it('añade avisoMin y ultimoId válidos', () => {
+    expect(urlStream(f, { avisoMin: '4.5', ultimoId: 'lx3k9a-41' })).toBe(
+      '/api/stream?paises=ES%2CCO%2CPA&magMin=2.0&periodo=24h&avisoMin=4.5&ultimoId=lx3k9a-41',
+    );
+  });
+  it('descarta avisoMin fuera de la lista cerrada y un ultimoId mal formado', () => {
+    expect(urlStream(f, { avisoMin: '3.5', ultimoId: '../x' })).toBe(
+      '/api/stream?paises=ES%2CCO%2CPA&magMin=2.0&periodo=24h',
+    );
+  });
+  it('sin países no hay stream', () => {
+    expect(urlStream({ ...f, paises: [] })).toBeNull();
+  });
+});
+
+describe('parsearEvento', () => {
+  it('sismo.nuevo válido', () => {
+    const e = parsearEvento(
+      'sismo.nuevo',
+      data('sismo.nuevo', { sismo: sismo(), notificable: true, cambios: ['magnitud', 7] }),
+    );
+    expect(e).toEqual({
+      tipo: 'sismo.nuevo',
+      sismo: sismo(),
+      notificable: true,
+      cambios: ['magnitud'],
+    });
+  });
+  it('notificable ausente o no booleano → false', () => {
+    const e = parsearEvento(
+      'sismo.actualizado',
+      data('sismo.actualizado', { sismo: sismo(), notificable: 'true' }),
+    );
+    expect(e && 'notificable' in e && e.notificable).toBe(false);
+  });
+  it.each([
+    ['JSON roto', 'sismo.nuevo', '{"tipo":'],
+    ['tipo distinto del event', 'sismo.nuevo', data('sismo.actualizado', { sismo: sismo() })],
+    ['versión desconocida', 'sismo.nuevo', data('sismo.nuevo', { sismo: sismo() }, { version: 2 })],
+    ['sin datos', 'sismo.nuevo', JSON.stringify({ tipo: 'sismo.nuevo', version: 1 })],
+    ['sismo inválido', 'sismo.nuevo', data('sismo.nuevo', { sismo: sismo({ lat: 999 }) })],
+    ['evento desconocido', 'hack', data('hack', {})],
+    ['eliminado sin id', 'sismo.eliminado', data('sismo.eliminado', { motivo: 'retirado' })],
+    ['fuente sin estado', 'estado.fuente', data('estado.fuente', { fuente: 'usgs' })],
+    ['data no es texto', 'sismo.nuevo', null],
+    ['data enorme', 'sismo.nuevo', 'x'.repeat(300_000)],
+  ])('descarta: %s', (_, tipo, d) => {
+    expect(parsearEvento(tipo, d)).toBeNull();
+  });
+  it('__proto__ en el sobre no contamina el prototipo', () => {
+    parsearEvento('sismo.nuevo', '{"__proto__":{"contaminado":1},"tipo":"sismo.nuevo"}');
+    expect(/** @type {any} */ ({}).contaminado).toBeUndefined();
+  });
+  it('sismo.eliminado, estado.fuente y flujo.reiniciar', () => {
+    expect(
+      parsearEvento(
+        'sismo.eliminado',
+        data('sismo.eliminado', { id: 'a', motivo: 'fusionado', reemplazadoPor: 'b' }),
+      ),
+    ).toEqual({ tipo: 'sismo.eliminado', id: 'a', motivo: 'fusionado', reemplazadoPor: 'b' });
+    expect(
+      parsearEvento(
+        'estado.fuente',
+        data('estado.fuente', { fuente: 'usgs', estado: 'caida', cambiadoEn: 'x', extra: 1 }),
+      ),
+    ).toEqual({
+      tipo: 'estado.fuente',
+      fuente: { fuente: 'usgs', estado: 'caida', cambiadoEn: 'x' },
+    });
+    expect(
+      parsearEvento('flujo.reiniciar', data('flujo.reiniciar', { motivo: 'arranque-distinto' })),
+    ).toEqual({ tipo: 'flujo.reiniciar', motivo: 'arranque-distinto' });
+  });
+});
+
+describe('aplicarEvento', () => {
+  const filtros = filtrosPorDefecto();
+  it('alta en la lista con «Nuevo» y después actualización', () => {
+    const estado = crearEstado({ ahora: () => T0 });
+    const r = aplicarEvento(
+      { tipo: 'sismo.nuevo', sismo: sismo(), notificable: true, cambios: [] },
+      { estado, filtros, ahora: T0 },
+    );
+    expect(r).toMatchObject({ enLista: true, alta: true });
+    expect(estado.obtener('emsc:1')?.llegadoEn).toBe(T0);
+    const r2 = aplicarEvento(
+      {
+        tipo: 'sismo.actualizado',
+        sismo: sismo({ magnitud: 3.5, revision: 2 }),
+        notificable: true,
+        cambios: ['magnitud'],
+      },
+      { estado, filtros, ahora: T0 },
+    );
+    expect(r2).toMatchObject({ enLista: true, alta: false });
+    expect(estado.tamano).toBe(1);
+    expect(estado.obtener('emsc:1')?.magnitudAnterior).toBe(3);
+  });
+
+  it('por debajo de la magnitud de la lista (llega por el aviso): no se pinta y se quita', () => {
+    const estado = crearEstado({ ahora: () => T0 });
+    estado.reemplazar([sismo({ magnitud: 2.4 })]);
+    const r = aplicarEvento(
+      {
+        tipo: 'sismo.actualizado',
+        sismo: sismo({ magnitud: 1.9 }),
+        notificable: true,
+        cambios: [],
+      },
+      { estado, filtros, ahora: T0 },
+    );
+    expect(r).toMatchObject({ enLista: false, alta: false });
+    expect(estado.tamano).toBe(0);
+  });
+
+  it('fuera del periodo o de un país no marcado: no se pinta', () => {
+    const estado = crearEstado({ ahora: () => T0 });
+    aplicarEvento(
+      {
+        tipo: 'sismo.nuevo',
+        sismo: sismo({ tiempo: '2026-10-08T12:00:00Z' }),
+        notificable: false,
+        cambios: [],
+      },
+      { estado, filtros, ahora: T0 },
+    );
+    aplicarEvento(
+      {
+        tipo: 'sismo.nuevo',
+        sismo: sismo({ id: 'b', pais: 'PA' }),
+        notificable: true,
+        cambios: [],
+      },
+      { estado, filtros: { ...filtros, paises: ['ES'] }, ahora: T0 },
+    );
+    expect(estado.tamano).toBe(0);
+  });
+
+  it('sismo.eliminado', () => {
+    const estado = crearEstado();
+    estado.reemplazar([sismo()]);
+    const r = aplicarEvento(
+      { tipo: 'sismo.eliminado', id: 'emsc:1', motivo: 'retirado', reemplazadoPor: null },
+      { estado, filtros, ahora: T0 },
+    );
+    expect(r).toMatchObject({ quitado: true });
+    expect(estado.tamano).toBe(0);
+  });
+});
+
+/** Temporizadores simulados y deterministas. */
+function reloj() {
+  let t = T0;
+  /** @type {{ en: number, fn: () => void, id: number }[]} */
+  let cola = [];
+  let n = 0;
+  return {
+    ahora: () => t,
+    programar: (/** @type {() => void} */ fn, /** @type {number} */ ms) => {
+      n += 1;
+      cola.push({ en: t + ms, fn, id: n });
+      return n;
+    },
+    cancelar: (/** @type {unknown} */ id) => {
+      cola = cola.filter((x) => x.id !== id);
+    },
+    /** @param {number} ms */
+    avanzar(ms) {
+      const fin = t + ms;
+      for (;;) {
+        cola.sort((a, b) => a.en - b.en);
+        const sig = cola[0];
+        if (!sig || sig.en > fin) break;
+        cola.shift();
+        t = sig.en;
+        sig.fn();
+      }
+      t = fin;
+    },
+  };
+}
+
+describe('crearAnunciadorNuevos (textos.md §10)', () => {
+  it('uno cada 10 s; varios en la ventana → «{n} sismos nuevos.»', () => {
+    const r = reloj();
+    const anunciar = vi.fn();
+    const a = crearAnunciadorNuevos({ anunciar, programar: r.programar });
+    a.nuevo(sismo({ magnitud: 4.24 }));
+    expect(anunciar).toHaveBeenLastCalledWith(
+      'Nuevo sismo: magnitud 4.2, Northern Colombia, Colombia.',
+    );
+    a.nuevo(sismo());
+    a.nuevo(sismo());
+    expect(anunciar).toHaveBeenCalledTimes(1);
+    r.avanzar(10_000);
+    expect(anunciar).toHaveBeenLastCalledWith('2 sismos nuevos.');
+    a.nuevo(sismo({ lugar: 'X', pais: 'ES' }));
+    r.avanzar(10_000);
+    expect(anunciar).toHaveBeenLastCalledWith('Nuevo sismo: magnitud 3.0, X, España.');
+    r.avanzar(10_000);
+    a.nuevo(sismo());
+    expect(anunciar).toHaveBeenCalledTimes(4);
+  });
+});
+
+/** `EventSource` simulado. */
+class FuenteFalsa {
+  /** @type {FuenteFalsa[]} */
+  static creadas = [];
+  /** @param {string} url */
+  constructor(url) {
+    this.url = url;
+    this.readyState = 0;
+    this.cerrada = false;
+    /** @type {Map<string, (e: any) => void>} */
+    this.oyentes = new Map();
+    /** @type {((e: any) => void) | null} */
+    this.onopen = null;
+    /** @type {((e: any) => void) | null} */
+    this.onerror = null;
+    FuenteFalsa.creadas.push(this);
+  }
+  /** @param {string} tipo @param {(e: any) => void} fn */
+  addEventListener(tipo, fn) {
+    this.oyentes.set(tipo, fn);
+  }
+  close() {
+    this.cerrada = true;
+    this.readyState = 2;
+  }
+  abrir() {
+    this.readyState = 1;
+    this.onopen?.({});
+  }
+  /** @param {number} [estado] */
+  fallar(estado = 0) {
+    this.readyState = estado;
+    this.onerror?.({});
+  }
+  /** @param {string} tipo @param {unknown} datos @param {string} [id] */
+  emitir(tipo, datos, id = '') {
+    this.oyentes.get(tipo)?.({ data: data(tipo, datos), lastEventId: id });
+  }
+}
+
+function montar({ avisoMin = /** @type {string | null} */ (null) } = {}) {
+  FuenteFalsa.creadas = [];
+  const r = reloj();
+  const estado = crearEstado({ ahora: r.ahora });
+  /** @type {string[]} */
+  const estados = [];
+  let actual = 'cargando';
+  const barra = {
+    poner: vi.fn((/** @type {string} */ e) => {
+      actual = e;
+      estados.push(e);
+    }),
+    get estado() {
+      return actual;
+    },
+  };
+  const recargar = vi.fn();
+  const ponerFuentes = vi.fn();
+  const alEvento = vi.fn();
+  const vivo = crearConexionVivo({
+    estado,
+    barra,
+    obtenerFiltros: filtrosPorDefecto,
+    obtenerUltimoEventoId: () => 'abc-1',
+    obtenerAvisoMin: () => avisoMin,
+    recargar,
+    ponerFuentes,
+    alEvento,
+    EventSourceImpl: /** @type {any} */ (FuenteFalsa),
+    ahora: r.ahora,
+    programar: r.programar,
+    cancelar: r.cancelar,
+  });
+  const ultima = () => /** @type {FuenteFalsa} */ (FuenteFalsa.creadas.at(-1));
+  return { r, estado, barra, estados, recargar, ponerFuentes, alEvento, vivo, ultima };
+}
+
+describe('crearConexionVivo', () => {
+  it('abre con el ultimoEventoId de la carga y pasa a «En vivo» al abrirse', () => {
+    const m = montar({ avisoMin: '4.5' });
+    m.vivo.abrir();
+    expect(m.ultima().url).toBe(
+      '/api/stream?paises=ES%2CCO%2CPA&magMin=2.0&periodo=24h&avisoMin=4.5&ultimoId=abc-1',
+    );
+    expect(m.barra.poner).not.toHaveBeenCalled();
+    m.ultima().abrir();
+    expect(m.barra.poner).toHaveBeenLastCalledWith('en-vivo', { n: 0, hora: T0 });
+  });
+
+  it('aplica los sismos, avisa a alEvento y guarda el último id', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.ultima().emitir('sismo.nuevo', { sismo: sismo(), notificable: true, cambios: [] }, 'abc-7');
+    expect(m.estado.tamano).toBe(1);
+    expect(m.alEvento).toHaveBeenCalledWith(expect.objectContaining({ alta: true, enLista: true }));
+    expect(m.vivo.ultimoId).toBe('abc-7');
+    m.ultima().emitir('sismo.eliminado', { id: 'emsc:1', motivo: 'retirado' }, 'abc-8');
+    expect(m.estado.tamano).toBe(0);
+  });
+
+  it('corte: «Reconectando…» y a los 10 s «Sin conexión…»; al volver, «En vivo»', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.r.avanzar(1000);
+    m.ultima().fallar(0);
+    expect(m.barra.poner).toHaveBeenLastCalledWith('reconectando', { hora: T0 });
+    m.r.avanzar(SIN_CONEXION_MS - 1);
+    expect(m.barra.estado).toBe('reconectando');
+    m.r.avanzar(1);
+    expect(m.barra.poner).toHaveBeenLastCalledWith('sin-conexion', { hora: T0 });
+    m.ultima().fallar(0);
+    expect(m.barra.estado).toBe('sin-conexion');
+    m.ultima().abrir();
+    expect(m.barra.estado).toBe('en-vivo');
+    // El navegador reconecta solo (misma instancia): no se crean más.
+    expect(FuenteFalsa.creadas).toHaveLength(1);
+  });
+
+  it('si EventSource se rinde (CLOSED), reintenta a los 5 s con el último id', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.ultima().emitir('estado.fuente', { fuente: 'usgs', estado: 'ok' }, 'abc-9');
+    m.ultima().fallar(2);
+    expect(m.ultima().cerrada).toBe(true);
+    m.r.avanzar(ESPERAS_S[0] * 1000 - 1);
+    expect(FuenteFalsa.creadas).toHaveLength(1);
+    m.r.avanzar(1);
+    expect(FuenteFalsa.creadas).toHaveLength(2);
+    expect(m.ultima().url).toContain('ultimoId=abc-9');
+    m.ultima().fallar(2);
+    m.r.avanzar(ESPERAS_S[1] * 1000);
+    expect(FuenteFalsa.creadas).toHaveLength(3);
+  });
+
+  it('sin mensajes en 45 s reabre sin tocar el indicador', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.ultima().emitir('sismo.nuevo', { sismo: sismo(), notificable: false, cambios: [] }, 'abc-3');
+    const llamadas = m.barra.poner.mock.calls.length;
+    m.r.avanzar(SIN_DATOS_MS);
+    expect(FuenteFalsa.creadas).toHaveLength(2);
+    expect(FuenteFalsa.creadas[0].cerrada).toBe(true);
+    expect(m.ultima().url).toContain('ultimoId=abc-3');
+    expect(m.barra.poner.mock.calls.length).toBe(llamadas);
+  });
+
+  it('flujo.reiniciar: cierra y recarga; más de 3 en un minuto, espera antes de recargar', () => {
+    const m = montar();
+    for (let i = 0; i < 3; i += 1) {
+      m.vivo.abrir();
+      m.ultima().abrir();
+      m.ultima().emitir('flujo.reiniciar', { motivo: 'historial-insuficiente' });
+      expect(m.ultima().cerrada).toBe(true);
+    }
+    expect(m.recargar).toHaveBeenCalledTimes(3);
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.ultima().emitir('flujo.reiniciar', { motivo: 'historial-insuficiente' });
+    expect(m.recargar).toHaveBeenCalledTimes(3);
+    m.r.avanzar(ESPERAS_S[0] * 1000);
+    expect(m.recargar).toHaveBeenCalledTimes(4);
+  });
+
+  it('agrupa los estado.fuente que llegan juntos al conectar', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    for (const fuente of ['emsc-ws', 'emsc-fdsn', 'usgs']) {
+      m.ultima().emitir('estado.fuente', { fuente, estado: fuente === 'usgs' ? 'caida' : 'ok' });
+    }
+    expect(m.ponerFuentes).not.toHaveBeenCalled();
+    m.r.avanzar(100);
+    expect(m.ponerFuentes).toHaveBeenCalledTimes(1);
+    expect(m.ponerFuentes.mock.calls[0][0]).toHaveLength(3);
+  });
+
+  it('cerrar() cierra la conexión e ignora lo que llegue después', () => {
+    const m = montar();
+    m.vivo.abrir();
+    const fuente = m.ultima();
+    fuente.abrir();
+    m.vivo.cerrar();
+    expect(fuente.cerrada).toBe(true);
+    fuente.emitir('sismo.nuevo', { sismo: sismo(), notificable: true, cambios: [] });
+    expect(m.estado.tamano).toBe(0);
+    m.r.avanzar(SIN_DATOS_MS * 2);
+    expect(FuenteFalsa.creadas).toHaveLength(1);
+  });
+
+  it('reabrir() (cambio de avisoMin) sigue desde el último id', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.ultima().emitir('estado.fuente', { fuente: 'usgs', estado: 'ok' }, 'abc-5');
+    m.vivo.reabrir();
+    expect(FuenteFalsa.creadas).toHaveLength(2);
+    expect(m.ultima().url).toContain('ultimoId=abc-5');
+  });
+});
