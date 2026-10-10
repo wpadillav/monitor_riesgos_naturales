@@ -275,7 +275,12 @@ describe('estáticos (AM-20, AM-30)', () => {
 describe('errores (AM-28)', () => {
   it('una excepción da 500 problem+json sin trazas ni rutas, y va al log', async () => {
     const errores = [];
-    const log = { error: (evento, campos) => errores.push({ evento, campos }), warn() {}, info() {}, debug() {} };
+    const log = {
+      error: (evento, campos) => errores.push({ evento, campos }),
+      warn() {},
+      info() {},
+      debug() {},
+    };
     const app = buildApp({ log });
     app.get('/api/explota', () => {
       throw new Error('fallo en /home/usuario/secreto.js');
@@ -296,7 +301,12 @@ describe('errores (AM-28)', () => {
   it('registra los rechazos como mucho una vez por minuto y por código', async () => {
     const avisos = [];
     let ahora = ARRANQUE;
-    const log = { error() {}, warn: (evento, campos) => avisos.push({ evento, campos }), info() {}, debug() {} };
+    const log = {
+      error() {},
+      warn: (evento, campos) => avisos.push({ evento, campos }),
+      info() {},
+      debug() {},
+    };
     const app = buildApp({ log, reloj: { ahora: () => ahora } });
 
     for (let i = 0; i < 5; i += 1) await app.request('/', { headers: { host: 'evil.test' } });

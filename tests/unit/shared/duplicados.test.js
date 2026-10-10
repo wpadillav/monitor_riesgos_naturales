@@ -87,7 +87,8 @@ describe('calibración con los 54 pares reales USGS↔EMSC (ADR-0004)', () => {
     const falsos = [];
     for (const a of PARES) {
       for (const b of PARES) {
-        if (a !== b && sonDuplicados(a.usgs, b.emsc)) falsos.push([a.usgs.idFuente, b.emsc.idFuente]);
+        if (a !== b && sonDuplicados(a.usgs, b.emsc))
+          falsos.push([a.usgs.idFuente, b.emsc.idFuente]);
       }
     }
     expect(falsos).toEqual([]);
@@ -134,7 +135,12 @@ describe('umbrales configurables', () => {
     ['Δt = 30,001 s', base, otro({ tiempo: 30_001 }), false],
     ['Δd = 99,9 km', base, { ...alNorte(base, 99.9), fuente: 'emsc' }, true],
     ['Δd = 100,1 km', base, { ...alNorte(base, 100.1), fuente: 'emsc' }, false],
-    ['ΔM = 1.0 en coma flotante (4.5 − 3.5)', { ...base, magnitud: 4.5 }, otro({ magnitud: 3.5 }), true],
+    [
+      'ΔM = 1.0 en coma flotante (4.5 − 3.5)',
+      { ...base, magnitud: 4.5 },
+      otro({ magnitud: 3.5 }),
+      true,
+    ],
     ['ΔM = 1.1', base, otro({ magnitud: 2.9 }), false],
   ])('%s', (_caso, a, b, esperado) => {
     expect(sonDuplicados(a, b)).toBe(esperado);

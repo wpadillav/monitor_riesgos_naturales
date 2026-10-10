@@ -1,11 +1,11 @@
 // Reglas de aviso (notificable con la ventana de 1 h y avisoMin con redondeo D1) y cobertura.
 import { describe, expect, it } from 'vitest';
+import { alcanzaAviso, esNotificable, redondear1 } from '../../../../src/server/dominio/aviso.js';
 import {
-  alcanzaAviso,
-  esNotificable,
-  redondear1,
-} from '../../../../src/server/dominio/aviso.js';
-import { createCobertura, cubre, minimaMagnitud } from '../../../../src/server/dominio/cobertura.js';
+  createCobertura,
+  cubre,
+  minimaMagnitud,
+} from '../../../../src/server/dominio/cobertura.js';
 
 const AHORA = Date.parse('2026-10-10T07:00:00.000Z');
 const hace = (min) => new Date(AHORA - min * 60_000).toISOString();

@@ -28,7 +28,12 @@ describe('createMetricasLatencia', () => {
         origenARecepcionMs: i * 10_000,
       });
     }
-    m.registrar({ fuente: 'usgs', canal: 'fdsn', publicacionARecepcionMs: 40_000, origenARecepcionMs: 900_000 });
+    m.registrar({
+      fuente: 'usgs',
+      canal: 'fdsn',
+      publicacionARecepcionMs: 40_000,
+      origenARecepcionMs: 900_000,
+    });
 
     m.resumir();
     expect(log.info).toHaveBeenCalledWith('latencia.resumen', {
@@ -57,7 +62,12 @@ describe('createMetricasLatencia', () => {
     const log = { info: vi.fn() };
     const m = createMetricasLatencia({ log });
     for (let i = 0; i < MAX_MUESTRAS + 10; i += 1) {
-      m.registrar({ fuente: 'emsc', canal: 'fdsn', publicacionARecepcionMs: 1, origenARecepcionMs: 1 });
+      m.registrar({
+        fuente: 'emsc',
+        canal: 'fdsn',
+        publicacionARecepcionMs: 1,
+        origenARecepcionMs: 1,
+      });
     }
     m.resumir();
     expect(log.info.mock.calls[0][1].n).toBe(MAX_MUESTRAS);

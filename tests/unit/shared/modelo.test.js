@@ -121,7 +121,7 @@ describe('crearRegistro: normalizador único (AM-05)', () => {
     );
     const r = crearRegistro(crudo, AHORA);
     expect(r.ok).toBe(true);
-    expect(({}).polluted).toBeUndefined();
+    expect({}.polluted).toBeUndefined();
     expect(Object.getPrototypeOf(r.registro)).toBe(Object.prototype);
     expect(Object.keys(r.registro)).not.toContain('extra');
     expect(Object.keys(r.registro)).not.toContain('__proto__');

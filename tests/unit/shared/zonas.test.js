@@ -43,13 +43,16 @@ describe('zonas generadas (ADR-0005)', () => {
     },
   );
 
-  it.each(ZONAS.map((z) => [z.id, z]))('la tierra de %s queda dentro de su rectángulo', (_id, z) => {
-    const [minLon, minLat, maxLon, maxLat] = bbox(z.tierra);
-    expect(z.rectangulo.minLat).toBeLessThan(minLat);
-    expect(z.rectangulo.maxLat).toBeGreaterThan(maxLat);
-    expect(z.rectangulo.minLon).toBeLessThan(minLon);
-    expect(z.rectangulo.maxLon).toBeGreaterThan(maxLon);
-  });
+  it.each(ZONAS.map((z) => [z.id, z]))(
+    'la tierra de %s queda dentro de su rectángulo',
+    (_id, z) => {
+      const [minLon, minLat, maxLon, maxLat] = bbox(z.tierra);
+      expect(z.rectangulo.minLat).toBeLessThan(minLat);
+      expect(z.rectangulo.maxLat).toBeGreaterThan(maxLat);
+      expect(z.rectangulo.minLon).toBeLessThan(minLon);
+      expect(z.rectangulo.maxLon).toBeGreaterThan(maxLon);
+    },
+  );
 
   it('corrige los lados cortos de T1.2: Galicia, Cantábrico, El Hierro, Alegranza, CO-SAI y PA', () => {
     const r = Object.fromEntries(ZONAS.map((z) => [z.id, z.rectangulo]));

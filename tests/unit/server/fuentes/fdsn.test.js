@@ -122,7 +122,10 @@ describe('consultar()', () => {
   });
 
   it('USGS: normaliza el fixture de Panamá', async () => {
-    const fuente = createUsgsFdsn({ http: http(leer('usgs/fdsn-query-panama.geojson')).http, reloj });
+    const fuente = createUsgsFdsn({
+      http: http(leer('usgs/fdsn-query-panama.geojson')).http,
+      reloj,
+    });
     const r = await fuente.consultar({
       rectangulo: ZONAS.find((z) => z.id === 'PA').rectangulo,
       magMin: 2,

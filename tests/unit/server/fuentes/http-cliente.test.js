@@ -24,7 +24,11 @@ function cliente(res, opciones = {}) {
   const fetch = vi.fn(async () => (typeof res === 'function' ? res() : res));
   return {
     fetch,
-    http: createHttpClient({ fetch, userAgent: 'TerremotosEnVivo/2.0.0 (uso local; sin contacto)', ...opciones }),
+    http: createHttpClient({
+      fetch,
+      userAgent: 'TerremotosEnVivo/2.0.0 (uso local; sin contacto)',
+      ...opciones,
+    }),
   };
 }
 
@@ -139,10 +143,11 @@ describe('createHttpClient().getJson', () => {
   });
 
   it('429 con Retry-After: 120 informa de 120 000 ms (AM-18)', async () => {
-    const { http } = cliente(
-      new Response('', { status: 429, headers: { 'retry-after': '120' } }),
-    );
-    await expect(http.getJson(URL_OK)).rejects.toMatchObject({ status: 429, retryAfterMs: 120_000 });
+    const { http } = cliente(new Response('', { status: 429, headers: { 'retry-after': '120' } }));
+    await expect(http.getJson(URL_OK)).rejects.toMatchObject({
+      status: 429,
+      retryAfterMs: 120_000,
+    });
   });
 
   it('rechaza un Content-Type que no es JSON (el HTML de error de CloudFront, AM-03)', async () => {
@@ -214,7 +219,9 @@ describe('createHttpClient().getJson', () => {
     const fetch = vi.fn(
       (_url, init) =>
         new Promise((_ok, ko) => {
-          init.signal.addEventListener('abort', () => ko(new DOMException('aborted', 'AbortError')));
+          init.signal.addEventListener('abort', () =>
+            ko(new DOMException('aborted', 'AbortError')),
+          );
         }),
     );
     const http = createHttpClient({ fetch, userAgent: 'x', timeoutMs: 3000 });
@@ -228,7 +235,9 @@ describe('createHttpClient().getJson', () => {
     const fetch = vi.fn(
       (_url, init) =>
         new Promise((_ok, ko) => {
-          init.signal.addEventListener('abort', () => ko(new DOMException('aborted', 'AbortError')));
+          init.signal.addEventListener('abort', () =>
+            ko(new DOMException('aborted', 'AbortError')),
+          );
         }),
     );
     const http = createHttpClient({ fetch, userAgent: 'x' });

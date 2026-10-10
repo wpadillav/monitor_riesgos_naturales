@@ -20,8 +20,7 @@ const AHORA = Date.parse('2026-10-10T08:00:00.000Z');
 const ARRANQUE = AHORA - 3_600_000;
 const ID_EVENTO = /^[0-9a-z]{1,16}-[0-9]{1,15}$/;
 
-const leer = (ruta) =>
-  readFileSync(new URL(`../fixtures/${ruta}`, import.meta.url), 'utf8');
+const leer = (ruta) => readFileSync(new URL(`../fixtures/${ruta}`, import.meta.url), 'utf8');
 
 const FIXTURE_EMSC_ES = leer('emsc/fdsn-query-espana.json');
 const FIXTURE_EMSC_PA = leer('emsc/fdsn-query-panama-colombia.json');
@@ -94,7 +93,10 @@ async function montar({ caidas, arrancar = true } = {}) {
   const reloj = { ahora: () => Date.now() };
   const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
   const fetch = fetchSimulado(caidas);
-  const http = createHttpClient({ fetch, userAgent: 'TerremotosEnVivo/2.0.0 (uso local; sin contacto)' });
+  const http = createHttpClient({
+    fetch,
+    userAgent: 'TerremotosEnVivo/2.0.0 (uso local; sin contacto)',
+  });
   const catalogo = createCatalogo({ asignarPais, log });
   const estado = createEstadoFuentes({ canales: ['emsc-fdsn', 'usgs'], reloj, log });
   const planificador = createPlanificador({
@@ -164,7 +166,16 @@ describe('GET /api/sismos: respuesta y filtros', () => {
     expect(res.headers.get('cache-control')).toBe('no-store');
     const cuerpo = await res.json();
     expect(Object.keys(cuerpo).sort()).toEqual(
-      ['completo', 'filtro', 'fuentes', 'generadoEn', 'sismos', 'total', 'truncado', 'ultimoEventoId'].sort(),
+      [
+        'completo',
+        'filtro',
+        'fuentes',
+        'generadoEn',
+        'sismos',
+        'total',
+        'truncado',
+        'ultimoEventoId',
+      ].sort(),
     );
     expect(cuerpo.filtro).toEqual({
       paises: ['ES', 'CO', 'PA'],
@@ -249,7 +260,10 @@ describe('GET /api/sismos: respuesta y filtros', () => {
       .map(([url]) => new URL(url))
       .filter((u) => !u.searchParams.has('updatedafter'));
     // PA cae en un solo rectángulo: 1 consulta por fuente (single-flight, AM-18).
-    expect(nuevas.map((u) => u.host).sort()).toEqual(['earthquake.usgs.gov', 'www.seismicportal.eu']);
+    expect(nuevas.map((u) => u.host).sort()).toEqual([
+      'earthquake.usgs.gov',
+      'www.seismicportal.eu',
+    ]);
     for (const u of nuevas) {
       expect(u.searchParams.has('minmag') || u.searchParams.has('minmagnitude')).toBe(false);
     }
@@ -260,19 +274,22 @@ describe('GET /api/sismos: fuente caída (AM-03)', () => {
   it.each([
     ['usgs-html', 'Respuesta HTTP no válida (504)'],
     ['usgs-truncado', 'JSON no válido'],
-  ])('con USGS %s responde 200 con EMSC, completo: false y el estado de USGS', async (caida, mensaje) => {
-    entorno = await montar({ caidas: new Set([caida]) });
-    const res = await get(entorno.app, '/api/sismos?paises=ES,PA&periodo=30d');
+  ])(
+    'con USGS %s responde 200 con EMSC, completo: false y el estado de USGS',
+    async (caida, mensaje) => {
+      entorno = await montar({ caidas: new Set([caida]) });
+      const res = await get(entorno.app, '/api/sismos?paises=ES,PA&periodo=30d');
 
-    expect(res.status).toBe(200);
-    const cuerpo = await res.json();
-    expect(cuerpo.completo).toBe(false);
-    expect(cuerpo.sismos.length).toBeGreaterThan(0);
-    expect(cuerpo.sismos.every((s) => s.fuentes.every((f) => f.fuente === 'emsc'))).toBe(true);
-    const usgs = cuerpo.fuentes.find((f) => f.fuente === 'usgs');
-    expect(usgs).toMatchObject({ estado: 'caida', mensaje });
-    expect(cuerpo.fuentes.find((f) => f.fuente === 'emsc-fdsn').estado).toBe('ok');
-  });
+      expect(res.status).toBe(200);
+      const cuerpo = await res.json();
+      expect(cuerpo.completo).toBe(false);
+      expect(cuerpo.sismos.length).toBeGreaterThan(0);
+      expect(cuerpo.sismos.every((s) => s.fuentes.every((f) => f.fuente === 'emsc'))).toBe(true);
+      const usgs = cuerpo.fuentes.find((f) => f.fuente === 'usgs');
+      expect(usgs).toMatchObject({ estado: 'caida', mensaje });
+      expect(cuerpo.fuentes.find((f) => f.fuente === 'emsc-fdsn').estado).toBe('ok');
+    },
+  );
 
   it('con EMSC sin responder, contesta en ≤ 10 s con lo que hay (RNF-04)', async () => {
     entorno = await montar({ caidas: new Set(['emsc-timeout']), arrancar: false });
@@ -349,7 +366,11 @@ describe('GET /api/sismos: parámetros inválidos (AM-08)', () => {
     const res = await app.request('/api/sismos?paises=XX&magMin=9&periodo=1y', {
       headers: { host: `localhost:${PORT}` },
     });
-    expect((await res.json()).errors.map((e) => e.parametro)).toEqual(['paises', 'magMin', 'periodo']);
+    expect((await res.json()).errors.map((e) => e.parametro)).toEqual([
+      'paises',
+      'magMin',
+      'periodo',
+    ]);
   });
 
   it.each(['1.0', '2.0', '2.5', '3.0', '4.0', '4.5', '5.0'])('magMin=%s es válido', async (m) => {

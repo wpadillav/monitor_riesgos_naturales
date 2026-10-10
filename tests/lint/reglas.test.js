@@ -64,7 +64,8 @@ describe('frontera de src/shared (arquitectura §5.8)', () => {
   });
 
   it('admite importar otro módulo de src/shared con extensión .js', async () => {
-    const codigo = "import { NOMBRE_APLICACION } from './constantes.js';\nexport const y = NOMBRE_APLICACION;\n";
+    const codigo =
+      "import { NOMBRE_APLICACION } from './constantes.js';\nexport const y = NOMBRE_APLICACION;\n";
     expect(await reglasVioladas(codigo, 'src/shared/x.js')).toEqual([]);
   });
 
