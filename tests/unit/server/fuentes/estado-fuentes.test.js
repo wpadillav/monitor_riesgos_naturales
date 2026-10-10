@@ -84,6 +84,29 @@ describe('createEstadoFuentes', () => {
     expect(estado.obtener().map((e) => e.fuente)).toEqual(['emsc-fdsn', 'usgs', 'emsc-ws']);
   });
 
+  it('registrarEstado fija el estado sin contar fallos (WebSocket, T4.6)', () => {
+    const { estado } = crear();
+    const cambios = [];
+    estado.alCambiar((e) => cambios.push(e.estado));
+
+    estado.registrarEstado(
+      'usgs',
+      'degradada',
+      'Conexión cerrada',
+      Date.parse('2026-10-10T06:00:01Z'),
+    );
+    estado.registrarEstado('usgs', 'degradada', 'Otra vez', Date.parse('2026-10-10T06:00:03Z'));
+    expect(estado.obtener()[1]).toMatchObject({
+      estado: 'degradada',
+      mensaje: 'Otra vez',
+      proximoIntentoEn: '2026-10-10T06:00:03.000Z',
+    });
+    estado.registrarEstado('usgs', 'caida', 'Sin conexión', null);
+    estado.registrarEstado('emsc-ws', 'caida', 'no registrado', null);
+
+    expect(cambios).toEqual(['degradada', 'caida']);
+  });
+
   it('la suscripción se puede cancelar', () => {
     const { estado } = crear();
     const oyente = vi.fn();

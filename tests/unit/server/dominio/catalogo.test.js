@@ -170,10 +170,9 @@ describe('duplicados entre fuentes y precedencia (ADR-0004)', () => {
     catalogo.ingerir(usgsReg({ ...base, idFuente: 'us6000tlmq', magnitud: 4.4 }), {
       recibidoEn: AHORA,
     });
-    catalogo.ingerir(
-      reg({ ...base, idFuente: '20260818_0000350', autor: 'IGN', magnitud: 4.1 }),
-      { recibidoEn: AHORA },
-    );
+    catalogo.ingerir(reg({ ...base, idFuente: '20260818_0000350', autor: 'IGN', magnitud: 4.1 }), {
+      recibidoEn: AHORA,
+    });
     expect(catalogo.obtener('usgs:us6000tlmq')).toMatchObject({
       pais: 'ES',
       autor: 'IGN',
@@ -240,7 +239,10 @@ describe('duplicados entre fuentes y precedencia (ADR-0004)', () => {
 
   it('los 54 pares reales del fixture quedan como 54 sismos con dos fuentes cada uno', () => {
     const { pares } = JSON.parse(
-      readFileSync(new URL('../../../fixtures/dedup/pares-usgs-emsc.json', import.meta.url), 'utf8'),
+      readFileSync(
+        new URL('../../../fixtures/dedup/pares-usgs-emsc.json', import.meta.url),
+        'utf8',
+      ),
     );
     const { catalogo } = crear();
     const ahora = Date.parse('2026-10-11T00:00:00Z');
@@ -319,6 +321,19 @@ describe('visibilidad por país', () => {
   });
 });
 
+describe('conoce (T4.6)', () => {
+  it('sabe si un id de fuente está asociado a algún sismo, tenga país o no', () => {
+    const { catalogo } = crear();
+    expect(catalogo.conoce('emsc', '20261010_0000175')).toBe(false);
+    catalogo.ingerir(reg(), { recibidoEn: AHORA });
+    catalogo.ingerir(reg({ idFuente: 'fuera', lat: 34, lon: -117 }), { recibidoEn: AHORA });
+
+    expect(catalogo.conoce('emsc', '20261010_0000175')).toBe(true);
+    expect(catalogo.conoce('emsc', 'fuera')).toBe(true);
+    expect(catalogo.conoce('usgs', '20261010_0000175')).toBe(false);
+  });
+});
+
 describe('retirar', () => {
   it('quitar el único registro elimina el sismo con «baja» retirado', () => {
     const { catalogo, eventos } = crear();
@@ -377,9 +392,9 @@ describe('listar', () => {
       'emsc:pa-2',
     ]);
     expect(ids({ paises: ['ES', 'CO', 'PA'], magMin: 4.5, desde: 0 })).toEqual(['emsc:pa-1']);
-    expect(ids({ paises: ['ES', 'CO', 'PA'], magMin: null, desde: AHORA - 24 * 3_600_000 })).toEqual(
-      ['emsc:pa-1', 'emsc:es-1', 'emsc:co-1'],
-    );
+    expect(
+      ids({ paises: ['ES', 'CO', 'PA'], magMin: null, desde: AHORA - 24 * 3_600_000 }),
+    ).toEqual(['emsc:pa-1', 'emsc:es-1', 'emsc:co-1']);
   });
 
   it('trunca al límite y lo indica, con total de los que cumplen', () => {

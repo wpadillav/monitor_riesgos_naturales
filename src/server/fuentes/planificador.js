@@ -358,6 +358,28 @@ export function createPlanificador({
     },
 
     /**
+     * Adelanta el próximo ciclo de todas las zonas de un canal (AM-17: la cola del WebSocket se
+     * desbordó y se perdieron mensajes). Solo afecta a las zonas que esperan su turno: una
+     * consulta en curso, la carga inicial o un `Retry-After` vigente se respetan.
+     * @param {string} canal p. ej. `emsc-fdsn`
+     * @returns {number} zonas adelantadas
+     */
+    resincronizar(canal) {
+      if (detenido) return 0;
+      let n = 0;
+      for (const f of fuentes) {
+        if (f.adaptador.canal !== canal) continue;
+        for (const z of zonas) {
+          if (estadoDe(f, z).temporizador === null) continue;
+          programar(f, z, 0);
+          n += 1;
+        }
+      }
+      log.info('fuente.resincronizacion', { fuente: canal, zonas: n });
+      return n;
+    },
+
+    /**
      * Garantiza que la memoria cubre `magMin` en las zonas pedidas (arquitectura §5.6). Espera a
      * la carga inicial si sigue en curso y consulta lo que falte, todo en ≤ `limiteCoberturaMs`.
      * @param {ReadonlyArray<string>} zonaIds

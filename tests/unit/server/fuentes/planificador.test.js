@@ -16,7 +16,12 @@ import { ZONAS } from '../../../../src/shared/zonas.js';
 
 const INICIO = Date.parse('2026-10-10T12:00:00.000Z');
 const ZONAS_CONSULTA = ZONAS.map((z) => ({ id: z.id, rectangulo: z.rectangulo }));
-const UBICACION = { pais: 'PA', zona: 'PA', zonaHoraria: 'America/Panama', paisesCandidatos: ['PA'] };
+const UBICACION = {
+  pais: 'PA',
+  zona: 'PA',
+  zonaHoraria: 'America/Panama',
+  paisesCandidatos: ['PA'],
+};
 
 let secuencia = 0;
 /** Registro normalizado de una fuente, con tiempos relativos a «ahora». */
@@ -273,7 +278,10 @@ describe('fallos de una fuente (HU-02, AM-03)', () => {
     const estadoUsgs = () => estado.obtener().find((e) => e.fuente === 'usgs');
 
     await vi.advanceTimersByTimeAsync(12_000);
-    expect(estadoUsgs()).toMatchObject({ estado: 'degradada', mensaje: 'Tiempo de espera agotado' });
+    expect(estadoUsgs()).toMatchObject({
+      estado: 'degradada',
+      mensaje: 'Tiempo de espera agotado',
+    });
     await vi.advanceTimersByTimeAsync(12_000);
     expect(estadoUsgs()?.estado).toBe('caida');
     expect(Date.now() - t0).toBeLessThanOrEqual(60_000);
@@ -373,6 +381,32 @@ describe('fallos de una fuente (HU-02, AM-03)', () => {
     planificador.detener();
   });
 
+  it('resincronizar adelanta el ciclo de todas las zonas del canal (AM-17)', async () => {
+    const { planificador, emsc, usgs, log } = montar();
+    await planificador.arrancar();
+    const nEmsc = emsc.llamadas.length;
+    const nUsgs = usgs.llamadas.length;
+
+    expect(planificador.resincronizar('emsc-fdsn')).toBe(ZONAS.length);
+    await vi.advanceTimersByTimeAsync(0);
+
+    const nuevas = emsc.llamadas.slice(nEmsc);
+    expect(nuevas.map((l) => l.zona).sort()).toEqual([...ZONAS.map((z) => z.id)].sort());
+    expect(nuevas.every((l) => l.params.actualizadoDesde !== null)).toBe(true);
+    expect(usgs.llamadas).toHaveLength(nUsgs);
+    expect(log.info).toHaveBeenCalledWith('fuente.resincronizacion', {
+      fuente: 'emsc-fdsn',
+      zonas: ZONAS.length,
+    });
+    planificador.detener();
+    expect(planificador.resincronizar('emsc-fdsn')).toBe(0);
+  });
+
+  it('resincronizar antes de terminar la carga inicial no hace nada', () => {
+    const { planificador } = montar();
+    expect(planificador.resincronizar('emsc-fdsn')).toBe(0);
+  });
+
   it('detener() cancela temporizadores y señales', async () => {
     const { planificador, emsc } = montar();
     await planificador.arrancar();
@@ -412,7 +446,11 @@ describe('asegurarCobertura (arquitectura §5.6, AM-18)', () => {
       [emsc, antes.emsc],
       [usgs, antes.usgs],
     ]) {
-      expect(nuevas(a, n).map((l) => l.zona).sort()).toEqual(['CO-CONT', 'PA']);
+      expect(
+        nuevas(a, n)
+          .map((l) => l.zona)
+          .sort(),
+      ).toEqual(['CO-CONT', 'PA']);
       for (const l of nuevas(a, n)) {
         expect(l.params).toMatchObject({ magMin: null, actualizadoDesde: null });
         expect(l.opciones.timeoutMs).toBeLessThanOrEqual(8_000);

@@ -562,6 +562,17 @@ export function createCatalogo({
       return entradas.get(id)?.sismo ?? null;
     },
 
+    /**
+     * ¿Hay algún sismo (con o sin país) asociado a este id de fuente? El WebSocket de EMSC lo
+     * usa para no descartar la revisión de un sismo conocido que se mueve fuera de las zonas.
+     * @param {'emsc' | 'usgs'} fuente
+     * @param {string} idFuente
+     * @returns {boolean}
+     */
+    conoce(fuente, idFuente) {
+      return porFuente.has(`${fuente}:${idFuente}`);
+    },
+
     /** Sismos en memoria, con y sin país. */
     contar() {
       return entradas.size;

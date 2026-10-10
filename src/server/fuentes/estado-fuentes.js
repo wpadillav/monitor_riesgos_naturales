@@ -7,7 +7,7 @@
  * - 2 fallos seguidos, de cualquier zona → `caida`.
  *
  * Cada cambio de estado escribe **una** línea `fuente.estado` (RNF-15) y emite `cambio`, que
- * T4.6 difundirá como `estado.fuente`. T4.6 añade el canal `emsc-ws` con `registrarCanal`.
+ * el difusor SSE emite como `estado.fuente`. El canal `emsc-ws` usa `registrarEstado` (T4.6).
  */
 
 import { EventEmitter } from 'node:events';
@@ -105,6 +105,23 @@ export function createEstadoFuentes({ canales, reloj, log }) {
       e.mensaje = mensaje.slice(0, 200);
       e.proximoIntentoEn = proximoIntentoEn;
       cambiar(canal, e.fallosSeguidos >= FALLOS_PARA_CAIDA ? 'caida' : 'degradada', mensaje);
+    },
+
+    /**
+     * Fija el estado de un canal sin contar fallos seguidos. Lo usa el WebSocket de EMSC, cuyo
+     * criterio es temporal (arquitectura §5.3): cierre → `degradada`; sin reconectar en 30 s →
+     * `caida`. Si el estado no cambia, solo actualiza `mensaje` y `proximoIntentoEn`.
+     * @param {Canal} canal
+     * @param {'degradada' | 'caida'} nuevo
+     * @param {string} mensaje breve, en español, sin URL ni trazas
+     * @param {number | null} proximoIntentoEn ms
+     */
+    registrarEstado(canal, nuevo, mensaje, proximoIntentoEn) {
+      const e = canalesEstado.get(canal);
+      if (!e) return;
+      e.mensaje = mensaje.slice(0, 200);
+      e.proximoIntentoEn = proximoIntentoEn;
+      cambiar(canal, nuevo, mensaje);
     },
 
     /** Estados en el formato del contrato, en el orden de registro. @returns {EstadoFuente[]} */
