@@ -15,6 +15,9 @@ import {
   securityHeaders,
 } from './http/middlewares.js';
 import { registerHealthRoutes } from './http/rutas-salud.js';
+import { registerSismosRoutes } from './http/rutas-sismos.js';
+import { createConsultaSismos } from './dominio/consulta-sismos.js';
+import { ZONAS } from '../shared/zonas.js';
 import { silentLog } from './infra/log.js';
 import { systemClock } from './infra/reloj.js';
 
@@ -31,8 +34,15 @@ const PROJECT_ROOT = fileURLToPath(new URL('../../', import.meta.url));
  * @property {() => number} [contarSismos]
  * @property {() => number} [contarClientesSse]
  * @property {() => number} [medirMemoriaRssMb]
+ * @property {import('./dominio/consulta-sismos.js').ServicioSismos} [consultaSismos]
+ *   caso de uso de `GET /api/sismos`; por defecto, uno sin fuentes ni sismos
  * @property {string} [projectRoot]
  */
+
+/** Zonas con su país, para elegir qué consultar según `paises`. */
+export const ZONAS_POR_PAIS = Object.freeze(
+  ZONAS.map((z) => Object.freeze({ id: z.id, pais: z.pais })),
+);
 
 /**
  * @param {AppDeps} deps
@@ -50,15 +60,31 @@ export function createApp(deps) {
   app.use('/api/*', sameOriginOnly({ onReject }));
   app.use('*', readOnlyMethods({ onReject }));
 
-  // Hasta T4.3/T4.6 no hay fuentes, catálogo ni SSE: valores neutros.
+  const arrancadoEn = deps.arrancadoEn ?? reloj.ahora();
+  const obtenerFuentes = deps.obtenerFuentes ?? (() => []);
+
+  // Hasta T4.6 no hay SSE: el número de clientes es 0.
   registerHealthRoutes(app, {
     version: deps.version ?? '0.0.0',
-    arrancadoEn: deps.arrancadoEn ?? reloj.ahora(),
+    arrancadoEn,
     reloj,
-    obtenerFuentes: deps.obtenerFuentes ?? (() => []),
+    obtenerFuentes,
     contarSismos: deps.contarSismos ?? (() => 0),
     contarClientesSse: deps.contarClientesSse ?? (() => 0),
     medirMemoriaRssMb: deps.medirMemoriaRssMb ?? (() => process.memoryUsage.rss() / 1048576),
+  });
+
+  registerSismosRoutes(app, {
+    servicio:
+      deps.consultaSismos ??
+      createConsultaSismos({
+        catalogo: { listar: () => ({ sismos: [], total: 0, truncado: false }) },
+        planificador: null,
+        obtenerFuentes,
+        obtenerUltimoEventoId: () => `${arrancadoEn.toString(36)}-0`,
+        zonas: ZONAS_POR_PAIS,
+        reloj,
+      }),
   });
 
   registerStatic(app, deps.projectRoot ?? PROJECT_ROOT);

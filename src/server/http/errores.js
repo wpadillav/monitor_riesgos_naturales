@@ -7,6 +7,11 @@ export const PROBLEM_CONTENT_TYPE = 'application/problem+json; charset=utf-8';
 
 /** Catálogo cerrado de problemas: título y detalle fijos, sin datos de la petición. */
 export const PROBLEMAS = Object.freeze({
+  'parametro-invalido': {
+    status: 400,
+    title: 'Parámetro no válido',
+    detail: 'Algún parámetro de la consulta no es válido. El detalle está en «errors».',
+  },
   'origen-no-permitido': {
     status: 403,
     title: 'Origen no permitido',
@@ -35,14 +40,24 @@ export const PROBLEMAS = Object.freeze({
 });
 
 /**
+ * Error de un parámetro (contrato `Problema.errors[]`). `parametro` y `mensaje` son textos
+ * fijos del servidor: nunca se refleja lo que llegó en la petición.
+ * @typedef {{ parametro: string, mensaje: string }} ErrorParametro
+ */
+
+/**
  * Construye la respuesta problem+json.
  * @param {keyof typeof PROBLEMAS} codigo
  * @param {Record<string, string>} [cabeceras]
+ * @param {{ instance?: string, errors?: ErrorParametro[] }} [extra]
  * @returns {Response}
  */
-export function problemResponse(codigo, cabeceras = {}) {
+export function problemResponse(codigo, cabeceras = {}, extra = {}) {
   const { status, title, detail } = PROBLEMAS[codigo];
+  /** @type {Record<string, unknown>} */
   const cuerpo = { type: `urn:terremotos:problema:${codigo}`, title, status, detail };
+  if (extra.instance) cuerpo.instance = extra.instance;
+  if (extra.errors) cuerpo.errors = extra.errors;
   return new Response(JSON.stringify(cuerpo), {
     status,
     headers: { 'Content-Type': PROBLEM_CONTENT_TYPE, ...cabeceras },
