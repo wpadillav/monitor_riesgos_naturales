@@ -145,7 +145,7 @@ paths:
             diseño de T3.3; mientras tanto, de 3.0 a 7.0 en pasos de 0.5.
           schema:
             type: string
-            enum: ['3.0', '3.5', '4.0', '4.5', '5.0', '5.5', '6.0', '6.5', '7.0']
+            enum: ['4.0', '4.5', '5.0', '5.5', '6.0']
           example: '4.5'
         - name: ultimoId
           in: query

@@ -257,7 +257,7 @@ Escenario: Subir la magnitud mínima
   Y no se muestra ningún sismo con magnitud menor de 3.0
 
 Escenario: Sin resultados
-  Dado magnitud mínima 6.0 y filtro de 1 hora
+  Dado magnitud mínima 5.0 y filtro de 1 hora
   Cuando no hay sismos que cumplan
   Entonces la lista muestra «No hay sismos con estos filtros»
 ```
@@ -272,7 +272,7 @@ Escenario: Opciones disponibles y valor por defecto
 Escenario: Cambiar a 30 días
   Dado el filtro en «Últimas 24 h»
   Cuando elijo «30 días»
-  Entonces la petición incluye la fecha de inicio de hace 30 días
+  Entonces la petición incluye `periodo=30d` y la respuesta indica en `filtro.desde` la fecha de inicio (hace 30 días)
   Y la lista y el mapa se cargan cumpliendo RNF-03
 
 Escenario: Los sismos salen del periodo
