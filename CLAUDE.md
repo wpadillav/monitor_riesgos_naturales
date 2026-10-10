@@ -40,4 +40,4 @@ El directorio `.claude/` contiene el marco "Fábrica de Software": subagentes, c
   - leer `.env` de producción.
 
   Si te bloquea, pide al usuario que ejecute el comando él mismo; no intentes rodear el bloqueo.
-- Hay una versión 2 en planeación: servidor Node.js + Hono **solo para uso local**, sin publicación en internet. El plan está en [docs/02-plan.md](docs/02-plan.md), el estado en [.fabrica/estado.md](.fabrica/estado.md) y las versiones en [STACK.lock.md](STACK.lock.md) (borrador).
+- Hay una versión 2 en planeación, llamada **«Monitor de Riesgos Naturales»** (`monitor-riesgos-naturales`): servidor Node.js + Hono **solo para uso local**, sin publicación en internet. El plan está en [docs/02-plan.md](docs/02-plan.md), el estado en [.fabrica/estado.md](.fabrica/estado.md) y las versiones en [STACK.lock.md](STACK.lock.md) (borrador).

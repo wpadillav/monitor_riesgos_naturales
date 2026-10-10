@@ -1,4 +1,4 @@
-# Plan — Terremotos en vivo v2
+# Plan — Monitor de Riesgos Naturales (antes «Terremotos en vivo»)
 
 **Estado:** ✅ aprobado por el Director el 2026-10-10
 **Fecha:** 2026-10-10
