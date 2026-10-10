@@ -9,7 +9,7 @@
     "node": ">=24.21.0 <27"
   },
   "scripts": {
-    "start": "node --env-file-if-exists=.env src/server/index.js",
+    "start": "node --permission --allow-fs-read=./package.json --allow-fs-read=./src/ --allow-fs-read=./public/ --allow-fs-read=./node_modules/ --env-file-if-exists=.env src/server/index.js",
     "dev": "node --watch --env-file-if-exists=.env src/server/index.js",
     "test": "vitest run",
     "test:e2e": "playwright test",
@@ -17,7 +17,7 @@
     "format": "prettier --write .",
     "zonas": "node scripts/generar-zonas.js",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "check": "npm run lint && npm test && npm run audit:prod",
+    "check": "npm run lint && npm test && npm run api:lint && npm run audit:prod",
     "sbom": "npm sbom --sbom-format cyclonedx --omit=dev > sbom.cdx.json",
     "api:lint": "redocly lint --config docs/api/redocly.yaml docs/api/openapi.yaml"
   },
