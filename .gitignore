@@ -37,8 +37,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Claude Code: configuración local del usuario
-.claude/settings.local.json
+# Excluidos por decisión del Director (2026-10-10)
+/index.html
+.fabrica/
+.claude/
+tests/
 
 # Editores
 .vscode/*
