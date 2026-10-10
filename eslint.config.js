@@ -56,6 +56,11 @@ export default [
     languageOptions: { globals: { ...globals.browser } },
   },
   {
+    // E2E: Node, más el código que se ejecuta en la página con `page.evaluate`/`addInitScript`.
+    files: ['tests/e2e/**/*.js'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
     // AM-26: en los adaptadores de fuentes no se copian objetos externos con Object.assign.
     files: ['src/server/fuentes/**/*.js'],
     rules: {

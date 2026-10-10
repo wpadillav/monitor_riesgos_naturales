@@ -3,28 +3,300 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
     <title>Monitor de Riesgos Naturales</title>
-    <!-- Síncrono y antes de las hojas de estilo: evita el parpadeo del tema (AM-36, T4.5). -->
+    <meta
+      name="description"
+      content="Sismos recientes en España, Colombia y Panamá en un mapa y una lista, con datos de EMSC y USGS. Solo informativo."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- Síncrono y antes de las hojas de estilo: evita el parpadeo del tema (AM-36, HU-09). -->
     <script src="/js/tema-inicial.js"></script>
     <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
     <link rel="stylesheet" href="/css/app.css" />
+    <link rel="modulepreload" href="/js/main.js" />
   </head>
   <body>
-    <header class="cabecera">
-      <h1>Monitor de Riesgos Naturales</h1>
-    </header>
-    <main class="contenido">
-      <div id="mapa" class="mapa" role="region" aria-label="Mapa de sismos"></div>
-    </main>
-    <footer class="pie">
-      <p class="aviso">
-        Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales oficiales
-        de tu país.
-      </p>
-      <p class="atribucion">
-        Datos: EMSC / seismicportal.eu (CC BY 4.0) y U.S. Geological Survey (USGS). Mapa: Esri.
-      </p>
-    </footer>
+    <!-- Iconos decorativos (SVG sin estilos en línea, CSP). -->
+    <svg class="sprite" aria-hidden="true" focusable="false">
+      <defs>
+        <symbol id="i-triangulo" viewBox="0 0 24 24">
+          <path
+            d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"
+          />
+        </symbol>
+        <symbol id="i-externo" viewBox="0 0 24 24">
+          <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        </symbol>
+        <symbol id="i-ok" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="6" fill="currentColor" stroke="none" />
+        </symbol>
+        <symbol id="i-reconectando" viewBox="0 0 24 24">
+          <path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" />
+        </symbol>
+        <symbol id="i-sin-conexion" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="7" />
+          <path d="M4 20 20 4" />
+        </symbol>
+        <symbol id="i-vacio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" /></symbol>
+        <symbol id="i-cargando" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="7" stroke-dasharray="4 3" />
+        </symbol>
+        <symbol id="i-campana" viewBox="0 0 24 24">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" />
+        </symbol>
+        <symbol id="i-abajo" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></symbol>
+        <symbol id="i-arriba" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" /></symbol>
+        <symbol id="i-lupa" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M21 21l-4.3-4.3" />
+        </symbol>
+        <symbol id="i-mapa" viewBox="0 0 24 24">
+          <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />
+        </symbol>
+        <symbol id="i-sol" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+          />
+        </symbol>
+        <symbol id="i-luna" viewBox="0 0 24 24">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        </symbol>
+        <symbol id="i-sistema" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="12" rx="2" />
+          <path d="M8 20h8M12 16v4" />
+        </symbol>
+      </defs>
+    </svg>
+
+    <a class="saltar" href="#lista-sismos">Ir a la lista de sismos</a>
+
+    <div class="app">
+      <header class="cab">
+        <div class="cab-fila">
+          <h1>Monitor de Riesgos Naturales</h1>
+          <fieldset class="tema" id="tema">
+            <legend class="vh">Tema</legend>
+            <label class="tema-opcion" title="Seguir el tema del sistema">
+              <input type="radio" name="tema" value="sistema" />
+              <svg class="ico ico-s" aria-hidden="true" focusable="false">
+                <use href="#i-sistema" />
+              </svg>
+              <span>Sistema</span>
+            </label>
+            <label class="tema-opcion">
+              <input type="radio" name="tema" value="oscuro" />
+              <svg class="ico ico-s" aria-hidden="true" focusable="false">
+                <use href="#i-luna" />
+              </svg>
+              <span>Oscuro</span>
+            </label>
+            <label class="tema-opcion">
+              <input type="radio" name="tema" value="dia" />
+              <svg class="ico ico-s" aria-hidden="true" focusable="false">
+                <use href="#i-sol" />
+              </svg>
+              <span>Día</span>
+            </label>
+          </fieldset>
+        </div>
+        <div class="estado">
+          <span class="ind e-neutro" id="estado-ind">
+            <svg class="ico ico-s" aria-hidden="true" focusable="false">
+              <use href="#i-cargando" />
+            </svg>
+            <span role="status" id="estado-texto">Cargando sismos…</span>
+          </span>
+          <span id="estado-complemento"></span>
+        </div>
+        <p class="linea-fuente" id="linea-fuente" hidden>
+          <svg class="ico ico-s" aria-hidden="true" focusable="false">
+            <use href="#i-triangulo" />
+          </svg>
+          <span id="linea-fuente-texto"></span>
+        </p>
+      </header>
+
+      <main class="principal">
+        <section class="fil" aria-labelledby="h-filtros">
+          <button
+            class="btn-filtros"
+            id="btn-filtros"
+            type="button"
+            aria-expanded="false"
+            aria-controls="panel-filtros"
+          >
+            <span class="t">
+              <span class="t-tit">Filtros y avisos</span>
+              <span class="t-resumen" id="resumen-filtros"
+                >3 países · 2.0 o más · Últimas 24 h</span
+              >
+            </span>
+            <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-abajo" /></svg>
+          </button>
+          <div class="panel-fil" id="panel-filtros">
+            <h2 id="h-filtros" class="sec-titulo">Filtros</h2>
+            <fieldset class="paises" id="paises" aria-describedby="ayuda-paises">
+              <legend>Países</legend>
+              <div class="paises-fila">
+                <label class="casilla"
+                  ><input type="checkbox" name="pais" value="ES" />España</label
+                >
+                <label class="casilla"
+                  ><input type="checkbox" name="pais" value="CO" />Colombia</label
+                >
+                <label class="casilla"
+                  ><input type="checkbox" name="pais" value="PA" />Panamá</label
+                >
+              </div>
+              <p class="ayuda" id="ayuda-paises">
+                Incluye Canarias, Baleares, Ceuta, Melilla y San Andrés, y hasta 100 km de mar desde
+                la costa.
+              </p>
+              <p class="ayuda ayuda-error" id="error-paises" hidden>
+                Marca al menos un país para ver sismos.
+              </p>
+            </fieldset>
+            <div class="selects">
+              <div class="campo">
+                <label class="etq" for="magnitud">Magnitud mínima</label>
+                <select class="sel" id="magnitud" name="magnitud"></select>
+              </div>
+              <div class="campo">
+                <label class="etq" for="periodo">Periodo</label>
+                <select class="sel" id="periodo" name="periodo"></select>
+              </div>
+            </div>
+            <p class="restablecer" id="restablecer-fila" hidden>
+              <button class="btn-texto" id="restablecer" type="button">Restablecer filtros</button>
+            </p>
+
+            <section class="avisos" aria-labelledby="h-avisos">
+              <h2 id="h-avisos" class="sec-titulo">Avisos</h2>
+              <!-- Maquetado para T4.7: la lógica de permisos y umbral llega en esa tarea. -->
+              <button class="btn btn-pri" id="activar-avisos" type="button" disabled>
+                <svg class="ico" aria-hidden="true" focusable="false">
+                  <use href="#i-campana" />
+                </svg>
+                Activar avisos
+              </button>
+              <p class="ayuda" id="ayuda-avisos">
+                Te avisaremos de los sismos nuevos de magnitud 4.5 o más en los países marcados,
+                aunque esta pestaña esté en segundo plano. Déjala abierta.
+              </p>
+            </section>
+
+            <button class="btn btn-pri btn-ver" id="btn-ver" type="button">Ver sismos</button>
+          </div>
+        </section>
+
+        <section class="lis" aria-labelledby="h-sismos">
+          <div class="lista-cab">
+            <h2 id="h-sismos">Sismos <span id="contador"></span></h2>
+            <p class="nota-orden">Más recientes primero</p>
+          </div>
+          <div class="progreso" id="progreso" hidden></div>
+          <div class="caja-aviso" id="caja-aviso" hidden></div>
+          <p class="vh" id="instrucciones-lista">
+            Usa las flechas arriba y abajo para recorrer la lista. Pulsa Intro para ver el sismo en
+            el mapa.
+          </p>
+          <div class="lista-scroll" id="lista-scroll">
+            <div class="skeleton" id="skeleton" aria-hidden="true">
+              <div class="skel">
+                <i class="si"></i><span class="sl"><i></i><i></i><i></i></span>
+              </div>
+              <div class="skel">
+                <i class="si"></i><span class="sl"><i></i><i></i><i></i></span>
+              </div>
+              <div class="skel">
+                <i class="si"></i><span class="sl"><i></i><i></i><i></i></span>
+              </div>
+              <div class="skel">
+                <i class="si"></i><span class="sl"><i></i><i></i><i></i></span>
+              </div>
+              <div class="skel">
+                <i class="si"></i><span class="sl"><i></i><i></i><i></i></span>
+              </div>
+              <div class="skel">
+                <i class="si"></i><span class="sl"><i></i><i></i><i></i></span>
+              </div>
+            </div>
+            <ul
+              class="lista"
+              id="lista-sismos"
+              aria-labelledby="h-sismos"
+              aria-describedby="instrucciones-lista"
+              aria-busy="true"
+            ></ul>
+            <div class="vacio" id="lista-vacio" hidden></div>
+          </div>
+        </section>
+
+        <div
+          id="mapa"
+          class="mapa"
+          role="region"
+          aria-label="Mapa de sismos. La lista de sismos contiene la misma información."
+        ></div>
+      </main>
+
+      <footer class="pie">
+        <p class="aviso-ppal">
+          <svg class="ico ico-s" aria-hidden="true" focusable="false">
+            <use href="#i-triangulo" />
+          </svg>
+          <span
+            >Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales
+            oficiales de tu país.</span
+          >
+        </p>
+        <p class="atribucion">
+          Datos: EMSC / seismicportal.eu (CC BY 4.0) y U.S. Geological Survey (USGS). Mapa: Esri.
+          <button
+            class="btn-texto btn-fuentes"
+            id="btn-fuentes"
+            type="button"
+            aria-expanded="false"
+            aria-controls="pie-mas"
+          >
+            Fuentes y canales oficiales
+          </button>
+        </p>
+        <div class="pie-mas" id="pie-mas">
+          <p>
+            Canales oficiales:
+            <a href="https://www.ign.es" target="_blank" rel="noopener noreferrer"
+              >IGN y 112 (España)<span class="vh"> (se abre en otra pestaña)</span></a
+            >
+            ·
+            <a href="https://www.sgc.gov.co" target="_blank" rel="noopener noreferrer"
+              >SGC<span class="vh"> (se abre en otra pestaña)</span></a
+            >
+            y
+            <a
+              href="https://portal.gestiondelriesgo.gov.co"
+              target="_blank"
+              rel="noopener noreferrer"
+              >UNGRD (Colombia)<span class="vh"> (se abre en otra pestaña)</span></a
+            >
+            ·
+            <a href="https://www.sinaproc.gob.pa" target="_blank" rel="noopener noreferrer"
+              >SINAPROC (Panamá)<span class="vh"> (se abre en otra pestaña)</span></a
+            >
+          </p>
+          <p id="nota-colombia">
+            En Colombia, EMSC y USGS registran pocos sismos de magnitud inferior a 4.0: la lista
+            puede mostrar menos sismos que el Servicio Geológico Colombiano.
+          </p>
+          <p>Las horas de actualización son las de tu equipo.</p>
+        </div>
+      </footer>
+
+      <div class="vh" role="status" id="anuncios"></div>
+    </div>
+
     <script src="/vendor/leaflet/leaflet.js"></script>
     <script type="module" src="/js/main.js"></script>
   </body>
