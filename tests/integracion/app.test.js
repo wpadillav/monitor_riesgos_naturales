@@ -223,7 +223,15 @@ describe('estáticos (AM-20, AM-30)', () => {
     expect(html).not.toMatch(/<style\b/);
     expect(html).not.toMatch(/\sstyle=/);
     expect(html).not.toMatch(/\son[a-z]+=/);
-    expect(html).not.toMatch(/(?:src|href)="https?:/);
+    // AM-20: ningún recurso externo (script, hoja de estilo, imagen…). Los enlaces <a> a los
+    // canales oficiales del pie sí son externos: https, otra pestaña y sin opener ni referrer.
+    expect(html).not.toMatch(/\ssrc="https?:/);
+    expect(html).not.toMatch(/<link\b[^>]*\shref="https?:/);
+    const enlaces = [...html.matchAll(/<a\b[^>]*\shref="(https?:[^"]*)"[^>]*>/g)];
+    for (const [etiqueta, url] of enlaces) {
+      expect(url).toMatch(/^https:\/\//);
+      expect(etiqueta).toContain('rel="noopener noreferrer"');
+    }
   });
 
   it.each([
