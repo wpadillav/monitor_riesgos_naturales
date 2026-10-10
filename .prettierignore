@@ -1,0 +1,12 @@
+node_modules/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+.claude/
+.fabrica/
+tests/fixtures/
+docs/
+/index.html
+*.md
+LICENSE
