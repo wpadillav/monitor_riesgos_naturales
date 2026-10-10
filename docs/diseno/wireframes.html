@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireframes — Terremotos en vivo v2 · Entrega 1 (T3.3)</title>
+<style>
+/* ===================================================================
+   Wireframes T3.3 — archivo estático, sin dependencias externas.
+   Los datos son de ejemplo (ficticios). Los tokens son los de tokens.md.
+   =================================================================== */
+
+/* ---------- Tokens (idénticos a tokens.md §7) ---------- */
+.t-oscuro{
+  color-scheme:dark;
+  --color-fondo:#0f1115; --color-superficie:#161920; --color-superficie-elevada:#1e222b;
+  --color-hover:#1e222b; --color-seleccion:#23324d;
+  --color-texto:#e8eaed; --color-texto-secundario:#a7adb8;
+  --color-borde:#2c313c; --color-borde-control:#7d8594;
+  --color-primario:#8ab4f8; --color-primario-hover:#a8c7fa; --color-sobre-primario:#0f1115;
+  --color-enlace:#8ab4f8; --color-foco:#ffd166;
+  --color-exito:#6dd58c; --color-aviso:#f6c35b; --color-error:#ff9b8f;
+  --marcador-borde:#f5f5f5; --sombra:0 2px 8px rgb(0 0 0 / .5);
+  /* Solo para simular las teselas Esri Dark Gray en el wireframe (aproximado) */
+  --w-agua:#262626; --w-tierra:#3a3a3a; --w-etiqueta:#bdbdbd;
+}
+.t-dia{
+  color-scheme:light;
+  --color-fondo:#f4f5f7; --color-superficie:#ffffff; --color-superficie-elevada:#ffffff;
+  --color-hover:#eef1f5; --color-seleccion:#e3ecfb;
+  --color-texto:#16191f; --color-texto-secundario:#4d5563;
+  --color-borde:#d5d9e0; --color-borde-control:#6f7787;
+  --color-primario:#0b57d0; --color-primario-hover:#0842a0; --color-sobre-primario:#ffffff;
+  --color-enlace:#0b57d0; --color-foco:#0b57d0;
+  --color-exito:#146c2e; --color-aviso:#8a5300; --color-error:#b3261e;
+  --marcador-borde:#1a1a1a; --sombra:0 2px 8px rgb(16 24 40 / .14);
+  /* Solo para simular las teselas Esri Light Gray (aproximado) */
+  --w-agua:#d4d4d4; --w-tierra:#ececec; --w-etiqueta:#4a4a4a;
+}
+:root{
+  --mag-1:#4a5568; --mag-2:#f2c94c; --mag-3:#f08a3c; --mag-4:#c62828; --mag-5:#6a1b9a;
+  --mag-1-texto:#ffffff; --mag-2-texto:#16191f; --mag-3-texto:#16191f; --mag-4-texto:#ffffff; --mag-5-texto:#ffffff;
+  --fuente-base:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Liberation Sans",sans-serif;
+  --texto-xs:.75rem; --texto-sm:.875rem; --texto-md:1rem; --texto-lg:1.125rem; --texto-xl:1.25rem;
+  --interlineado:1.45; --interlineado-ajustado:1.25;
+  --espacio-1:.25rem; --espacio-2:.5rem; --espacio-3:.75rem; --espacio-4:1rem; --espacio-6:1.5rem; --espacio-8:2rem;
+  --radio-sm:4px; --radio:6px; --radio-lg:10px;
+  --ancho-panel:360px; --alto-control:2.25rem; --alto-fila-lista:3.5rem; --ancho-insignia:3rem;
+}
+
+/* ---------- Documento (fuera de los marcos) ---------- */
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--fuente-base);background:#eceef1;color:#1f2328;line-height:1.5}
+.doc{max-width:1280px;margin:0 auto;padding:24px 20px 80px}
+.doc > header h1{font-size:1.6rem;margin:0 0 4px}
+.doc h2{font-size:1.3rem;margin:48px 0 8px;padding-top:12px;border-top:2px solid #c9ced6}
+.doc h3{font-size:1.05rem;margin:28px 0 8px}
+.doc p,.doc li{max-width:80ch}
+.doc a{color:#0b57d0}
+.indice{columns:2;column-gap:32px;padding-left:20px}
+.nota-doc{background:#fff;border:1px solid #c9ced6;border-left:4px solid #0b57d0;border-radius:6px;padding:12px 16px;max-width:none}
+.nota-doc p{margin:.3em 0}
+.lienzo{overflow-x:auto;padding:8px 2px 16px}
+.fila-marcos{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+figure{margin:0}
+figcaption{font-size:.875rem;font-weight:600;margin:0 0 6px;color:#30363d}
+.marco{position:relative;overflow:hidden;border:1px solid #9aa1ab;box-shadow:0 4px 18px rgb(0 0 0 / .18)}
+.escritorio{width:1200px;height:720px;border-radius:8px}
+.movil{width:360px;height:740px;border-radius:18px}
+.notas{font-size:.875rem;margin:8px 0 0;padding-left:22px}
+.notas li{margin:.2em 0}
+.n{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#a61e5c;color:#fff;font-size:11px;font-weight:700;font-family:var(--fuente-base);vertical-align:middle}
+.marco .n{position:absolute;z-index:5;box-shadow:0 0 0 2px #fff}
+table.spec{border-collapse:collapse;width:100%;background:#fff;font-size:.875rem;margin:8px 0}
+table.spec th,table.spec td{border:1px solid #c9ced6;padding:6px 8px;text-align:left;vertical-align:top}
+table.spec th{background:#f3f4f6}
+kbd{font-family:ui-monospace,monospace;font-size:.8em;border:1px solid #9aa1ab;border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff}
+code{font-family:ui-monospace,monospace;font-size:.9em}
+.rejilla-estados{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:20px}
+
+/* ---------- Componentes de la aplicación (dentro de .marco) ---------- */
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.app{display:grid;height:100%;background:var(--color-fondo);color:var(--color-texto);
+  font-family:var(--fuente-base);font-size:var(--texto-md);line-height:var(--interlineado)}
+.app-esc{grid-template-columns:var(--ancho-panel) 1fr;grid-template-rows:auto auto 1fr auto;
+  grid-template-areas:"cab mapa" "fil mapa" "lis mapa" "pie mapa"}
+.app-mov{grid-template-columns:1fr;grid-template-rows:auto auto 296px 1fr auto;
+  grid-template-areas:"cab" "fil" "mapa" "lis" "pie"}
+.app-mov.desplegado{grid-template-rows:auto auto 296px 300px auto;overflow:auto}
+.cab{grid-area:cab}.fil{grid-area:fil}.lis{grid-area:lis}.pie{grid-area:pie}.mapa{grid-area:mapa}
+.cab,.fil,.lis,.pie{background:var(--color-superficie)}
+.app-esc .cab,.app-esc .fil,.app-esc .lis,.app-esc .pie{border-right:1px solid var(--color-borde)}
+.cab{padding:12px 16px 10px;border-bottom:1px solid var(--color-borde);position:relative}
+.cab-fila{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.titulo{margin:0;font-size:var(--texto-xl);font-weight:700;line-height:1.2}
+.ico{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ico-s{width:14px;height:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:var(--alto-control);
+  padding:0 12px;border-radius:var(--radio);font:inherit;font-size:var(--texto-sm);cursor:pointer;white-space:nowrap}
+.btn-sec{background:transparent;color:var(--color-texto);border:1px solid var(--color-borde-control)}
+.btn-pri{background:var(--color-primario);color:var(--color-sobre-primario);border:1px solid var(--color-primario);font-weight:600}
+.btn-texto{background:none;border:0;color:var(--color-enlace);text-decoration:underline;padding:0 4px;min-height:24px;font-size:var(--texto-sm);font-family:inherit;cursor:pointer}
+.btn[disabled]{opacity:.65;cursor:not-allowed}
+.foco{outline:2px solid var(--color-foco);outline-offset:2px}
+.foco-dentro{outline:2px solid var(--color-foco);outline-offset:-3px}
+.estado{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;margin-top:6px;font-size:var(--texto-sm);color:var(--color-texto-secundario);font-variant-numeric:tabular-nums}
+.e-ok{color:var(--color-exito);font-weight:600}
+.e-aviso{color:var(--color-aviso);font-weight:600}
+.e-error{color:var(--color-error);font-weight:600}
+.e-neutro{color:var(--color-texto-secundario);font-weight:600}
+.estado .ind{display:inline-flex;align-items:center;gap:5px}
+.linea-fuente{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:var(--texto-sm);color:var(--color-aviso)}
+.fil{padding:12px 16px 14px;border-bottom:1px solid var(--color-borde)}
+.sec-titulo{margin:0 0 8px;font-size:var(--texto-sm);font-weight:700;text-transform:none;letter-spacing:.01em;display:flex;justify-content:space-between;align-items:center}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+legend,.etq{display:block;padding:0;font-size:var(--texto-sm);font-weight:600;margin-bottom:4px;color:var(--color-texto)}
+.paises{display:flex;flex-wrap:wrap;gap:0 16px}
+.casilla{display:inline-flex;align-items:center;gap:8px;min-height:32px;font-size:var(--texto-md);cursor:pointer}
+.casilla input{width:18px;height:18px;margin:0;accent-color:var(--color-primario)}
+.ayuda{margin:2px 0 0;font-size:var(--texto-sm);color:var(--color-texto-secundario);line-height:1.35}
+.ayuda-error{color:var(--color-error)}
+.selects{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.campo{display:flex;flex-direction:column;min-width:0}
+.sel{appearance:none;width:100%;min-height:var(--alto-control);padding:0 28px 0 10px;border:1px solid var(--color-borde-control);
+  border-radius:var(--radio);background:var(--color-superficie-elevada);color:var(--color-texto);font:inherit;font-size:var(--texto-sm);
+  background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);
+  background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.avisos{margin-top:14px;padding-top:12px;border-top:1px solid var(--color-borde)}
+.avisos-fila{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.avisos-estado{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:var(--texto-sm)}
+.lis{display:flex;flex-direction:column;min-height:0;position:relative}
+.lista-cab{display:flex;justify-content:space-between;align-items:baseline;padding:10px 16px 6px}
+.lista-cab .h{margin:0;font-size:var(--texto-md);font-weight:700}
+.lista-cab small{font-size:var(--texto-sm);color:var(--color-texto-secundario)}
+.lista{list-style:none;margin:0;padding:0;overflow:auto;flex:1;min-height:0;border-top:1px solid var(--color-borde)}
+.item{display:flex;gap:12px;align-items:flex-start;width:100%;min-height:var(--alto-fila-lista);padding:10px 16px 10px 12px;
+  border:0;border-left:4px solid transparent;border-bottom:1px solid var(--color-borde);background:transparent;color:var(--color-texto);
+  font:inherit;text-align:left;cursor:pointer}
+.item:hover,.item.hover{background:var(--color-hover)}
+.item.sel{background:var(--color-seleccion);border-left-color:var(--color-primario)}
+.insignia{flex:none;width:var(--ancho-insignia);padding:4px 0;border-radius:var(--radio);text-align:center;font-weight:700;font-size:var(--texto-lg);line-height:1.3;font-variant-numeric:tabular-nums}
+.b1{background:var(--mag-1);color:var(--mag-1-texto)}.b2{background:var(--mag-2);color:var(--mag-2-texto)}
+.b3{background:var(--mag-3);color:var(--mag-3-texto)}.b4{background:var(--mag-4);color:var(--mag-4-texto)}
+.b5{background:var(--mag-5);color:var(--mag-5-texto)}
+.info{flex:1;min-width:0;line-height:var(--interlineado-ajustado)}
+.lugar{display:block;font-size:var(--texto-md);overflow-wrap:anywhere}
+.meta{display:block;margin-top:3px;font-size:var(--texto-sm);color:var(--color-texto-secundario);font-variant-numeric:tabular-nums}
+.chip{flex:none;align-self:flex-start;margin-top:2px;padding:0 6px;border:1px solid currentColor;border-radius:var(--radio-sm);font-size:var(--texto-xs);line-height:1.5;color:var(--color-enlace)}
+.chip-rev{color:var(--color-texto-secundario)}
+.pie{padding:10px 16px;border-top:1px solid var(--color-borde);font-size:var(--texto-xs);color:var(--color-texto-secundario);line-height:1.4}
+.pie p{margin:0 0 4px}
+.pie .aviso-ppal{display:flex;gap:6px;color:var(--color-texto);font-weight:600}
+.pie a{color:var(--color-enlace)}
+.app-mov .pie{position:sticky;bottom:0;z-index:3;box-shadow:0 -2px 6px rgb(0 0 0 / .15)}
+/* Mapa simulado */
+.mapa{position:relative;overflow:hidden;background:var(--w-agua);min-height:0}
+.mapa > svg.base{position:absolute;inset:0;width:100%;height:100%;display:block}
+.zoom{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;border:1px solid var(--color-borde-control);border-radius:var(--radio);overflow:hidden;box-shadow:var(--sombra)}
+.zoom span{display:grid;place-items:center;width:34px;height:34px;background:var(--color-superficie);color:var(--color-texto);font-size:20px;font-weight:600}
+.zoom span + span{border-top:1px solid var(--color-borde)}
+.app-mov .zoom span{width:44px;height:44px}
+.atrib{position:absolute;right:0;bottom:0;padding:2px 6px;background:var(--color-superficie);color:var(--color-texto-secundario);font-size:var(--texto-xs)}
+.atrib a{color:var(--color-enlace)}
+.leyenda{position:absolute;left:10px;bottom:30px;padding:8px 10px;background:var(--color-superficie);color:var(--color-texto);
+  border:1px solid var(--color-borde);border-radius:var(--radio-lg);box-shadow:var(--sombra);font-size:var(--texto-xs);line-height:1.3}
+.leyenda b{display:block;margin-bottom:4px;font-size:var(--texto-sm)}
+.leyenda ul{list-style:none;margin:0;padding:0}
+.leyenda li{display:flex;align-items:center;gap:8px;min-height:22px}
+.leyenda svg{width:34px;height:20px;flex:none}
+.btn-leyenda{position:absolute;top:10px;right:10px}
+.app-mov .btn-leyenda{min-height:44px;background:var(--color-superficie)}
+.popup{position:absolute;z-index:4;width:290px;padding:12px 14px 12px;background:var(--color-superficie-elevada);color:var(--color-texto);
+  border:1px solid var(--color-borde);border-radius:var(--radio-lg);box-shadow:var(--sombra);font-size:var(--texto-sm);line-height:1.4}
+.popup::after{content:"";position:absolute;left:24px;bottom:-9px;width:16px;height:16px;background:inherit;border-right:1px solid var(--color-borde);border-bottom:1px solid var(--color-borde);transform:rotate(45deg)}
+.popup .p-tit{display:flex;align-items:flex-start;gap:8px;margin:0 22px 4px 0;font-size:var(--texto-lg);font-weight:700;line-height:1.25}
+.popup .cerrar{position:absolute;top:6px;right:6px;display:grid;place-items:center;width:28px;height:28px;border-radius:var(--radio);color:var(--color-texto-secundario);font-size:20px;line-height:1}
+.popup dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:6px 0 8px}
+.popup dt{color:var(--color-texto-secundario)}
+.popup dd{margin:0;font-variant-numeric:tabular-nums}
+.popup .enlaces{display:flex;flex-wrap:wrap;gap:4px 14px}
+.popup a{color:var(--color-enlace);display:inline-flex;align-items:center;gap:3px}
+.popup .rev{margin:0 0 6px;color:var(--color-texto-secundario)}
+.app-mov .popup{width:250px;font-size:var(--texto-sm)}
+/* Móvil: botón de filtros */
+.btn-filtros{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;padding:6px 16px;
+  background:var(--color-superficie);color:var(--color-texto);border:0;border-bottom:1px solid var(--color-borde);font:inherit;text-align:left;cursor:pointer}
+.btn-filtros .t{display:flex;flex-direction:column;line-height:1.25}
+.btn-filtros b{font-size:var(--texto-md)}
+.btn-filtros small{font-size:var(--texto-sm);color:var(--color-texto-secundario)}
+.app-mov .fil{padding:0;border-bottom:1px solid var(--color-borde)}
+.app-mov .panel-fil{padding:12px 16px 14px}
+.app-mov .casilla{min-height:44px}
+.app-mov .sel{min-height:44px;font-size:var(--texto-md)}
+.app-mov .btn{min-height:44px}
+.app-mov .item{min-height:64px}
+/* Estados de la lista */
+.vacio{padding:var(--espacio-8) 20px;text-align:center}
+.vacio .v-tit{margin:8px 0 4px;font-size:var(--texto-md);font-weight:700}
+.vacio p{margin:0 auto 12px;font-size:var(--texto-sm);color:var(--color-texto-secundario);max-width:34ch}
+.vacio .ico-g{width:36px;height:36px;color:var(--color-texto-secundario)}
+.vacio.error .ico-g,.vacio.error .v-tit{color:var(--color-error)}
+.skel{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--color-borde)}
+.skel i{display:block;background:var(--color-hover);border-radius:4px}
+.skel .si{width:48px;height:30px}
+.skel .sl{flex:1;display:flex;flex-direction:column;gap:6px}
+.skel .sl i:nth-child(1){height:14px;width:80%}.skel .sl i:nth-child(2){height:11px;width:55%}.skel .sl i:nth-child(3){height:11px;width:65%}
+.progreso{height:3px;background:linear-gradient(90deg,transparent 0 30%,var(--color-primario) 30% 65%,transparent 65%);}
+.caja-aviso{display:flex;gap:8px;margin:8px 12px;padding:8px 10px;border:1px solid var(--color-borde);border-left:4px solid currentColor;border-radius:var(--radio);font-size:var(--texto-sm);background:var(--color-superficie)}
+.caja-aviso.aviso{color:var(--color-aviso)} .caja-aviso.error{color:var(--color-error)} .caja-aviso.neutro{color:var(--color-texto-secundario)}
+.caja-aviso span{color:var(--color-texto)}
+.panel-suelto{width:360px;border:1px solid #9aa1ab;border-radius:8px;overflow:hidden;box-shadow:0 2px 10px rgb(0 0 0 / .12);background:var(--color-superficie);color:var(--color-texto);font-family:var(--fuente-base);line-height:var(--interlineado)}
+.panel-suelto .lista{max-height:240px}
+.panel-suelto .cab{border-right:0}
+/* Notificación del sistema simulada (no usa los tokens: la dibuja el SO) */
+.notif{width:380px;display:flex;gap:12px;padding:12px 14px;border-radius:10px;background:#2b2d31;color:#f1f1f1;box-shadow:0 6px 20px rgb(0 0 0 / .35);font-family:var(--fuente-base)}
+.notif .ic{width:40px;height:40px;border-radius:8px;background:#c62828;display:grid;place-items:center;color:#fff;font-weight:700;flex:none}
+.notif .app-n{font-size:.75rem;color:#c4c7cc}
+.notif .t{font-weight:700;font-size:.95rem;margin:2px 0}
+.notif .b{font-size:.875rem;color:#e0e2e5}
+</style>
+</head>
+<body>
+
+<!-- ============ Sprites SVG (iconos, tierra simulada, marcadores) ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-sol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-luna" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+    <symbol id="i-campana" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+    <symbol id="i-campana-ok" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/><path d="M9 9.5l2 2 4-4"/></symbol>
+    <symbol id="i-campana-off" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-9.3-5M6 8c0 7-3 9-3 9h14M13.7 21a2 2 0 0 1-3.4 0M2 2l20 20"/></symbol>
+    <symbol id="i-triangulo" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-externo" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+    <symbol id="i-ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" style="fill:currentColor;stroke:none"/></symbol>
+    <symbol id="i-reconectando" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></symbol>
+    <symbol id="i-sin-conexion" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M4 20 20 4"/></symbol>
+    <symbol id="i-vacio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></symbol>
+    <symbol id="i-cargando" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" style="stroke-dasharray:4 3"/></symbol>
+    <symbol id="i-filtros" viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M10 18h4"/></symbol>
+    <symbol id="i-abajo" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-arriba" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+    <symbol id="i-lupa" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+    <symbol id="i-mapa" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></symbol>
+
+    <!-- Tierra simulada. Proyección equirectangular aproximada: x=(lon+100)*7.5, y=(50-lat)*10 -->
+    <symbol id="tierra" viewBox="0 0 900 600">
+      <g style="fill:var(--w-tierra);stroke:none">
+        <path d="M0 0H260L255 110 200 150 165 200 155 250 145 215 120 195 80 195 40 210 0 230Z"/>
+        <path d="M0 235 40 250 70 300 95 290 100 320 85 350 110 385 125 405 140 410 160 405 172 410 170 420 150 425 132 425 118 415 95 395 60 370 0 340Z"/>
+        <path d="M172 420 180 400 195 388 214 377 240 392 270 395 330 415 400 440 470 500 500 560 500 600H160L150 520 160 470 168 440Z"/>
+        <ellipse cx="157" cy="282" rx="30" ry="6" transform="rotate(-12 157 282)"/>
+        <ellipse cx="217" cy="310" rx="16" ry="6"/><ellipse cx="172" cy="320" rx="8" ry="3"/><ellipse cx="248" cy="314" rx="5" ry="2"/>
+        <circle cx="137" cy="375" r="1.6"/>
+        <path d="M690 0H900V120L800 100 778 82 770 66 745 62 715 58 700 40Z"/>
+        <path d="M676 70 705 60 745 62 770 66 778 82 762 100 750 118 735 138 708 141 690 138 682 120 676 95Z"/>
+        <ellipse cx="777" cy="103" rx="7" ry="3"/><ellipse cx="764" cy="108" rx="3" ry="2"/>
+        <path d="M712 148 760 150 820 140 900 135V600H800L760 470 650 400 625 350 640 280 665 215 690 170Z"/>
+        <circle cx="622" cy="216" r="3"/><circle cx="634" cy="219" r="3.4"/><circle cx="646" cy="213" r="2.6"/><circle cx="612" cy="221" r="2"/><circle cx="651" cy="207" r="2"/>
+      </g>
+      <g style="fill:var(--w-etiqueta);font:600 9px var(--fuente-base);letter-spacing:.08em">
+        <text x="700" y="100">ESPAÑA</text>
+        <text x="594" y="236">Canarias</text>
+        <text x="196" y="490">COLOMBIA</text>
+        <text x="92" y="402">PANAMÁ</text>
+        <text x="400" y="260" style="font-style:italic;font-weight:400">Océano Atlántico</text>
+        <text x="40" y="500" style="font-style:italic;font-weight:400">Océano Pacífico</text>
+      </g>
+    </symbol>
+
+    <!-- Marcadores en coordenadas del mismo lienzo (escritorio). r = M × 2.6 -->
+    <symbol id="marcadores" viewBox="0 0 900 600">
+      <!-- 8 · M6.1 Sur de Panamá · B5 · borde 3 -->
+      <circle cx="150" cy="440" r="15.9" style="fill:var(--mag-5);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:3"/>
+      <!-- 5 · M4.8 Santander · B4 · borde 2 -->
+      <circle cx="202.5" cy="432" r="12.5" style="fill:var(--mag-4);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:2"/>
+      <!-- 9 · M3.3 Nariño · B2 -->
+      <circle cx="162" cy="477" r="8.6" style="fill:var(--mag-2);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:1"/>
+      <!-- 3 · M4.2 Urabá · B3 · última hora (halo) -->
+      <circle cx="173" cy="417" r="10.9" style="fill:var(--mag-3);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:1"/>
+      <circle cx="173" cy="417" r="15.9" style="fill:none;stroke:var(--marcador-borde);stroke-width:1.5;stroke-dasharray:3 3"/>
+      <!-- 1 · M5.2 Golfo de Chiriquí · B4 · última hora (halo) -->
+      <circle cx="131" cy="428" r="13.5" style="fill:var(--mag-4);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:2"/>
+      <circle cx="131" cy="428" r="18.5" style="fill:none;stroke:var(--marcador-borde);stroke-width:1.5;stroke-dasharray:3 3"/>
+      <!-- 4 · M2.7 Tenerife · B1 -->
+      <circle cx="627" cy="214" r="7" style="fill:var(--mag-1);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:1"/>
+      <!-- 7 · M4.6 Alborán · B4 -->
+      <circle cx="724.5" cy="141" r="12" style="fill:var(--mag-4);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:2"/>
+      <!-- 6 · M2.4 Lorca · B1 -->
+      <circle cx="737" cy="123" r="6.2" style="fill:var(--mag-1);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:1"/>
+      <!-- 2 · M3.1 Granada · B2 · última hora (halo) -->
+      <circle cx="722" cy="128" r="8.1" style="fill:var(--mag-2);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:1"/>
+      <circle cx="722" cy="128" r="13.1" style="fill:none;stroke:var(--marcador-borde);stroke-width:1.5;stroke-dasharray:3 3"/>
+    </symbol>
+
+    <!-- Leyenda: muestras de tamaño -->
+    <symbol id="ley-1" viewBox="0 0 34 20"><circle cx="17" cy="10" r="5" style="fill:var(--mag-1);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:1"/></symbol>
+    <symbol id="ley-2" viewBox="0 0 34 20"><circle cx="17" cy="10" r="6.5" style="fill:var(--mag-2);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:1"/></symbol>
+    <symbol id="ley-3" viewBox="0 0 34 20"><circle cx="17" cy="10" r="7.5" style="fill:var(--mag-3);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:1"/></symbol>
+    <symbol id="ley-4" viewBox="0 0 34 20"><circle cx="17" cy="10" r="8.2" style="fill:var(--mag-4);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:2"/></symbol>
+    <symbol id="ley-5" viewBox="0 0 34 20"><circle cx="17" cy="10" r="8.6" style="fill:var(--mag-5);fill-opacity:.75;stroke:var(--marcador-borde);stroke-width:3"/></symbol>
+    <symbol id="ley-halo" viewBox="0 0 34 20"><circle cx="17" cy="10" r="4" style="fill:var(--color-texto-secundario);stroke:var(--marcador-borde);stroke-width:1"/><circle cx="17" cy="10" r="8.5" style="fill:none;stroke:var(--marcador-borde);stroke-width:1.5;stroke-dasharray:3 3"/></symbol>
+  </defs>
+</svg>
+
+<div class="doc">
+<header>
+  <h1>Wireframes — Terremotos en vivo v2 · Entrega 1</h1>
+  <p><strong>Tarea T3.3</strong> · disenador-ux-ui · 2026-10-10 · <strong>Borrador pendiente de aprobación del Director 🔒</strong></p>
+  <p>Fidelidad media. <strong>Todos los datos son de ejemplo y ficticios.</strong> El mapa es un dibujo aproximado (no carga teselas ni nada externo). Colores y tamaños: <a href="tokens.md">tokens.md</a>. Textos: <a href="textos.md">textos.md</a>. Hora de referencia del ejemplo: 10/10/2026, 14:20 en el equipo del usuario (España peninsular).</p>
+  <p class="nota-doc"><span class="n">1</span> Las marcas rosas numeradas remiten a las notas bajo cada marco. El contorno amarillo (oscuro) o azul (día) alrededor de un elemento simula <strong>el foco de teclado</strong>.</p>
+  <nav aria-label="Índice del documento">
+    <ol class="indice">
+      <li><a href="#decisiones">Decisiones de diseño</a></li>
+      <li><a href="#esc-oscuro">Escritorio · oscuro</a></li>
+      <li><a href="#esc-dia">Escritorio · día</a></li>
+      <li><a href="#movil">Móvil (&lt; 700 px) · oscuro y día</a></li>
+      <li><a href="#estados-lista">Estados de la lista</a></li>
+      <li><a href="#vivo">Indicador «en vivo»</a></li>
+      <li><a href="#avisos">Avisos (notificaciones)</a></li>
+      <li><a href="#magnitud">Escala de magnitud y marcadores</a></li>
+      <li><a href="#teclado">Navegación con teclado</a></li>
+      <li><a href="#comportamiento">Comportamiento y especificación</a></li>
+      <li><a href="#cobertura">Cobertura de historias E2, E3 y E4</a></li>
+    </ol>
+  </nav>
+</header>
+
+<!-- =================================================================== -->
+<h2 id="decisiones">1. Decisiones de diseño</h2>
+
+<h3>1.1 Los filtros se aplican al momento, sin botón «Aplicar»</h3>
+<p><strong>Decisión:</strong> cada cambio de país, magnitud o periodo lanza la consulta al servidor de inmediato (con una espera de 400 ms para agrupar clics seguidos). No hay botón «Aplicar».</p>
+<p><strong>Por qué:</strong></p>
+<ol>
+  <li><strong>Son tres controles con valores discretos</strong> (3 casillas y 2 listas de pocas opciones). No hay campos de texto que se tecleen a medias, que es el caso en el que un botón «Aplicar» sí compensa.</li>
+  <li><strong>Estado del sistema visible</strong> (Nielsen 1): con un botón, el usuario podría ver filtros marcados que todavía no se han aplicado, y en una vista «en vivo» no sabría si la lista corresponde a lo que ve en los filtros. Al aplicarse al momento, filtros y resultados siempre coinciden.</li>
+  <li><strong>Menos pasos</strong> para la tarea más frecuente (desmarcar un país o subir la magnitud): un clic en lugar de dos.</li>
+  <li><strong>Las historias lo describen así</strong>: HU-03 «Cuando desmarco Colombia, entonces la página pide los datos sin Colombia»; HU-04 «Cuando la cambio a 3.0, entonces la petición incluye 3.0».</li>
+  <li><strong>Accesible (3.2.2 «Al introducir datos»):</strong> el cambio no altera el contexto: el foco se queda en el control, no hay navegación y el resultado se anuncia en una región de estado («Mostrando 12 sismos»).</li>
+</ol>
+<p><strong>Mitigaciones del coste</strong> (las consultas de 7 y 30 días pueden tardar hasta 10 s, RNF-04):</p>
+<ul>
+  <li>espera de 400 ms tras el último cambio antes de consultar, y la consulta anterior se cancela (<code>AbortController</code>); la suscripción al stream se renueva una sola vez con los filtros finales;</li>
+  <li>los resultados anteriores <strong>siguen visibles</strong> (sin atenuar) con una barra de progreso fina y el estado «Actualizando…»; nunca se vacía la lista mientras carga;</li>
+  <li>si tarda más de 3 s: «Consultando las fuentes. Con 7 o 30 días puede tardar unos segundos.»;</li>
+  <li>con ningún país marcado no se consulta nada (HU-03).</li>
+</ul>
+
+<h3>1.2 Otras decisiones</h3>
+<ul>
+  <li><strong>Panel de 360 px</strong> (antes 340 px) para que los tres países quepan en una fila. Se conserva todo lo demás del <code>index.html</code>: panel a la izquierda, mapa a la derecha, corte móvil en 700 px con el mapa arriba y la lista abajo.</li>
+  <li><strong>Orden del DOM</strong> igual en escritorio y móvil: cabecera → filtros y avisos → lista → pie → mapa. En móvil el mapa se coloca visualmente entre los filtros y la lista con <code>grid-template-areas</code>; el orden de tabulación sigue siendo lógico porque la lista es la vía principal con teclado.</li>
+  <li><strong>Pulso limitado a 3 ciclos (≈ 4,8 s)</strong> al aparecer el sismo, y después un <strong>halo discontinuo estático</strong> mientras tenga menos de 1 h. Hoy el pulso es infinito; así se cumple 2.2.2 (nada se mueve solo más de 5 s) y se mantiene la señal de «última hora» sin movimiento. <em>Requiere el visto bueno del Director porque cambia un comportamiento actual.</em></li>
+  <li><strong>El indicador «en vivo» deja de parpadear</strong> (hoy parpadea sin fin): un punto fijo con forma distinta por estado y texto siempre visible.</li>
+  <li><strong>La lista es un único punto de tabulación</strong> con flechas dentro (tabindex itinerante). Con 30 días puede haber miles de sismos; con un tab por fila, llegar al pie o al mapa sería imposible.</li>
+  <li><strong>Magnitud con punto decimal</strong> («4.2») como en el PRD y en sismología, aunque el español use coma.</li>
+  <li><strong>El botón de tema</strong> dice el modo al que cambia («Modo día» en oscuro). Volver a «seguir al sistema» no se ofrece en la entrega 1 (ver riesgos de la ENTREGA).</li>
+</ul>
+
+<!-- =================================================================== -->
+<h2 id="esc-oscuro">2. Escritorio · modo oscuro · conectado, ventana emergente abierta</h2>
+<div class="lienzo">
+<figure>
+<figcaption>A · 1200 × 720 · tema oscuro · avisos sin activar · sismo de la lista seleccionado y su ventana emergente abierta con el foco en el título</figcaption>
+<div class="marco escritorio t-oscuro">
+  <div class="app app-esc">
+    <header class="cab">
+      <div class="cab-fila">
+        <div class="titulo">Terremotos en vivo</div>
+        <button class="btn btn-sec" type="button" aria-label="Cambiar a modo día"><svg class="ico" aria-hidden="true"><use href="#i-sol"/></svg>Modo día</button>
+      </div>
+      <div class="estado">
+        <span class="ind e-ok"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>En vivo</span>
+        <span>· 9 sismos · actualizado a las 14:20:05</span>
+      </div>
+    </header>
+
+    <section class="fil" aria-label="Filtros y avisos">
+      <div class="sec-titulo">Filtros</div>
+      <fieldset>
+        <legend>Países</legend>
+        <div class="paises">
+          <label class="casilla"><input type="checkbox" checked>España</label>
+          <label class="casilla"><input type="checkbox" checked>Colombia</label>
+          <label class="casilla"><input type="checkbox" checked>Panamá</label>
+        </div>
+        <p class="ayuda">Incluye Canarias, Baleares, Ceuta, Melilla y San Andrés, y hasta 100 km de mar desde la costa.</p>
+      </fieldset>
+      <div class="selects">
+        <div class="campo"><label class="etq" for="a-mag">Magnitud mínima</label>
+          <select class="sel" id="a-mag"><option>2.0 o más</option></select></div>
+        <div class="campo"><label class="etq" for="a-per">Periodo</label>
+          <select class="sel" id="a-per"><option>Últimas 24 h</option></select></div>
+      </div>
+      <div class="avisos">
+        <div class="sec-titulo">Avisos</div>
+        <button class="btn btn-pri" type="button"><svg class="ico" aria-hidden="true"><use href="#i-campana"/></svg>Activar avisos</button>
+        <p class="ayuda">Te avisaremos de los sismos nuevos de magnitud 4.5 o más en los países marcados, aunque esta pestaña esté en segundo plano. Déjala abierta.</p>
+      </div>
+    </section>
+
+    <section class="lis" aria-label="Sismos">
+      <div class="lista-cab"><span class="h">Sismos (9)</span><small>Más recientes primero</small></div>
+      <ul class="lista">
+        <li><button class="item sel" type="button"><span class="insignia b4"><span class="vh">Magnitud </span>5.2</span><span class="info"><span class="lugar">Golfo de Chiriquí</span><span class="meta">Panamá · 18 km de profundidad</span><span class="meta">hace 6 min · 07:14 (hora de Panamá)</span></span><span class="chip">Nuevo</span></button></li>
+        <li><button class="item" type="button"><span class="insignia b2"><span class="vh">Magnitud </span>3.1</span><span class="info"><span class="lugar">Santa Fe, Granada</span><span class="meta">España · 9 km de profundidad</span><span class="meta">hace 23 min · 13:57 (hora peninsular)</span></span></button></li>
+        <li><button class="item hover" type="button"><span class="insignia b3"><span class="vh">Magnitud </span>4.2</span><span class="info"><span class="lugar">Golfo de Urabá</span><span class="meta">Colombia · 12 km de profundidad</span><span class="meta">hace 48 min · 06:32 (hora de Colombia)</span></span><span class="chip chip-rev">Revisado</span></button></li>
+        <li><button class="item" type="button"><span class="insignia b1"><span class="vh">Magnitud </span>2.7</span><span class="info"><span class="lugar">Atlántico, norte de Tenerife</span><span class="meta">España · 14 km de profundidad</span><span class="meta">hace 1 h 35 min · 11:45 (hora de Canarias)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b4"><span class="vh">Magnitud </span>4.8</span><span class="info"><span class="lugar">Los Santos, Santander</span><span class="meta">Colombia · 147 km de profundidad</span><span class="meta">hace 3 h 10 min · 04:10 (hora de Colombia)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b1"><span class="vh">Magnitud </span>2.4</span><span class="info"><span class="lugar">Lorca, Murcia</span><span class="meta">España · 6 km de profundidad</span><span class="meta">hace 5 h 2 min · 09:18 (hora peninsular)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b4"><span class="vh">Magnitud </span>4.6</span><span class="info"><span class="lugar">Mar de Alborán</span><span class="meta">España · 10 km de profundidad</span><span class="meta">hace 9 h 40 min · 04:40 (hora peninsular)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b5"><span class="vh">Magnitud </span>6.1</span><span class="info"><span class="lugar">Sur de Panamá</span><span class="meta">Panamá · 10 km de profundidad</span><span class="meta">hace 18 h · 13:20 (hora de Panamá)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b2"><span class="vh">Magnitud </span>3.3</span><span class="info"><span class="lugar">Costa de Nariño</span><span class="meta">Colombia · 25 km de profundidad</span><span class="meta">hace 21 h 5 min · 10:15 (hora de Colombia)</span></span></button></li>
+      </ul>
+    </section>
+
+    <footer class="pie">
+      <p class="aviso-ppal"><svg class="ico ico-s" aria-hidden="true" style="margin-top:1px"><use href="#i-triangulo"/></svg><span>Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales oficiales de tu país.</span></p>
+      <p>Datos: EMSC / seismicportal.eu (CC BY 4.0) y U.S. Geological Survey (USGS). Mapa: Esri.</p>
+      <p>Canales oficiales: <a href="#">IGN y 112 (España)</a> · <a href="#">SGC y UNGRD (Colombia)</a> · <a href="#">SINAPROC (Panamá)</a></p>
+    </footer>
+
+    <div class="mapa" role="region" aria-label="Mapa de sismos (simulado)">
+      <svg class="base" viewBox="60 30 760 560" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <use href="#tierra" width="900" height="600"/>
+        <use href="#marcadores" width="900" height="600"/>
+      </svg>
+      <div class="zoom" aria-hidden="true"><span title="Acercar">+</span><span title="Alejar">−</span></div>
+      <div class="leyenda">
+        <b>Magnitud</b>
+        <ul>
+          <li><svg aria-hidden="true"><use href="#ley-1"/></svg>Menos de 3.0</li>
+          <li><svg aria-hidden="true"><use href="#ley-2"/></svg>3.0 a 3.9</li>
+          <li><svg aria-hidden="true"><use href="#ley-3"/></svg>4.0 a 4.4</li>
+          <li><svg aria-hidden="true"><use href="#ley-4"/></svg>4.5 a 5.9</li>
+          <li><svg aria-hidden="true"><use href="#ley-5"/></svg>6.0 o más</li>
+          <li><svg aria-hidden="true"><use href="#ley-halo"/></svg>Anillo discontinuo: última hora</li>
+        </ul>
+      </div>
+      <div class="popup" style="left:48px;bottom:253px">
+        <div class="p-tit foco" tabindex="-1"><span class="insignia b4" style="width:auto;padding:0 6px;font-size:1rem">5.2</span><span>M 5.2 · Golfo de Chiriquí</span></div>
+        <span class="cerrar" role="img" aria-label="Cerrar">×</span>
+        <div>Panamá</div>
+        <dl>
+          <dt>Hora local</dt><dd>10/10/2026 07:14:38 (hora de Panamá)<br>hace 6 min</dd>
+          <dt>Profundidad</dt><dd>18 km</dd>
+          <dt>Coordenadas</dt><dd>7.20, -82.50</dd>
+        </dl>
+        <div class="enlaces">
+          <a href="#">Más info en EMSC<svg class="ico ico-s" aria-hidden="true"><use href="#i-externo"/></svg><span class="vh"> (se abre en otra pestaña)</span></a>
+          <a href="#">Más info en USGS<svg class="ico ico-s" aria-hidden="true"><use href="#i-externo"/></svg><span class="vh"> (se abre en otra pestaña)</span></a>
+        </div>
+      </div>
+      <div class="atrib">Leaflet · Teselas © Esri — Esri, HERE, Garmin, © colaboradores de OpenStreetMap</div>
+    </div>
+  </div>
+  <span class="n" style="left:240px;top:14px">1</span>
+  <span class="n" style="left:10px;top:44px">2</span>
+  <span class="n" style="left:330px;top:120px">3</span>
+  <span class="n" style="left:330px;top:248px">4</span>
+  <span class="n" style="left:330px;top:300px">5</span>
+  <span class="n" style="left:6px;top:420px">6</span>
+  <span class="n" style="left:330px;top:640px">7</span>
+  <span class="n" style="left:400px;top:224px">8</span>
+  <span class="n" style="left:376px;top:520px">9</span>
+  <span class="n" style="left:1100px;top:694px">10</span>
+</div>
+</figure>
+</div>
+<ol class="notas">
+  <li><strong>Botón de tema</strong>: texto visible «Modo día» + icono; nombre accesible «Cambiar a modo día». En modo día: «Modo oscuro» con icono de luna.</li>
+  <li><strong>Indicador «en vivo»</strong>: punto fijo (no parpadea) + «En vivo» en verde + contador + hora del equipo. Solo «En vivo» está en <code>role="status"</code>. Los demás estados en la <a href="#vivo">sección 6</a>.</li>
+  <li><strong>Países</strong>: <code>fieldset</code> + <code>legend</code>, casillas nativas con la etiqueta pulsable. Los tres marcados por defecto. Ayuda enlazada con <code>aria-describedby</code>.</li>
+  <li><strong>Magnitud mínima y periodo</strong>: <code>select</code> nativos con etiqueta visible. Valores por defecto 2.0 y «Últimas 24 h». Se aplican al momento (§1.1). «Restablecer filtros» aparece aquí solo si algo difiere del valor por defecto.</li>
+  <li><strong>Avisos, estado inicial</strong>: el permiso no se pide al cargar. El botón primario es el único de la pantalla.</li>
+  <li><strong>Elemento seleccionado</strong>: fondo <code>--color-seleccion</code> + barra izquierda de 4 px (no solo color) + <code>aria-current="true"</code>. «Nuevo» marca los llegados en esta sesión durante 10 min; «Revisado», los que cambiaron de magnitud. El tercer elemento muestra el estado <em>hover</em>.</li>
+  <li><strong>Pie siempre visible</strong>: aviso «Solo informativo…» (texto principal, con icono SVG en lugar del emoji actual), atribución de datos y enlaces a canales oficiales.</li>
+  <li><strong>Ventana emergente</strong>: al activar un elemento de la lista con teclado, el mapa vuela al sismo, se abre la ventana y <strong>el foco pasa a su título</strong> (<code>tabindex="-1"</code>). <kbd>Esc</kbd> la cierra y devuelve el foco al elemento. Con ratón sobre un marcador, no se mueve el foco.</li>
+  <li><strong>Leyenda</strong> abajo a la izquierda: tamaño + color + grosor de borde por banda, y el halo de «última hora». Puede plegarse con un botón «Leyenda».</li>
+  <li><strong>Atribución de Esri</strong> en el control del mapa, con fondo opaco <code>--color-superficie</code> (no el blanco translúcido por defecto de Leaflet). Zoom con títulos «Acercar» y «Alejar».</li>
+</ol>
+
+<!-- =================================================================== -->
+<h2 id="esc-dia">3. Escritorio · modo día · avisos activados y una fuente caída</h2>
+<div class="lienzo">
+<figure>
+<figcaption>B · 1200 × 720 · tema día · avisos activados · «USGS no disponible» · elemento revisado seleccionado · foco en «Avisar desde»</figcaption>
+<div class="marco escritorio t-dia">
+  <div class="app app-esc">
+    <header class="cab">
+      <div class="cab-fila">
+        <div class="titulo">Terremotos en vivo</div>
+        <button class="btn btn-sec" type="button" aria-label="Cambiar a modo oscuro"><svg class="ico" aria-hidden="true"><use href="#i-luna"/></svg>Modo oscuro</button>
+      </div>
+      <div class="estado">
+        <span class="ind e-ok"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>En vivo</span>
+        <span>· 9 sismos · actualizado a las 14:20:05</span>
+      </div>
+      <div class="linea-fuente"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg>USGS no disponible</div>
+    </header>
+
+    <section class="fil" aria-label="Filtros y avisos">
+      <div class="sec-titulo">Filtros</div>
+      <fieldset>
+        <legend>Países</legend>
+        <div class="paises">
+          <label class="casilla"><input type="checkbox" checked>España</label>
+          <label class="casilla"><input type="checkbox" checked>Colombia</label>
+          <label class="casilla"><input type="checkbox" checked>Panamá</label>
+        </div>
+        <p class="ayuda">Incluye Canarias, Baleares, Ceuta, Melilla y San Andrés, y hasta 100 km de mar desde la costa.</p>
+      </fieldset>
+      <div class="selects">
+        <div class="campo"><label class="etq" for="b-mag">Magnitud mínima</label>
+          <select class="sel" id="b-mag"><option>2.0 o más</option></select></div>
+        <div class="campo"><label class="etq" for="b-per">Periodo</label>
+          <select class="sel" id="b-per"><option>Últimas 24 h</option></select></div>
+      </div>
+      <div class="avisos">
+        <div class="sec-titulo">Avisos</div>
+        <div class="avisos-fila" style="justify-content:space-between">
+          <span class="avisos-estado" style="color:var(--color-exito)"><svg class="ico" aria-hidden="true"><use href="#i-campana-ok"/></svg>Avisos activados</span>
+          <button class="btn-texto" type="button">Probar aviso</button>
+        </div>
+        <div class="avisos-fila" style="margin-top:6px;align-items:flex-end">
+          <div class="campo" style="flex:1"><label class="etq" for="b-umb">Avisar desde</label>
+            <select class="sel foco" id="b-umb"><option>4.5 o más</option></select></div>
+          <button class="btn btn-sec" type="button">Desactivar avisos</button>
+        </div>
+        <p class="ayuda">Solo sismos nuevos en los países marcados. Funciona mientras esta pestaña esté abierta.</p>
+      </div>
+    </section>
+
+    <section class="lis" aria-label="Sismos">
+      <div class="lista-cab"><span class="h">Sismos (9)</span><small>Más recientes primero</small></div>
+      <ul class="lista">
+        <li><button class="item" type="button"><span class="insignia b4"><span class="vh">Magnitud </span>5.2</span><span class="info"><span class="lugar">Golfo de Chiriquí</span><span class="meta">Panamá · 18 km de profundidad</span><span class="meta">hace 6 min · 07:14 (hora de Panamá)</span></span><span class="chip">Nuevo</span></button></li>
+        <li><button class="item" type="button"><span class="insignia b2"><span class="vh">Magnitud </span>3.1</span><span class="info"><span class="lugar">Santa Fe, Granada</span><span class="meta">España · 9 km de profundidad</span><span class="meta">hace 23 min · 13:57 (hora peninsular)</span></span></button></li>
+        <li><button class="item sel" type="button"><span class="insignia b3"><span class="vh">Magnitud </span>4.2</span><span class="info"><span class="lugar">Golfo de Urabá</span><span class="meta">Colombia · 12 km de profundidad</span><span class="meta">hace 48 min · 06:32 (hora de Colombia)</span></span><span class="chip chip-rev">Revisado</span></button></li>
+        <li><button class="item" type="button"><span class="insignia b1"><span class="vh">Magnitud </span>2.7</span><span class="info"><span class="lugar">Atlántico, norte de Tenerife</span><span class="meta">España · 14 km de profundidad</span><span class="meta">hace 1 h 35 min · 11:45 (hora de Canarias)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b4"><span class="vh">Magnitud </span>4.8</span><span class="info"><span class="lugar">Los Santos, Santander</span><span class="meta">Colombia · 147 km de profundidad</span><span class="meta">hace 3 h 10 min · 04:10 (hora de Colombia)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b1"><span class="vh">Magnitud </span>2.4</span><span class="info"><span class="lugar">Lorca, Murcia</span><span class="meta">España · 6 km de profundidad</span><span class="meta">hace 5 h 2 min · 09:18 (hora peninsular)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b4"><span class="vh">Magnitud </span>4.6</span><span class="info"><span class="lugar">Mar de Alborán</span><span class="meta">España · 10 km de profundidad</span><span class="meta">hace 9 h 40 min · 04:40 (hora peninsular)</span></span></button></li>
+      </ul>
+    </section>
+
+    <footer class="pie">
+      <p class="aviso-ppal"><svg class="ico ico-s" aria-hidden="true" style="margin-top:1px"><use href="#i-triangulo"/></svg><span>Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales oficiales de tu país.</span></p>
+      <p>Datos: EMSC / seismicportal.eu (CC BY 4.0) y U.S. Geological Survey (USGS). Mapa: Esri.</p>
+      <p>Canales oficiales: <a href="#">IGN y 112 (España)</a> · <a href="#">SGC y UNGRD (Colombia)</a> · <a href="#">SINAPROC (Panamá)</a></p>
+    </footer>
+
+    <div class="mapa" role="region" aria-label="Mapa de sismos (simulado)">
+      <svg class="base" viewBox="60 30 760 560" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <use href="#tierra" width="900" height="600"/>
+        <use href="#marcadores" width="900" height="600"/>
+      </svg>
+      <div class="zoom" aria-hidden="true"><span title="Acercar">+</span><span title="Alejar">−</span></div>
+      <button class="btn btn-sec btn-leyenda" type="button" aria-expanded="false" style="background:var(--color-superficie)">Leyenda<svg class="ico ico-s" aria-hidden="true"><use href="#i-abajo"/></svg></button>
+      <div class="popup" style="left:95px;bottom:262px">
+        <div class="p-tit" tabindex="-1"><span class="insignia b3" style="width:auto;padding:0 6px;font-size:1rem">4.2</span><span>M 4.2 · Golfo de Urabá</span></div>
+        <span class="cerrar" role="img" aria-label="Cerrar">×</span>
+        <div>Colombia</div>
+        <dl>
+          <dt>Hora local</dt><dd>10/10/2026 06:32:10 (hora de Colombia)<br>hace 48 min</dd>
+          <dt>Profundidad</dt><dd>12 km</dd>
+          <dt>Coordenadas</dt><dd>8.31, -76.95</dd>
+        </dl>
+        <p class="rev">Magnitud revisada: antes 3.8</p>
+        <div class="enlaces">
+          <a href="#">Más info en EMSC<svg class="ico ico-s" aria-hidden="true"><use href="#i-externo"/></svg><span class="vh"> (se abre en otra pestaña)</span></a>
+        </div>
+      </div>
+      <div class="atrib">Leaflet · Teselas © Esri — Esri, HERE, Garmin, © colaboradores de OpenStreetMap</div>
+    </div>
+  </div>
+  <span class="n" style="left:150px;top:78px">1</span>
+  <span class="n" style="left:330px;top:300px">2</span>
+  <span class="n" style="left:330px;top:356px">3</span>
+  <span class="n" style="left:1150px;top:56px">4</span>
+  <span class="n" style="left:380px;top:430px">5</span>
+</div>
+</figure>
+</div>
+<ol class="notas">
+  <li><strong>Fuente caída</strong>: segunda línea del estado, en color de aviso + icono de triángulo + texto «USGS no disponible» (PRD HU-02). Los sismos de las demás fuentes siguen llegando; el estado principal sigue siendo «En vivo».</li>
+  <li><strong>Avisos activados</strong>: estado con icono (campana con marca) y texto, en verde. «Probar aviso» envía la notificación de prueba.</li>
+  <li><strong>Umbral</strong>: <code>select</code> «Avisar desde» (4.0 a 6.0; por defecto 4.5). Se guarda y se aplica a los sismos que lleguen después (HU-10). «Desactivar avisos» deja de notificar sin tocar el permiso del navegador. Foco simulado en el <code>select</code>.</li>
+  <li><strong>Leyenda plegada</strong> con su botón (<code>aria-expanded</code>): estado alternativo al marco A. Las teselas son las de Esri Light Gray.</li>
+  <li><strong>Ventana emergente de un sismo revisado</strong>: «Magnitud revisada: antes 3.8». Solo un enlace porque solo una fuente lo tiene.</li>
+</ol>
+
+<!-- =================================================================== -->
+<h2 id="movil">4. Móvil (&lt; 700 px) · 360 × 740</h2>
+<p>Mapa arriba y lista abajo, como hoy. Los filtros y los avisos se pliegan tras un botón con el resumen de los filtros activos. El pie con el aviso queda fijo abajo. Todos los objetivos táctiles miden 44 px o más.</p>
+<div class="lienzo">
+<div class="fila-marcos">
+
+<figure>
+<figcaption>C · oscuro · filtros plegados</figcaption>
+<div class="marco movil t-oscuro">
+  <div class="app app-mov">
+    <header class="cab">
+      <div class="cab-fila">
+        <div class="titulo">Terremotos en vivo</div>
+        <button class="btn btn-sec" type="button" aria-label="Cambiar a modo día"><svg class="ico" aria-hidden="true"><use href="#i-sol"/></svg>Modo día</button>
+      </div>
+      <div class="estado"><span class="ind e-ok"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>En vivo</span><span>· 9 sismos · 14:20:05</span></div>
+    </header>
+    <section class="fil">
+      <button class="btn-filtros" type="button" aria-expanded="false"><span class="t"><b>Filtros y avisos</b><small>3 países · 2.0 o más · Últimas 24 h</small></span><svg class="ico" aria-hidden="true"><use href="#i-abajo"/></svg></button>
+    </section>
+    <section class="lis">
+      <div class="lista-cab"><span class="h">Sismos (9)</span><small>Más recientes primero</small></div>
+      <ul class="lista">
+        <li><button class="item" type="button"><span class="insignia b4"><span class="vh">Magnitud </span>5.2</span><span class="info"><span class="lugar">Golfo de Chiriquí</span><span class="meta">Panamá · 18 km de profundidad</span><span class="meta">hace 6 min · 07:14 (hora de Panamá)</span></span><span class="chip">Nuevo</span></button></li>
+        <li><button class="item" type="button"><span class="insignia b2"><span class="vh">Magnitud </span>3.1</span><span class="info"><span class="lugar">Santa Fe, Granada</span><span class="meta">España · 9 km de profundidad</span><span class="meta">hace 23 min · 13:57 (hora peninsular)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b3"><span class="vh">Magnitud </span>4.2</span><span class="info"><span class="lugar">Golfo de Urabá</span><span class="meta">Colombia · 12 km de profundidad</span><span class="meta">hace 48 min · 06:32 (hora de Colombia)</span></span></button></li>
+      </ul>
+    </section>
+    <footer class="pie">
+      <p class="aviso-ppal"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg><span>Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales oficiales de tu país.</span></p>
+      <p>Datos: EMSC (CC BY 4.0) y USGS. Mapa: Esri. <button class="btn-texto" type="button" aria-expanded="false" style="font-size:inherit;min-height:24px">Fuentes y canales oficiales</button></p>
+    </footer>
+    <div class="mapa">
+      <svg class="base" viewBox="60 30 760 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <use href="#tierra" width="900" height="600"/>
+        <use href="#marcadores" width="900" height="600"/>
+      </svg>
+      <div class="zoom" aria-hidden="true"><span>+</span><span>−</span></div>
+      <button class="btn btn-sec btn-leyenda" type="button" aria-expanded="false">Leyenda</button>
+      <div class="atrib">© Esri</div>
+    </div>
+  </div>
+  <span class="n" style="left:300px;top:96px">1</span>
+  <span class="n" style="left:10px;top:368px">2</span>
+  <span class="n" style="left:330px;top:676px">3</span>
+</div>
+</figure>
+
+<figure>
+<figcaption>D · día · filtros y avisos desplegados</figcaption>
+<div class="marco movil t-dia">
+  <div class="app app-mov desplegado">
+    <header class="cab">
+      <div class="cab-fila">
+        <div class="titulo">Terremotos en vivo</div>
+        <button class="btn btn-sec" type="button" aria-label="Cambiar a modo oscuro"><svg class="ico" aria-hidden="true"><use href="#i-luna"/></svg>Modo oscuro</button>
+      </div>
+      <div class="estado"><span class="ind"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg><span class="e-neutro">Actualizando…</span></span><span>· 9 sismos</span></div>
+    </header>
+    <section class="fil">
+      <button class="btn-filtros" type="button" aria-expanded="true"><span class="t"><b>Filtros y avisos</b><small>España y Colombia · 3.0 o más · 7 días</small></span><svg class="ico" aria-hidden="true"><use href="#i-arriba"/></svg></button>
+      <div class="panel-fil">
+        <fieldset>
+          <legend>Países</legend>
+          <div class="paises">
+            <label class="casilla"><input type="checkbox" checked>España</label>
+            <label class="casilla"><input type="checkbox" checked>Colombia</label>
+            <label class="casilla foco" style="border-radius:4px"><input type="checkbox">Panamá</label>
+          </div>
+          <p class="ayuda">Incluye Canarias, Baleares, Ceuta, Melilla y San Andrés, y hasta 100 km de mar desde la costa.</p>
+        </fieldset>
+        <div class="selects">
+          <div class="campo"><label class="etq" for="d-mag">Magnitud mínima</label><select class="sel" id="d-mag"><option>3.0 o más</option></select></div>
+          <div class="campo"><label class="etq" for="d-per">Periodo</label><select class="sel" id="d-per"><option>7 días</option></select></div>
+        </div>
+        <p style="margin:8px 0 0"><button class="btn-texto" type="button">Restablecer filtros</button></p>
+        <div class="avisos">
+          <div class="sec-titulo">Avisos</div>
+          <p class="avisos-estado" style="color:var(--color-error);margin:0"><svg class="ico" aria-hidden="true"><use href="#i-campana-off"/></svg>Avisos bloqueados en el navegador</p>
+          <p class="ayuda">Para recibirlos, pulsa el icono que hay a la izquierda de la dirección (candado o ajustes), busca «Notificaciones», elige «Permitir» y pulsa «Comprobar de nuevo». El resto de la aplicación funciona igual.</p>
+          <button class="btn btn-sec" type="button" style="margin-top:8px">Comprobar de nuevo</button>
+        </div>
+        <button class="btn btn-pri" type="button" style="width:100%;margin-top:14px">Ver 9 sismos</button>
+      </div>
+    </section>
+    <section class="lis"><div class="lista-cab"><span class="h">Sismos (9)</span></div></section>
+    <footer class="pie">
+      <p class="aviso-ppal"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg><span>Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales oficiales de tu país.</span></p>
+      <p>Datos: EMSC (CC BY 4.0) y USGS. Mapa: Esri. <button class="btn-texto" type="button" aria-expanded="false" style="font-size:inherit">Fuentes y canales oficiales</button></p>
+    </footer>
+    <div class="mapa"></div>
+  </div>
+  <span class="n" style="left:200px;top:100px">4</span>
+  <span class="n" style="left:330px;top:196px">5</span>
+  <span class="n" style="left:330px;top:432px">6</span>
+  <span class="n" style="left:330px;top:612px">7</span>
+</div>
+</figure>
+
+<figure>
+<figcaption>E · oscuro · sin conexión con el servidor · ventana emergente abierta</figcaption>
+<div class="marco movil t-oscuro">
+  <div class="app app-mov">
+    <header class="cab">
+      <div class="cab-fila">
+        <div class="titulo">Terremotos en vivo</div>
+        <button class="btn btn-sec" type="button" aria-label="Cambiar a modo día"><svg class="ico" aria-hidden="true"><use href="#i-sol"/></svg>Modo día</button>
+      </div>
+      <div class="estado"><span class="ind e-error"><svg class="ico ico-s" aria-hidden="true"><use href="#i-sin-conexion"/></svg>Sin conexión con el servidor local. Reintentando…</span><span>· último dato a las 14:20:05</span></div>
+    </header>
+    <section class="fil">
+      <button class="btn-filtros" type="button" aria-expanded="false"><span class="t"><b>Filtros y avisos</b><small>3 países · 2.0 o más · Últimas 24 h</small></span><svg class="ico" aria-hidden="true"><use href="#i-abajo"/></svg></button>
+    </section>
+    <section class="lis">
+      <div class="lista-cab"><span class="h">Sismos (9)</span><small>Más recientes primero</small></div>
+      <ul class="lista">
+        <li><button class="item" type="button"><span class="insignia b4"><span class="vh">Magnitud </span>5.2</span><span class="info"><span class="lugar">Golfo de Chiriquí</span><span class="meta">Panamá · 18 km de profundidad</span><span class="meta">hace 7 min · 07:14 (hora de Panamá)</span></span></button></li>
+        <li><button class="item" type="button"><span class="insignia b2"><span class="vh">Magnitud </span>3.1</span><span class="info"><span class="lugar">Santa Fe, Granada</span><span class="meta">España · 9 km de profundidad</span><span class="meta">hace 24 min · 13:57 (hora peninsular)</span></span></button></li>
+        <li><button class="item sel" type="button"><span class="insignia b3"><span class="vh">Magnitud </span>4.2</span><span class="info"><span class="lugar">Golfo de Urabá</span><span class="meta">Colombia · 12 km de profundidad</span><span class="meta">hace 49 min · 06:32 (hora de Colombia)</span></span></button></li>
+      </ul>
+    </section>
+    <footer class="pie">
+      <p class="aviso-ppal"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg><span>Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales oficiales de tu país.</span></p>
+      <p>Datos: EMSC (CC BY 4.0) y USGS. Mapa: Esri. <button class="btn-texto" type="button" aria-expanded="false" style="font-size:inherit">Fuentes y canales oficiales</button></p>
+    </footer>
+    <div class="mapa">
+      <!-- Vista ampliada sobre Colombia y Panamá (tras pulsar el sismo). Los radios se dividen entre la escala para conservar el tamaño en píxeles. -->
+      <svg class="base" viewBox="100 370 120 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <use href="#tierra" width="900" height="600"/>
+        <g style="stroke:var(--marcador-borde)">
+          <circle cx="150" cy="440" r="5.5" style="fill:var(--mag-5);fill-opacity:.75;stroke-width:1"/>
+          <circle cx="202.5" cy="432" r="4.3" style="fill:var(--mag-4);fill-opacity:.75;stroke-width:.7"/>
+          <circle cx="131" cy="428" r="4.7" style="fill:var(--mag-4);fill-opacity:.75;stroke-width:.7"/>
+          <circle cx="131" cy="428" r="6.4" style="fill:none;stroke-width:.5;stroke-dasharray:1 1"/>
+          <circle cx="173" cy="417" r="3.8" style="fill:var(--mag-3);fill-opacity:.75;stroke-width:.35"/>
+          <circle cx="173" cy="417" r="5.5" style="fill:none;stroke-width:.5;stroke-dasharray:1 1"/>
+        </g>
+      </svg>
+      <div class="zoom" aria-hidden="true"><span>+</span><span>−</span></div>
+      <div class="popup" style="left:62px;top:14px">
+        <div class="p-tit foco" tabindex="-1" style="font-size:1rem">M 4.2 · Golfo de Urabá</div>
+        <span class="cerrar" role="img" aria-label="Cerrar" style="width:44px;height:44px;top:0;right:0">×</span>
+        <div>Colombia</div>
+        <dl>
+          <dt>Hora local</dt><dd>10/10/2026 06:32:10 (hora de Colombia) · hace 49 min</dd>
+          <dt>Profundidad</dt><dd>12 km</dd>
+          <dt>Coordenadas</dt><dd>8.31, -76.95</dd>
+        </dl>
+        <div class="enlaces"><a href="#">Más info en EMSC<svg class="ico ico-s" aria-hidden="true"><use href="#i-externo"/></svg></a></div>
+      </div>
+      <div class="atrib">© Esri</div>
+    </div>
+  </div>
+  <span class="n" style="left:330px;top:60px">8</span>
+  <span class="n" style="left:330px;top:200px">9</span>
+</div>
+</figure>
+
+</div>
+</div>
+<ol class="notas">
+  <li>Cabecera compacta: título, botón de tema (44 px de alto) y estado. En móvil el estado omite «actualizado a las» y deja solo la hora.</li>
+  <li>El mapa ocupa unos 300 px (≈ 40 % del alto) entre los filtros y la lista. La lista se desplaza dentro de su zona.</li>
+  <li>Pie fijo abajo con el aviso y la atribución de datos siempre visibles. Los enlaces a canales oficiales y la nota de hora van tras «Fuentes y canales oficiales».</li>
+  <li><strong>«Filtros y avisos»</strong>: botón con <code>aria-expanded</code> que despliega el panel en el flujo (empuja el contenido, no es modal ni atrapa el foco). Su segunda línea resume los filtros activos y se actualiza al momento. <kbd>Esc</kbd> lo pliega y devuelve el foco al botón.</li>
+  <li>Cada casilla ocupa una fila táctil de 44 px; los <code>select</code> usan 16 px de texto para que el móvil no haga zoom al enfocarlos. Foco simulado en «Panamá» tras desmarcarlo.</li>
+  <li>Estado <strong>«Avisos bloqueados en el navegador»</strong> con instrucciones y «Comprobar de nuevo» (PRD HU-10). El resto de la aplicación funciona igual.</li>
+  <li>«Ver 9 sismos» pliega el panel y lleva el foco a la lista; el número se actualiza con el resultado de la consulta. Los filtros ya se han aplicado antes de pulsarlo: el botón solo cierra.</li>
+  <li><strong>Sin conexión</strong>: «Sin conexión con el servidor local. Reintentando…» en color de error, con icono de círculo tachado. La lista y el mapa conservan los últimos datos (HU-02); los «hace X min» siguen avanzando.</li>
+  <li>Ventana emergente compacta (250 px) dentro del mapa con el botón «Cerrar» de 44 × 44 px. El mapa se desplaza a la vista si estaba fuera de pantalla.</li>
+</ol>
+
+<!-- =================================================================== -->
+<h2 id="estados-lista">5. Estados de la lista</h2>
+<p>Se muestran en el tema que mejor ilustra cada caso; todos existen en los dos temas con los mismos tokens.</p>
+<div class="rejilla-estados">
+
+<figure><figcaption>Cargando (primera carga) · oscuro</figcaption>
+<div class="panel-suelto t-oscuro" aria-busy="true">
+  <div class="cab"><div class="estado" style="margin:0"><span class="ind e-neutro"><svg class="ico ico-s" aria-hidden="true"><use href="#i-cargando"/></svg>Cargando sismos…</span></div></div>
+  <div class="lista-cab"><span class="h">Sismos</span></div>
+  <div class="lista">
+    <div class="skel"><i class="si"></i><span class="sl"><i></i><i></i><i></i></span></div>
+    <div class="skel"><i class="si"></i><span class="sl"><i></i><i></i><i></i></span></div>
+    <div class="skel"><i class="si"></i><span class="sl"><i></i><i></i><i></i></span></div>
+    <div class="skel"><i class="si"></i><span class="sl"><i></i><i></i><i></i></span></div>
+  </div>
+</div>
+<p class="notas" style="padding:0">Skeleton de 6 filas con <code>aria-busy="true"</code> en la lista y texto oculto «Cargando sismos…». El brillo del skeleton se desactiva con movimiento reducido.</p>
+</figure>
+
+<figure><figcaption>Ningún país marcado · día</figcaption>
+<div class="panel-suelto t-dia">
+  <div class="fil" style="border-right:0">
+    <fieldset><legend>Países</legend>
+      <div class="paises"><label class="casilla"><input type="checkbox">España</label><label class="casilla"><input type="checkbox">Colombia</label><label class="casilla"><input type="checkbox">Panamá</label></div>
+      <p class="ayuda ayuda-error">Marca al menos un país para ver sismos.</p>
+    </fieldset>
+  </div>
+  <div class="lista-cab"><span class="h">Sismos (0)</span></div>
+  <div class="vacio"><svg class="ico ico-g" aria-hidden="true"><use href="#i-mapa"/></svg>
+    <p class="v-tit">Selecciona al menos un país</p>
+    <p>Marca España, Colombia o Panamá en Filtros para ver sus sismos.</p></div>
+</div>
+<p class="notas" style="padding:0">No se hace ninguna consulta y el mapa queda sin marcadores (HU-03). El mensaje bajo las casillas va en <code>aria-describedby</code> del <code>fieldset</code>. Estado: «Sin consulta: no hay países marcados».</p>
+</figure>
+
+<figure><figcaption>Sin resultados · oscuro</figcaption>
+<div class="panel-suelto t-oscuro">
+  <div class="lista-cab"><span class="h">Sismos (0)</span><small>Más recientes primero</small></div>
+  <div class="vacio"><svg class="ico ico-g" aria-hidden="true"><use href="#i-lupa"/></svg>
+    <p class="v-tit">No hay sismos con estos filtros</p>
+    <p>Prueba a bajar la magnitud mínima o a elegir un periodo más largo.</p>
+    <button class="btn btn-sec" type="button">Restablecer filtros</button></div>
+</div>
+<p class="notas" style="padding:0">PRD HU-04. «Restablecer filtros» solo aparece si algún filtro difiere del valor por defecto. Se anuncia «No hay sismos con estos filtros.»</p>
+</figure>
+
+<figure><figcaption>Error en la carga inicial (sin datos previos) · día</figcaption>
+<div class="panel-suelto t-dia">
+  <div class="cab"><div class="estado" style="margin:0"><span class="ind e-error"><svg class="ico ico-s" aria-hidden="true"><use href="#i-sin-conexion"/></svg>Sin conexión con el servidor local. Reintentando…</span></div></div>
+  <div class="lista-cab"><span class="h">Sismos</span></div>
+  <div class="vacio error"><svg class="ico ico-g" aria-hidden="true"><use href="#i-triangulo"/></svg>
+    <p class="v-tit">No se han podido cargar los sismos</p>
+    <p>El servidor local no responde. Comprueba que sigue en marcha (npm start). Volveremos a intentarlo en 10 s.</p>
+    <button class="btn btn-pri" type="button">Reintentar ahora</button></div>
+</div>
+<p class="notas" style="padding:0">Reintento automático con espera creciente (primer reintento ≤ 5 s, máximo 60 s, RNF-06); la cuenta atrás se actualiza sin anunciarse.</p>
+</figure>
+
+<figure><figcaption>Actualizando tras cambiar filtros · día</figcaption>
+<div class="panel-suelto t-dia">
+  <div class="cab"><div class="estado" style="margin:0"><span class="ind e-neutro"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>Actualizando…</span><span>· 9 sismos</span></div></div>
+  <div class="lista-cab"><span class="h">Sismos (9)</span><small>Más recientes primero</small></div>
+  <div class="progreso" role="presentation"></div>
+  <div class="caja-aviso neutro"><span>Consultando las fuentes. Con 7 o 30 días puede tardar unos segundos.</span></div>
+  <ul class="lista" aria-busy="true">
+    <li><button class="item" type="button"><span class="insignia b4">5.2</span><span class="info"><span class="lugar">Golfo de Chiriquí</span><span class="meta">Panamá · 18 km de profundidad</span></span></button></li>
+    <li><button class="item" type="button"><span class="insignia b2">3.1</span><span class="info"><span class="lugar">Santa Fe, Granada</span><span class="meta">España · 9 km de profundidad</span></span></button></li>
+  </ul>
+</div>
+<p class="notas" style="padding:0">La lista anterior se mantiene <strong>sin atenuar</strong> (atenuarla rompería el contraste). La barra de progreso es decorativa; el texto es el que informa. La caja aparece si tarda más de 3 s.</p>
+</figure>
+
+<figure><figcaption>Error al aplicar filtros (con datos previos) · oscuro</figcaption>
+<div class="panel-suelto t-oscuro">
+  <div class="lista-cab"><span class="h">Sismos (9)</span><small>Más recientes primero</small></div>
+  <div class="caja-aviso error"><svg class="ico ico-s" aria-hidden="true" style="margin-top:3px"><use href="#i-triangulo"/></svg><span>No se han podido aplicar los filtros. Se muestran los resultados anteriores. Volveremos a intentarlo en 10 s. <button class="btn-texto" type="button">Reintentar ahora</button></span></div>
+  <ul class="lista">
+    <li><button class="item" type="button"><span class="insignia b4">5.2</span><span class="info"><span class="lugar">Golfo de Chiriquí</span><span class="meta">Panamá · 18 km de profundidad</span></span></button></li>
+  </ul>
+</div>
+<p class="notas" style="padding:0">Los datos visibles no cumplen los filtros nuevos: la caja lo dice explícitamente para no inducir a error (Nielsen 1 y 9).</p>
+</figure>
+
+<figure><figcaption>Todas las fuentes caídas (con datos) · día</figcaption>
+<div class="panel-suelto t-dia">
+  <div class="cab"><div class="estado" style="margin:0"><span class="ind e-ok"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>En vivo</span><span>· 9 sismos · actualizado a las 14:20:05</span></div>
+    <div class="linea-fuente"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg>Las fuentes de datos no responden. Se muestran los últimos sismos recibidos.</div></div>
+  <div class="lista-cab"><span class="h">Sismos (9)</span><small>Más recientes primero</small></div>
+  <ul class="lista"><li><button class="item" type="button"><span class="insignia b4">5.2</span><span class="info"><span class="lugar">Golfo de Chiriquí</span><span class="meta">Panamá · 18 km de profundidad</span></span></button></li></ul>
+</div>
+<p class="notas" style="padding:0">HU-02: la conexión con el servidor local está bien («En vivo»), pero ninguna fuente responde desde hace 2 min. La página no se vacía.</p>
+</figure>
+
+<figure><figcaption>Texto de la fuente con código (se muestra literal) · oscuro</figcaption>
+<div class="panel-suelto t-oscuro">
+  <ul class="lista">
+    <li><button class="item" type="button"><span class="insignia b2"><span class="vh">Magnitud </span>3.4</span><span class="info"><span class="lugar">&lt;img src=x onerror=alert(1)&gt;</span><span class="meta">España · 8 km de profundidad</span><span class="meta">hace 2 min · 14:18 (hora peninsular)</span></span></button></li>
+    <li><button class="item" type="button"><span class="insignia b1"><span class="vh">Magnitud </span>2.1</span><span class="info"><span class="lugar">Lugar sin nombre</span><span class="meta">Colombia · profundidad desconocida</span><span class="meta">hace 15 min · 07:05 (hora de Colombia)</span></span></button></li>
+  </ul>
+</div>
+<p class="notas" style="padding:0">HU-07 / RNF-07: el lugar se inserta con <code>textContent</code> y se ve tal cual, también en la ventana emergente. Segundo elemento: textos de reserva para lugar y profundidad ausentes. Los lugares largos hacen salto de línea (<code>overflow-wrap:anywhere</code>), nunca se cortan con «…».</p>
+</figure>
+
+</div>
+
+<!-- =================================================================== -->
+<h2 id="vivo">6. Indicador «en vivo» · todos los estados</h2>
+<p>Cada estado tiene <strong>forma de icono propia + texto</strong>, no solo color. El icono no parpadea.</p>
+<div class="fila-marcos">
+<div class="panel-suelto t-oscuro" style="padding:10px 16px">
+  <div class="estado"><span class="ind e-neutro"><svg class="ico ico-s" aria-hidden="true"><use href="#i-cargando"/></svg>Cargando sismos…</span></div>
+  <div class="estado"><span class="ind e-ok"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>En vivo</span><span>· 9 sismos · actualizado a las 14:20:05</span></div>
+  <div class="estado"><span class="ind e-neutro"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>Actualizando…</span><span>· 9 sismos</span></div>
+  <div class="estado"><span class="ind e-aviso"><svg class="ico ico-s" aria-hidden="true"><use href="#i-reconectando"/></svg>Reconectando…</span><span>· último dato a las 14:20:05</span></div>
+  <div class="estado"><span class="ind e-error"><svg class="ico ico-s" aria-hidden="true"><use href="#i-sin-conexion"/></svg>Sin conexión con el servidor local. Reintentando…</span><span>· último dato a las 14:20:05</span></div>
+  <div class="estado"><span class="ind e-neutro"><svg class="ico ico-s" aria-hidden="true"><use href="#i-vacio"/></svg>Sin consulta: no hay países marcados</span></div>
+  <div class="linea-fuente"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg>USGS no disponible</div>
+  <div class="linea-fuente"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg>Tiempo real no disponible: los sismos nuevos pueden tardar hasta 1 min.</div>
+</div>
+<div class="panel-suelto t-dia" style="padding:10px 16px">
+  <div class="estado"><span class="ind e-neutro"><svg class="ico ico-s" aria-hidden="true"><use href="#i-cargando"/></svg>Cargando sismos…</span></div>
+  <div class="estado"><span class="ind e-ok"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>En vivo</span><span>· 9 sismos · actualizado a las 14:20:05</span></div>
+  <div class="estado"><span class="ind e-neutro"><svg class="ico ico-s" aria-hidden="true"><use href="#i-ok"/></svg>Actualizando…</span><span>· 9 sismos</span></div>
+  <div class="estado"><span class="ind e-aviso"><svg class="ico ico-s" aria-hidden="true"><use href="#i-reconectando"/></svg>Reconectando…</span><span>· último dato a las 14:20:05</span></div>
+  <div class="estado"><span class="ind e-error"><svg class="ico ico-s" aria-hidden="true"><use href="#i-sin-conexion"/></svg>Sin conexión con el servidor local. Reintentando…</span><span>· último dato a las 14:20:05</span></div>
+  <div class="estado"><span class="ind e-neutro"><svg class="ico ico-s" aria-hidden="true"><use href="#i-vacio"/></svg>Sin consulta: no hay países marcados</span></div>
+  <div class="linea-fuente"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg>USGS no disponible</div>
+  <div class="linea-fuente"><svg class="ico ico-s" aria-hidden="true"><use href="#i-triangulo"/></svg>Tiempo real no disponible: los sismos nuevos pueden tardar hasta 1 min.</div>
+</div>
+</div>
+<table class="spec">
+  <thead><tr><th>Estado</th><th>Cuándo entra</th><th>Cuándo sale</th></tr></thead>
+  <tbody>
+    <tr><td>Cargando sismos…</td><td>Al abrir la página</td><td>Primera respuesta de <code>/api/sismos</code></td></tr>
+    <tr><td>En vivo</td><td>Stream (SSE) abierto y carga hecha</td><td>Error del stream</td></tr>
+    <tr><td>Actualizando…</td><td>Cambio de filtros</td><td>Respuesta de la nueva consulta</td></tr>
+    <tr><td>Reconectando…</td><td>El stream se corta (primeros 10 s)</td><td>Reconecta → «En vivo» · sigue sin conexión a los 10 s → «Sin conexión…»</td></tr>
+    <tr><td>Sin conexión con el servidor local. Reintentando…</td><td>≤ 10 s sin poder reconectar (PRD HU-02)</td><td>Reconexión: recupera lo perdido con <code>Last-Event-ID</code> y vuelve a «En vivo»</td></tr>
+    <tr><td>{Fuente} no disponible</td><td>El servidor informa de una fuente caída (≤ 60 s)</td><td>La fuente vuelve; la línea desaparece sola</td></tr>
+  </tbody>
+</table>
+
+<!-- =================================================================== -->
+<h2 id="avisos">7. Avisos (notificaciones)</h2>
+<p>El permiso se pide <strong>solo</strong> al pulsar «Activar avisos». Umbral por defecto: 4.5 o más (M ≥ 4.5 con la magnitud redondeada, PRD P1), solo países marcados (P4). Diagrama de estados en <a href="textos.md">textos.md §8.1</a>.</p>
+<div class="rejilla-estados">
+  <div class="panel-suelto t-oscuro" style="padding:12px 16px"><div class="sec-titulo">Avisos · inicial</div>
+    <button class="btn btn-pri" type="button"><svg class="ico" aria-hidden="true"><use href="#i-campana"/></svg>Activar avisos</button>
+    <p class="ayuda">Te avisaremos de los sismos nuevos de magnitud 4.5 o más en los países marcados, aunque esta pestaña esté en segundo plano. Déjala abierta.</p></div>
+  <div class="panel-suelto t-oscuro" style="padding:12px 16px"><div class="sec-titulo">Avisos · esperando respuesta</div>
+    <button class="btn btn-pri" type="button" disabled><svg class="ico" aria-hidden="true"><use href="#i-campana"/></svg>Esperando permiso…</button>
+    <p class="ayuda">Responde al mensaje del navegador para continuar.</p></div>
+  <div class="panel-suelto t-oscuro" style="padding:12px 16px"><div class="sec-titulo">Avisos · activados</div>
+    <div class="avisos-fila" style="justify-content:space-between"><span class="avisos-estado" style="color:var(--color-exito)"><svg class="ico" aria-hidden="true"><use href="#i-campana-ok"/></svg>Avisos activados</span><button class="btn-texto" type="button">Probar aviso</button></div>
+    <div class="avisos-fila" style="margin-top:6px;align-items:flex-end"><div class="campo" style="flex:1"><label class="etq" for="av-u">Avisar desde</label><select class="sel" id="av-u"><option>4.5 o más</option></select></div><button class="btn btn-sec" type="button">Desactivar avisos</button></div>
+    <p class="ayuda">Solo sismos nuevos en los países marcados. Funciona mientras esta pestaña esté abierta.</p></div>
+  <div class="panel-suelto t-dia" style="padding:12px 16px"><div class="sec-titulo">Avisos · desactivados por el usuario</div>
+    <p class="avisos-estado" style="margin:0 0 6px;color:var(--color-texto-secundario)"><svg class="ico" aria-hidden="true"><use href="#i-campana-off"/></svg>Avisos desactivados</p>
+    <button class="btn btn-pri" type="button"><svg class="ico" aria-hidden="true"><use href="#i-campana"/></svg>Activar avisos</button>
+    <p class="ayuda">No recibirás avisos hasta que los actives.</p></div>
+  <div class="panel-suelto t-dia" style="padding:12px 16px"><div class="sec-titulo">Avisos · bloqueados</div>
+    <p class="avisos-estado" style="margin:0;color:var(--color-error)"><svg class="ico" aria-hidden="true"><use href="#i-campana-off"/></svg>Avisos bloqueados en el navegador</p>
+    <p class="ayuda">Para recibirlos, pulsa el icono que hay a la izquierda de la dirección (candado o ajustes), busca «Notificaciones», elige «Permitir» y pulsa «Comprobar de nuevo». El resto de la aplicación funciona igual.</p>
+    <button class="btn btn-sec" type="button" style="margin-top:8px">Comprobar de nuevo</button></div>
+  <div class="panel-suelto t-dia" style="padding:12px 16px"><div class="sec-titulo">Avisos · no soportado</div>
+    <p class="avisos-estado" style="margin:0;color:var(--color-texto-secundario)"><svg class="ico" aria-hidden="true"><use href="#i-campana-off"/></svg>Avisos no disponibles</p>
+    <p class="ayuda">Este navegador no permite avisos. Prueba con Chrome o Firefox de escritorio actualizados. El resto de la aplicación funciona igual.</p></div>
+</div>
+
+<h3>Notificación del sistema (simulada)</h3>
+<div class="fila-marcos">
+  <div class="notif" role="img" aria-label="Ejemplo de notificación del sistema">
+    <div class="ic">5.2</div>
+    <div><div class="app-n">Terremotos en vivo · localhost:3000</div>
+      <div class="t">M 5.2 · Golfo de Chiriquí · 07:14 (hora de Panamá)</div>
+      <div class="b">Panamá · 18 km de profundidad. Pulsa para verlo en el mapa.</div></div>
+  </div>
+  <div class="notif" role="img" aria-label="Ejemplo de notificación por magnitud revisada">
+    <div class="ic">4.8</div>
+    <div><div class="app-n">Terremotos en vivo · localhost:3000</div>
+      <div class="t">M 4.8 · Golfo de Urabá · 06:32 (hora de Colombia)</div>
+      <div class="b">Colombia · 12 km de profundidad · magnitud revisada (antes 4.3). Pulsa para verlo en el mapa.</div></div>
+  </div>
+</div>
+<p class="notas" style="padding:0">El aspecto real lo dibuja el sistema operativo; solo se controlan título, cuerpo, icono (local) y <code>tag</code> (id del sismo, evita duplicados). Al pulsarla: se enfoca la pestaña, el mapa vuela al sismo, se abre la ventana emergente y el foco va a su título (HU-11). Puerto 3000 según el PRD (P3).</p>
+
+<!-- =================================================================== -->
+<h2 id="magnitud">8. Escala de magnitud y marcadores</h2>
+<div class="fila-marcos">
+  <div class="panel-suelto t-oscuro" style="padding:12px 16px">
+    <div class="sec-titulo">Oscuro · insignias y leyenda</div>
+    <p style="display:flex;gap:8px;margin:0 0 10px"><span class="insignia b1">2.7</span><span class="insignia b2">3.1</span><span class="insignia b3">4.2</span><span class="insignia b4">5.2</span><span class="insignia b5">6.1</span></p>
+    <div class="leyenda" style="position:static;box-shadow:none"><b>Magnitud</b><ul>
+      <li><svg aria-hidden="true"><use href="#ley-1"/></svg>Menos de 3.0</li><li><svg aria-hidden="true"><use href="#ley-2"/></svg>3.0 a 3.9</li><li><svg aria-hidden="true"><use href="#ley-3"/></svg>4.0 a 4.4</li><li><svg aria-hidden="true"><use href="#ley-4"/></svg>4.5 a 5.9</li><li><svg aria-hidden="true"><use href="#ley-5"/></svg>6.0 o más</li><li><svg aria-hidden="true"><use href="#ley-halo"/></svg>Anillo discontinuo: última hora</li></ul></div>
+  </div>
+  <div class="panel-suelto t-dia" style="padding:12px 16px">
+    <div class="sec-titulo">Día · insignias y leyenda</div>
+    <p style="display:flex;gap:8px;margin:0 0 10px"><span class="insignia b1">2.7</span><span class="insignia b2">3.1</span><span class="insignia b3">4.2</span><span class="insignia b4">5.2</span><span class="insignia b5">6.1</span></p>
+    <div class="leyenda" style="position:static;box-shadow:none"><b>Magnitud</b><ul>
+      <li><svg aria-hidden="true"><use href="#ley-1"/></svg>Menos de 3.0</li><li><svg aria-hidden="true"><use href="#ley-2"/></svg>3.0 a 3.9</li><li><svg aria-hidden="true"><use href="#ley-3"/></svg>4.0 a 4.4</li><li><svg aria-hidden="true"><use href="#ley-4"/></svg>4.5 a 5.9</li><li><svg aria-hidden="true"><use href="#ley-5"/></svg>6.0 o más</li><li><svg aria-hidden="true"><use href="#ley-halo"/></svg>Anillo discontinuo: última hora</li></ul></div>
+  </div>
+</div>
+<ul>
+  <li><strong>No depende solo del color:</strong> número en la insignia, radio proporcional (<code>max(4, M × 2.6)</code> px), borde de 1/2/3 px según banda, leyenda en texto y la lista como alternativa completa.</li>
+  <li><strong>Contraste:</strong> el borde del marcador (<code>--marcador-borde</code>) asegura ≥ 3:1 contra las teselas en los dos temas; el relleno no es el único límite. Ratios en <a href="tokens.md">tokens.md §2.3 y §3</a>.</li>
+  <li><strong>Orden de dibujo:</strong> los marcadores grandes debajo y los pequeños encima (ordenar por magnitud descendente al añadirlos) para que ninguno quede tapado; a igualdad, el más reciente encima.</li>
+  <li><strong>Pulso:</strong> 3 ciclos al aparecer y halo discontinuo estático mientras tenga menos de 1 h. Con <code>prefers-reduced-motion: reduce</code>, solo el halo.</li>
+</ul>
+
+<!-- =================================================================== -->
+<h2 id="teclado">9. Navegación completa con teclado</h2>
+<h3>9.1 Orden de tabulación (escritorio y móvil, mismo DOM)</h3>
+<table class="spec">
+  <thead><tr><th>#</th><th>Elemento</th><th>Teclas</th><th>Notas</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Enlace «Ir a la lista de sismos»</td><td><kbd>Intro</kbd></td><td>Oculto hasta recibir el foco; lleva el foco a la lista (elemento activo).</td></tr>
+    <tr><td>2</td><td>Botón de tema</td><td><kbd>Intro</kbd> / <kbd>Espacio</kbd></td><td>Cambia el tema y las teselas; el foco se queda en el botón y su texto cambia.</td></tr>
+    <tr><td>3</td><td>Móvil: «Filtros y avisos»</td><td><kbd>Intro</kbd> / <kbd>Espacio</kbd>; <kbd>Esc</kbd> dentro del panel lo pliega</td><td>Solo existe por debajo de 700 px. Si está plegado, los pasos 4 a 11 se saltan.</td></tr>
+    <tr><td>4–6</td><td>Casillas España, Colombia, Panamá</td><td><kbd>Espacio</kbd> marca/desmarca</td><td>Cada casilla es un punto de tabulación (casillas nativas).</td></tr>
+    <tr><td>7</td><td>Magnitud mínima</td><td><kbd>↑</kbd> <kbd>↓</kbd>, <kbd>Alt</kbd>+<kbd>↓</kbd> abre</td><td><code>select</code> nativo. El cambio se aplica al momento sin mover el foco.</td></tr>
+    <tr><td>8</td><td>Periodo</td><td>Igual que 7</td><td></td></tr>
+    <tr><td>9</td><td>«Restablecer filtros» (si aparece)</td><td><kbd>Intro</kbd></td><td>Tras pulsarlo, el foco va a la casilla «España».</td></tr>
+    <tr><td>10</td><td>Avisos: «Activar avisos» · o bien «Probar aviso», «Avisar desde», «Desactivar avisos» · o «Comprobar de nuevo»</td><td><kbd>Intro</kbd> / <kbd>Espacio</kbd></td><td>Según el estado. Al cambiar de estado el foco se queda en el control equivalente (p. ej. tras activar, en «Avisar desde»).</td></tr>
+    <tr><td>11</td><td>Móvil: «Ver {n} sismos»</td><td><kbd>Intro</kbd></td><td>Pliega el panel y lleva el foco a la lista.</td></tr>
+    <tr><td>12</td><td><strong>Lista de sismos</strong> (un solo punto de tabulación)</td><td><kbd>↑</kbd> <kbd>↓</kbd> elemento anterior/siguiente · <kbd>Inicio</kbd> / <kbd>Fin</kbd> primero/último · <kbd>RePág</kbd> / <kbd>AvPág</kbd> 10 elementos · <kbd>Intro</kbd> / <kbd>Espacio</kbd> ver en el mapa</td><td>Tabindex itinerante sobre <code>&lt;button&gt;</code> dentro de <code>&lt;ul&gt;</code>: solo un botón tiene <code>tabindex="0"</code>, el resto <code>-1</code>. Al volver a la lista, el foco regresa al último elemento visitado. Si ese sismo desaparece (sale del periodo), el foco pasa al siguiente. Los sismos nuevos que llegan arriba <strong>no mueven el foco</strong> ni el desplazamiento si el usuario está más abajo.</td></tr>
+    <tr><td>13</td><td>Pie: «IGN y 112 (España)», «SGC y UNGRD (Colombia)», «SINAPROC (Panamá)» (en móvil, antes el botón «Fuentes y canales oficiales»)</td><td><kbd>Intro</kbd></td><td>Abren otra pestaña; lo anuncian con texto oculto.</td></tr>
+    <tr><td>14</td><td>Contenedor del mapa</td><td>Flechas: desplazar · <kbd>+</kbd> / <kbd>-</kbd>: acercar/alejar</td><td>Teclado nativo de Leaflet. Foco visible por dentro del borde del mapa.</td></tr>
+    <tr><td>15</td><td>Ventana emergente abierta: título → «Más info en …» → «Cerrar»</td><td><kbd>Esc</kbd> cierra</td><td>No es modal: no atrapa el foco.</td></tr>
+    <tr><td>16–17</td><td>«Acercar», «Alejar», «Leyenda»</td><td><kbd>Intro</kbd></td><td>Controles de Leaflet traducidos.</td></tr>
+    <tr><td>18</td><td>Enlaces de la atribución (Leaflet, Esri)</td><td><kbd>Intro</kbd></td><td>Último elemento enfocable.</td></tr>
+  </tbody>
+</table>
+
+<h3>9.2 Gestión del foco</h3>
+<ul>
+  <li><strong>Lista → mapa:</strong> <kbd>Intro</kbd> en un sismo centra el mapa (animado salvo movimiento reducido), abre la ventana emergente y mueve el foco a su título. <kbd>Esc</kbd> o «Cerrar» devuelven el foco al mismo elemento de la lista.</li>
+  <li><strong>Marcador con ratón:</strong> abre la ventana y marca el elemento de la lista como seleccionado (<code>aria-current</code>) y lo desplaza a la vista; no mueve el foco.</li>
+  <li><strong>Sismo nuevo que supera el umbral con la pestaña a la vista:</strong> se abre su ventana <strong>sin mover el foco</strong> y se anuncia por la región de estado.</li>
+  <li><strong>Pulsar una notificación:</strong> la pestaña recibe el foco y el foco va al título de la ventana emergente del sismo.</li>
+  <li><strong>Foco visible siempre:</strong> <code>:focus-visible</code> con <code>outline: 2px solid var(--color-foco); outline-offset: 2px</code> (dentro de la lista y del mapa, <code>-3px</code> para que no lo recorte el desplazamiento). Nunca <code>outline: none</code> sin sustituto. El elemento enfocado nunca queda tapado por el pie fijo en móvil (<code>scroll-padding-bottom</code> igual al alto del pie, 2.4.11).</li>
+  <li><strong>Sin trampas de foco:</strong> no hay modales en la entrega 1.</li>
+</ul>
+
+<h3>9.3 Estructura semántica y lectores de pantalla</h3>
+<ul>
+  <li><code>&lt;html lang="es"&gt;</code>. Landmarks: <code>header</code> (banner), <code>main</code> con filtros, lista y mapa, <code>footer</code> (contentinfo). El mapa es <code>role="region"</code> con nombre.</li>
+  <li>Encabezados: <code>h1</code> «Terremotos en vivo» → <code>h2</code> «Filtros», «Avisos», «Sismos». En la ventana emergente, <code>h2</code> con «M 4.2 · Golfo de Urabá».</li>
+  <li>Dos regiones <code>role="status"</code> (educadas): una para el estado de conexión y otra para anuncios puntuales. Catálogo completo en <a href="textos.md">textos.md §10</a>. Los «hace X min», el contador y la hora no están en regiones vivas.</li>
+  <li>Cada elemento de la lista se lee como «Magnitud 4.2, Golfo de Urabá, Colombia · 12 km de profundidad, hace 48 min · 06:32 (hora de Colombia), Revisado». Instrucciones de las flechas en <code>aria-describedby</code> de la lista.</li>
+  <li>Los marcadores SVG de Leaflet no son enfocables: la lista es la alternativa equivalente (RNF-11).</li>
+</ul>
+
+<!-- =================================================================== -->
+<h2 id="comportamiento">10. Comportamiento y especificación para frontend</h2>
+<table class="spec">
+  <thead><tr><th>Tema</th><th>Especificación</th></tr></thead>
+  <tbody>
+    <tr><td>Rejilla</td><td>≥ 700 px: <code>grid-template-columns: var(--ancho-panel) 1fr</code> (panel máx. 40 %), áreas <code>"cab mapa" "fil mapa" "lis mapa" "pie mapa"</code>. &lt; 700 px: una columna <code>"cab" "fil" "mapa" "lis" "pie"</code>, alto <code>100dvh</code>, mapa <code>40dvh</code> (mín. 240 px), pie fijo (<code>position: sticky; bottom: 0</code>). De 360 a 2560 px (RNF-12).</td></tr>
+    <tr><td>Vista inicial del mapa</td><td>Encuadre que cubre los países marcados (si están los tres, Atlántico con España y Colombia/Panamá a la vista). Al cambiar los países se reencuadra; al cambiar magnitud o periodo, no.</td></tr>
+    <tr><td>Llegada en vivo</td><td>El sismo se inserta en su posición por hora (normalmente arriba) con la etiqueta «Nuevo» 10 min y un resalte de fondo de 2 s (sin resalte con movimiento reducido). Si el usuario ha desplazado la lista, no se mueve lo que está viendo (se compensa el desplazamiento).</td></tr>
+    <tr><td>Revisión de magnitud</td><td>Se actualiza el mismo elemento (insignia, color, tamaño del marcador) y se añade «Revisado». La ventana emergente muestra «Magnitud revisada: antes X».</td></tr>
+    <tr><td>Fin del periodo</td><td>Los sismos que salen del periodo se quitan sin anuncio (HU-05). «hace X» se recalcula cada 30 s.</td></tr>
+    <tr><td>Rendimiento (30 días)</td><td>Lista virtualizada (solo se pintan las filas visibles + margen) para los 10 000 sismos de RNF-03; el tabindex itinerante trabaja sobre el índice, no sobre el DOM. Marcadores en <code>L.canvas</code> o SVG según mida T5.4.</td></tr>
+    <tr><td>Preferencias (HU-06)</td><td><code>localStorage</code>: países, magnitud, periodo, tema, umbral y avisos activados. Si no son válidas, valores por defecto sin mensaje.</td></tr>
+    <tr><td>Tema (HU-09)</td><td>Sin preferencia: <code>prefers-color-scheme</code>. Con preferencia: la guardada. Script externo bloqueante en <code>&lt;head&gt;</code> (la CSP impide scripts en línea) para no mostrar el otro tema. Cambia teselas sin perder vista ni ventana abierta.</td></tr>
+    <tr><td>Leaflet en español</td><td>Zoom «Acercar»/«Alejar», cierre «Cerrar», <code>aria-label</code> del mapa; ver <a href="textos.md">textos.md §7</a>. Ventana emergente con <code>textContent</code> (nunca <code>bindPopup</code> con cadenas HTML de las fuentes).</td></tr>
+    <tr><td>Movimiento reducido</td><td>Sin pulso, sin resalte, sin brillo del skeleton y <code>setView</code> en lugar de <code>flyTo</code>.</td></tr>
+    <tr><td>Alto contraste (<code>forced-colors</code>)</td><td>No forzar colores; insignias con borde <code>1px solid CanvasText</code>; iconos con <code>currentColor</code>.</td></tr>
+    <tr><td>Zoom y reflujo</td><td>Todo en <code>rem</code>. Al 200 % no se pierde contenido; al 400 % en 1280 px se aplica el diseño móvil sin desplazamiento horizontal (1.4.10).</td></tr>
+  </tbody>
+</table>
+
+<!-- =================================================================== -->
+<h2 id="cobertura">11. Cobertura de historias E2, E3 y E4</h2>
+<table class="spec">
+  <thead><tr><th>Historia</th><th>Escenario</th><th>Dónde se resuelve</th></tr></thead>
+  <tbody>
+    <tr><td rowspan="5">HU-03 País</td><td>Tres marcados por defecto</td><td>Marcos A, B, C · textos §4</td></tr>
+    <tr><td>Desmarcar un país → nueva consulta</td><td>§1.1 (al momento) · marco D (Panamá desmarcado, «Actualizando…»)</td></tr>
+    <tr><td>Territorios incluidos</td><td>Ayuda del grupo de países · Tenerife en la lista</td></tr>
+    <tr><td>Franja marina</td><td>Ayuda «hasta 100 km de mar» · «Mar de Alborán» en la lista</td></tr>
+    <tr><td>Ningún país marcado</td><td>§5 «Ningún país marcado» · estado «Sin consulta…»</td></tr>
+    <tr><td rowspan="2">HU-04 Magnitud</td><td>Cambiar a 3.0</td><td>Marco D · opciones en textos §4</td></tr>
+    <tr><td>Sin resultados</td><td>§5 «Sin resultados»</td></tr>
+    <tr><td rowspan="3">HU-05 Tiempo</td><td>Opciones del selector</td><td>textos §4 (literal del PRD)</td></tr>
+    <tr><td>Cambiar a 30 días</td><td>§5 «Actualizando» con aviso de consulta lenta</td></tr>
+    <tr><td>Los sismos salen del periodo</td><td>§10 «Fin del periodo»</td></tr>
+    <tr><td rowspan="2">HU-06 Recordar filtros</td><td>Reabrir la aplicación</td><td>§10 «Preferencias»</td></tr>
+    <tr><td>Preferencias dañadas</td><td>§10 (valores por defecto sin mensaje)</td></tr>
+    <tr><td rowspan="4">HU-07 Mapa y lista</td><td>Contenido del elemento</td><td>Marcos A–E · textos §5</td></tr>
+    <tr><td>De la lista al mapa (ratón y teclado)</td><td>Marco A nota 8 · §9.2</td></tr>
+    <tr><td>Aviso y atribución desde 360 px, ambos temas</td><td>Pie en A–E · textos §9</td></tr>
+    <tr><td>Texto malicioso</td><td>§5 «Texto de la fuente con código»</td></tr>
+    <tr><td rowspan="3">HU-08 Hora local</td><td>Canarias</td><td>«11:45 (hora de Canarias)» en A/B · textos §5</td></tr>
+    <tr><td>Península en invierno</td><td>Zona IANA <code>Europe/Madrid</code>, textos §5</td></tr>
+    <tr><td>Colombia / Panamá</td><td>«06:32 (hora de Colombia)», «07:14 (hora de Panamá)»</td></tr>
+    <tr><td rowspan="2">HU-09 Tema</td><td>Primera visita según el sistema</td><td>§10 «Tema» · tokens §1</td></tr>
+    <tr><td>Cambiar y recordar, sin parpadeo</td><td>Marcos A (oscuro) y B (día) · §10</td></tr>
+    <tr><td rowspan="4">HU-10 Activar avisos</td><td>No se pide permiso al cargar</td><td>§7 «inicial»</td></tr>
+    <tr><td>Conceder → «Avisos activados» con umbral</td><td>Marco B · §7</td></tr>
+    <tr><td>Denegar → «Avisos bloqueados…» con instrucciones</td><td>Marco D · §7</td></tr>
+    <tr><td>Cambiar el umbral a 5.0</td><td>«Avisar desde» en B · anuncio en textos §8.2</td></tr>
+    <tr><td rowspan="5">HU-11 Notificación</td><td>Pestaña en segundo plano, texto y clic</td><td>§7 notificación simulada · textos §8.3</td></tr>
+    <tr><td>Magnitud exactamente en el umbral</td><td>M ≥ 4.5 redondeada (P1) · textos §8.3</td></tr>
+    <tr><td>Sin duplicados</td><td><code>tag</code> = id del sismo · textos §8.3</td></tr>
+    <tr><td>La carga inicial no notifica</td><td>textos §8.3 (regla)</td></tr>
+    <tr><td>Revisión que cruza el umbral</td><td>§7 segunda notificación simulada</td></tr>
+    <tr><td>HU-02 (E1, de apoyo)</td><td>Fuente caída, reconexión, servidor parado, todas caídas</td><td>Marcos B y E · §5 · §6</td></tr>
+  </tbody>
+</table>
+
+</div>
+</body>
+</html>

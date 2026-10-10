@@ -53,7 +53,7 @@ La entrega 1 se construye, se prueba y se acepta (🔒) antes de empezar la 2. L
 | Ejecución | Local, en la máquina de desarrollo (Linux Mint 22.3) |
 | Publicación | **Ninguna: solo uso local** (Cloudflare y Vercel descartados) |
 | Países | España (incluye Canarias, Baleares, Ceuta y Melilla), Colombia y Panamá |
-| Notificaciones | Sí, del navegador. Umbral por defecto: M > 4.5 |
+| Notificaciones | Sí, del navegador. Umbral por defecto: M ≥ 4.5 (D1 del PRD) |
 | Países por defecto | Los tres marcados; se puede desmarcar cualquiera |
 | Tema | Modo oscuro y modo día |
 | Idioma | Solo español |
@@ -123,7 +123,7 @@ flowchart LR
 ### 3.5 Notificaciones
 
 - El permiso se pide solo cuando el usuario pulsa «Activar avisos», nunca al cargar la página.
-- Umbral configurable, por defecto **M > 4.5** (decisión del Director).
+- Umbral configurable, por defecto **M ≥ 4.5** (decisión del Director, D1 del PRD).
 - Los avisos de tsunami de los países seleccionados se notifican siempre.
 - Las preferencias de filtros y umbral se guardan en `localStorage`.
 
@@ -210,7 +210,8 @@ Cada tarea va en su propia rama. Las tareas de una misma oleada se hacen en para
 | 2 | T4.3 | Adaptadores de fuentes de sismos y `/api/sismos` con filtros y caché | backend-senior | T4.1 | Pruebas con los fixtures de T1.2; una fuente caída no rompe la respuesta |
 | 2 *(entrega 2)* | T4.4 | Adaptadores de tsunamis y `/api/tsunamis` | backend-senior | T4.1 | Pruebas con fixtures reales de avisos de NOAA y del plan B |
 | 3 | T4.5 | Interfaz: panel de filtros (aplicados antes de consultar), lista, mapa, panel de tsunamis, hora local, modo oscuro/día y escapado seguro | frontend-senior | T4.2, T3.3 | Coincide con los wireframes; no queda ningún `innerHTML` con datos externos |
-| 3 | T4.6 | Cliente del WebSocket de EMSC con reconexión y respaldo en la consulta periódica, fusionado con `/api/sismos` | frontend-senior | T4.2, T4.3 | Un sismo nuevo aparece sin recargar la página; si se corta la red, se recupera solo |
+| 2 | T4.6 | **Servidor:** cliente del WebSocket de EMSC con reconexión, respaldo con la consulta periódica, fusión en memoria y `GET /api/stream` (SSE con `Last-Event-ID`, límites del modelo de amenazas) | backend-senior | T4.2, T4.3 | Un sismo nuevo llega por SSE sin recargar; si se corta la red, se recupera solo; pruebas con `emsc-ws/mensajes.jsonl` |
+| 3 | T4.6b | **Página:** cliente `EventSource` que fusiona el stream con la carga inicial y muestra el indicador «en vivo» | frontend-senior | T4.5, T4.6 | Un sismo nuevo aparece sin recargar; el indicador muestra conectado, reconectando y sin conexión |
 | 3 | T4.7 | Notificaciones: permiso al pulsar el botón, umbral, tsunamis y preferencias guardadas | frontend-senior | T4.5 | Probado en Chrome y Firefox; si el usuario niega el permiso, la página sigue funcionando |
 | 4 | T4.8 | Ejecución local: `npm start` y un archivo de variables de ejemplo; sin systemd ni Apache | devops-sre | T4.3–T4.7 | Con el repositorio limpio, `npm ci && npm start` deja la aplicación funcionando en local |
 
@@ -273,7 +274,7 @@ Si algo falla, la tarea vuelve a su autor. Tras 3 ciclos sin resolverse, se esca
 
 
 1. **Filtro de lugar:** por defecto, los tres países completos. El radio alrededor de una ciudad queda como filtro opcional.
-2. **Umbral de notificación:** M > 4.5. En el PRD se confirma si una M 4.5 exacta debe notificar.
+2. **Umbral de notificación:** M > 4.5. Resuelto en el PRD v0.2 (D1): **M ≥ 4.5**, así que una M 4.5 exacta sí notifica.
 3. **Idioma:** solo español.
 4. **Nuevo requisito:** modo oscuro y modo día.
 5. **Plan aprobado.** Se inician las Fases 0 y 1.

@@ -1,0 +1,6 @@
+# Configuración de `npx @redocly/cli lint docs/api/openapi.yaml`.
+extends:
+  - recommended
+rules:
+  # La API es local por diseño (RNF-09): el único servidor válido es localhost.
+  no-server-example.com: off

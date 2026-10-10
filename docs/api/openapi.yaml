@@ -1,0 +1,782 @@
+openapi: 3.1.0
+info:
+  title: Terremotos en vivo — API local
+  version: 1.0.0
+  summary: API del servidor local (Node.js + Hono) de Terremotos en vivo v2, entrega 1.
+  description: |
+    Contrato entre el servidor local y la página. Solo escucha en la interfaz de bucle local
+    (`127.0.0.1`) y lo consume la página servida por el mismo servidor (mismo origen). No hay
+    autenticación: el control de acceso es de red y de cabeceras (ver `docs/01-arquitectura.md`
+    §8 y `docs/seguridad/amenazas.md`):
+    - lista blanca de `Host` (`localhost:<PORT>`, `127.0.0.1:<PORT>`, `[::1]:<PORT>`) en todas
+      las rutas; si no coincide, `421` (AM-10);
+    - en `/api/*`, `Origin` (si viene) debe ser exactamente el origen propio y `Sec-Fetch-Site`
+      (si viene) `same-origin` o `none`; si no, `403` (AM-11);
+    - CORS cerrado: nunca se envía `Access-Control-Allow-*`;
+    - solo `GET`/`HEAD`; cualquier otro método da `405`;
+    - parámetros con lista blanca: uno desconocido o repetido da `400`; la query tiene como
+      máximo 512 bytes (AM-08).
+
+    **Convenciones**
+    - JSON en camelCase con nombres en español, igual que el dominio.
+    - Fechas en ISO 8601, UTC, con milisegundos (`2026-10-10T06:04:20.000Z`).
+    - Magnitudes y coordenadas como números sin redondear; la página redondea al mostrar.
+    - Errores en `application/problem+json` (RFC 9457). El campo `type` es un URN estable
+      `urn:terremotos:problema:<codigo>`; no es una URL que se pueda abrir.
+    - Sin versión en la ruta: la página y el servidor se publican siempre juntos (mismo
+      repositorio, mismo `npm start`). Los cambios compatibles (parámetros opcionales nuevos,
+      campos nuevos, tipos de evento nuevos) no cambian la versión mayor. Un cambio incompatible
+      exigiría `/api/v2` y un ADR.
+    - Compatibilidad hacia delante: los clientes **deben ignorar** los campos y los tipos de
+      evento SSE que no conozcan. Así la entrega 2 (tsunamis, filtro de radio) añade eventos
+      `tsunami.*` y parámetros opcionales sin romper la entrega 1.
+  license:
+    name: Uso privado del proyecto
+    identifier: LicenseRef-Privado
+# Sin autenticación: el control de acceso es de red y de cabeceras (ver info.description).
+security: []
+servers:
+  - url: http://localhost:3000
+    description: Servidor local (puerto configurable con la variable PORT).
+tags:
+  - name: sismos
+    description: Carga inicial y datos en vivo de sismos.
+  - name: operacion
+    description: Salud del proceso y de las fuentes.
+paths:
+  /api/sismos:
+    get:
+      tags: [sismos]
+      operationId: listarSismos
+      summary: Sismos que cumplen los filtros (carga inicial).
+      description: |
+        Devuelve los sismos en memoria que cumplen los filtros, ordenados por `tiempo`
+        descendente. Si la memoria no cubre los filtros pedidos (por ejemplo, la primera vez que
+        se pide «Todas» las magnitudes), el servidor consulta antes EMSC FDSN y USGS con el
+        rectángulo de cada zona y la magnitud mínima, con un tiempo límite por fuente; si una
+        fuente falla, responde igualmente con lo que tenga y lo indica en `completo` y `fuentes`.
+
+        El campo `ultimoEventoId` permite abrir después `GET /api/stream?ultimoId=…` sin perder
+        ni duplicar eventos entre la carga y la suscripción.
+      parameters:
+        - $ref: '#/components/parameters/Paises'
+        - $ref: '#/components/parameters/MagMin'
+        - $ref: '#/components/parameters/Periodo'
+      responses:
+        '200':
+          description: Lista de sismos.
+          headers:
+            Cache-Control:
+              description: Siempre `no-store`.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaSismos'
+              examples:
+                panama:
+                  $ref: '#/components/examples/RespuestaSismosPanama'
+        '400':
+          $ref: '#/components/responses/ParametroInvalido'
+        '403':
+          $ref: '#/components/responses/OrigenNoPermitido'
+        '405':
+          $ref: '#/components/responses/MetodoNoPermitido'
+        '421':
+          $ref: '#/components/responses/HostNoPermitido'
+        '500':
+          $ref: '#/components/responses/ErrorInterno'
+  /api/stream:
+    get:
+      tags: [sismos]
+      operationId: suscribirStream
+      summary: Datos en vivo por Server-Sent Events.
+      description: |
+        Flujo `text/event-stream` (SSE). Cada mensaje tiene `id`, `event` y `data`; `data` es un
+        JSON con el sobre `Evento` (ver `components.schemas`). Tipos de evento de la entrega 1:
+
+        | `event` | Cuándo | `datos` |
+        |---|---|---|
+        | `sismo.nuevo` | Un sismo empieza a cumplir los filtros del cliente (alta, o revisión que lo hace entrar) | `DatosSismo` |
+        | `sismo.actualizado` | Cambia un sismo que el cliente ya tiene | `DatosSismo` |
+        | `sismo.eliminado` | El cliente debe quitar un sismo | `DatosSismoEliminado` |
+        | `estado.fuente` | Cambia el estado de una fuente; al conectar se envía uno por fuente | `EstadoFuente` |
+        | `flujo.reiniciar` | El servidor no puede reanudar desde el id pedido | `DatosFlujoReiniciar` |
+
+        **Filtrado por cliente.** El servidor solo envía un sismo si su `pais` está en `paises` y
+        además cumple (`magnitud ≥ magMin` y `tiempo ≥ ahora − periodo`) **o**, si viene
+        `avisoMin`, su magnitud redondeada a un decimal es ≥ `avisoMin` (decisión D4: los avisos
+        no dependen de la magnitud mínima de la lista ni del periodo). La página decide con
+        `src/shared` si lo pinta, si lo notifica o ambas cosas.
+
+        **Reanudación.** Los `id` tienen la forma `<arranque>-<secuencia>`. El navegador reenvía
+        el último en la cabecera `Last-Event-ID` al reconectar; la primera conexión puede pasarlo
+        en `ultimoId` (el `ultimoEventoId` de `GET /api/sismos`). El servidor reenvía los eventos
+        posteriores que cumplan los filtros. Si el id es de otro arranque o ya no está en el
+        historial (los últimos 2 000 eventos o 15 min), envía `flujo.reiniciar` y la página
+        recarga con `GET /api/sismos`. Un id mal formado se trata igual (nunca da error).
+
+        **Mantenimiento.** Primera línea `retry: 3000`. Un comentario `: ping` cada 20 s. Si la
+        página no recibe nada en 45 s, cierra y reabre la conexión. Los cambios se agrupan en
+        lotes cada 250 ms (AM-17). Un cliente con más de 1 MiB pendiente se desconecta (AM-13).
+
+        **Seguridad del formato.** `id` y `event` nunca proceden de datos externos; `data` es
+        siempre `JSON.stringify` de una sola línea (AM-15).
+
+        **Plazas.** Como máximo 8 conexiones simultáneas (`SSE_MAX_CLIENTES`); la novena recibe
+        `503` con `Retry-After: 10`.
+
+        **Notificable.** `datos.notificable` es `true` si la hora de origen es de hace
+        ≤ 1 h (configurable, `AVISO_VENTANA_MIN`) en el momento de emitir. Los eventos reenviados
+        al reanudar conservan el valor original. Las altas tardías de EMSC llegan con `false`.
+      parameters:
+        - $ref: '#/components/parameters/Paises'
+        - $ref: '#/components/parameters/MagMin'
+        - $ref: '#/components/parameters/Periodo'
+        - name: avisoMin
+          in: query
+          required: false
+          description: |
+            Umbral de aviso activo en la página (D1, por defecto 4.5). Solo se envía si los
+            avisos están activados. Amplía el filtro para que lleguen los sismos que hay que
+            notificar aunque no cumplan `magMin` o `periodo`. Lista cerrada: la define el
+            diseño de T3.3; mientras tanto, de 3.0 a 7.0 en pasos de 0.5.
+          schema:
+            type: string
+            enum: ['3.0', '3.5', '4.0', '4.5', '5.0', '5.5', '6.0', '6.5', '7.0']
+          example: '4.5'
+        - name: ultimoId
+          in: query
+          required: false
+          description: |
+            Id del último evento conocido, para la primera conexión. Si llega también la cabecera
+            `Last-Event-ID`, gana la cabecera. Máximo 32 caracteres.
+          schema:
+            $ref: '#/components/schemas/IdEvento'
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: La envía `EventSource` al reconectar.
+          schema:
+            $ref: '#/components/schemas/IdEvento'
+      responses:
+        '200':
+          description: |
+            Flujo SSE abierto. Cada `data:` contiene un JSON que cumple `Evento`. Ejemplo de dos
+            mensajes:
+
+            ```
+            retry: 3000
+
+            id: lx3k9a-41
+            event: sismo.nuevo
+            data: {"tipo":"sismo.nuevo","version":1,"ocurridoEn":"2026-10-10T06:08:33.120Z","datos":{"sismo":{...},"notificable":true,"cambios":[]}}
+
+            : ping
+            ```
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Secuencia de mensajes SSE. `contentSchema` describe el JSON del campo `data` de
+                  cada mensaje (en OpenAPI 3.1 no hay forma estándar de describir cada elemento
+                  de un flujo; 3.2 añade `itemSchema`).
+                contentMediaType: application/json
+                contentSchema:
+                  $ref: '#/components/schemas/Evento'
+              examples:
+                nuevo:
+                  summary: Mensaje sismo.nuevo
+                  value: |
+                    id: lx3k9a-41
+                    event: sismo.nuevo
+                    data: {"tipo":"sismo.nuevo","version":1,"ocurridoEn":"2026-10-10T06:08:33.120Z","datos":{"notificable":true,"cambios":[],"sismo":{"id":"emsc:20261010_0000106","tiempo":"2026-10-10T06:04:20.000Z","lat":7.8117,"lon":-81.056,"profundidadKm":5,"magnitud":4.4,"magnitudTipo":"m","lugar":"PANAMA","pais":"PA","zona":"PA","zonaHoraria":"America/Panama","autor":"IGC","fuentePreferida":"emsc","url":"https://www.seismicportal.eu/eventdetails.html?unid=20261010_0000106","fuentes":[{"fuente":"emsc","idFuente":"20261010_0000106","autor":"IGC","magnitud":4.4,"magnitudTipo":"m","url":"https://www.seismicportal.eu/eventdetails.html?unid=20261010_0000106","actualizadoEn":"2026-10-10T06:08:30.760Z"}],"actualizadoEn":"2026-10-10T06:08:30.760Z","recibidoEn":"2026-10-10T06:08:33.101Z","revision":1}}}
+        '400':
+          $ref: '#/components/responses/ParametroInvalido'
+        '403':
+          $ref: '#/components/responses/OrigenNoPermitido'
+        '421':
+          $ref: '#/components/responses/HostNoPermitido'
+        '503':
+          $ref: '#/components/responses/DemasiadasConexiones'
+  /api/salud:
+    get:
+      tags: [operacion]
+      operationId: consultarSalud
+      summary: Salud del proceso y estado de las fuentes.
+      description: |
+        Responde `200` mientras el proceso atienda peticiones, aunque las fuentes estén caídas: la
+        aplicación sigue sirviendo lo que tiene en memoria. El detalle está en `estado` y
+        `fuentes`. No consulta las fuentes al responder.
+      responses:
+        '200':
+          description: Estado actual.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Salud'
+              examples:
+                degradado:
+                  $ref: '#/components/examples/SaludDegradada'
+        '403':
+          $ref: '#/components/responses/OrigenNoPermitido'
+        '421':
+          $ref: '#/components/responses/HostNoPermitido'
+components:
+  parameters:
+    Paises:
+      name: paises
+      in: query
+      required: true
+      description: |
+        Países marcados, separados por comas, sin repetir. La página no hace la petición si no
+        hay ninguno marcado (HU-03).
+      style: form
+      explode: false
+      schema:
+        type: array
+        minItems: 1
+        maxItems: 3
+        uniqueItems: true
+        items:
+          $ref: '#/components/schemas/CodigoPais'
+      example: [ES, CO, PA]
+    MagMin:
+      name: magMin
+      in: query
+      required: false
+      description: |
+        Magnitud mínima de la lista (incluida). Ausente = «Todas». Lista cerrada con las opciones
+        de la página (D5, AM-08); cualquier otro valor da `400`.
+      schema:
+        type: string
+        enum: ['1.0', '2.0', '2.5', '3.0', '4.0', '4.5', '5.0']
+      example: '2.0'
+    Periodo:
+      name: periodo
+      in: query
+      required: false
+      description: |
+        Periodo hacia atrás desde la hora del servidor. El servidor calcula la fecha de inicio y
+        la devuelve en `filtro.desde`. Por defecto `24h` (D5).
+      schema:
+        $ref: '#/components/schemas/Periodo'
+  responses:
+    ParametroInvalido:
+      description: Algún parámetro no es válido.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          examples:
+            pais:
+              value:
+                type: urn:terremotos:problema:parametro-invalido
+                title: Parámetro no válido
+                status: 400
+                detail: 'El parámetro «paises» contiene un valor desconocido: «FR».'
+                instance: /api/sismos
+                errors:
+                  - parametro: paises
+                    mensaje: 'Valores permitidos: ES, CO, PA.'
+    HostNoPermitido:
+      description: |
+        `421 Misdirected Request`: la cabecera `Host` no está en la lista blanca (protección frente
+        a DNS rebinding, AM-10). Se aplica a todas las rutas, también a los estáticos.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: urn:terremotos:problema:host-no-permitido
+            title: Host no permitido
+            status: 421
+            detail: La aplicación solo atiende peticiones dirigidas a localhost.
+    OrigenNoPermitido:
+      description: |
+        `Origin` distinto del origen propio o `Sec-Fetch-Site` distinto de `same-origin`/`none`
+        (AM-11). Se rechaza antes de hacer ningún trabajo.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: urn:terremotos:problema:origen-no-permitido
+            title: Origen no permitido
+            status: 403
+            detail: La API solo atiende peticiones de la propia aplicación.
+    MetodoNoPermitido:
+      description: Solo se admiten `GET` y `HEAD` (AM-12).
+      headers:
+        Allow:
+          schema:
+            type: string
+            const: GET, HEAD
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: urn:terremotos:problema:metodo-no-permitido
+            title: Método no permitido
+            status: 405
+    DemasiadasConexiones:
+      description: Se alcanzó el máximo de conexiones SSE simultáneas (`SSE_MAX_CLIENTES`, 8 por defecto; AM-13).
+      headers:
+        Retry-After:
+          description: Segundos antes de reintentar.
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: urn:terremotos:problema:demasiadas-conexiones
+            title: Demasiadas conexiones en vivo
+            status: 503
+            detail: Hay 8 conexiones abiertas. Cierra alguna pestaña de la aplicación.
+    ErrorInterno:
+      description: Error no previsto. El detalle técnico va al log, no a la respuesta.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: urn:terremotos:problema:error-interno
+            title: Error interno
+            status: 500
+            detail: Se produjo un error inesperado. Consulta la consola del servidor.
+            instance: /api/sismos
+  schemas:
+    CodigoPais:
+      type: string
+      description: ISO 3166-1 alfa-2. Solo los tres países del proyecto.
+      enum: [ES, CO, PA]
+    Zona:
+      type: string
+      description: |
+        Zona de consulta (rectángulo) en la que cae el sismo. Determina también la zona horaria.
+        Los rectángulos los genera el script de zonas (ADR-0005).
+      enum: [ES-PEN, ES-CAN, CO-CONT, CO-SAI, PA]
+    ZonaHoraria:
+      type: string
+      description: |
+        Zona IANA para la hora local (HU-08). Ceuta y Melilla usan `Europe/Madrid`, con las mismas
+        reglas que `Africa/Ceuta` (ADR-0005).
+      enum: [Europe/Madrid, Atlantic/Canary, America/Bogota, America/Panama]
+    Periodo:
+      type: string
+      enum: ['1h', '24h', '7d', '30d']
+      default: '24h'
+    Fuente:
+      type: string
+      description: |
+        Fuente de datos de la que procede un registro. `emsc` agrupa el WebSocket y el FDSN de
+        EMSC (comparten `unid`).
+      enum: [emsc, usgs]
+    IdFuenteOperativa:
+      type: string
+      description: Canal operativo cuyo estado se vigila. Entrega 2 añadirá los de tsunamis.
+      enum: [emsc-ws, emsc-fdsn, usgs]
+    IdEvento:
+      type: string
+      description: '`<arranque>-<secuencia>`; `arranque` en base 36, `secuencia` entero creciente.'
+      pattern: '^[0-9a-z]{1,16}-[0-9]{1,15}$'
+      example: lx3k9a-41
+    Instante:
+      type: string
+      format: date-time
+      description: ISO 8601 en UTC con sufijo Z.
+      example: '2026-10-10T06:04:20.000Z'
+    UrlFicha:
+      type: string
+      format: uri
+      description: |
+        Enlace «Más info». **Lo construye el servidor a partir del id** con plantillas fijas; el
+        campo `url` de la fuente no se usa nunca (AM-02). La página repite la comprobación de
+        prefijo antes de asignar `href` y usa `rel="noopener noreferrer"`.
+        - EMSC: `https://www.seismicportal.eu/eventdetails.html?unid=` + `encodeURIComponent(unid)`
+        - USGS: `https://earthquake.usgs.gov/earthquakes/eventpage/` + `encodeURIComponent(id)`
+      pattern: '^https://(www\.seismicportal\.eu/eventdetails\.html\?unid=|earthquake\.usgs\.gov/earthquakes/eventpage/)[A-Za-z0-9_.-]{1,64}$'
+    RegistroFuente:
+      type: object
+      description: Lo que aportó una fuente a este sismo. Permite enlazar a todas las fuentes (HU-01).
+      required: [fuente, idFuente, autor, magnitud, magnitudTipo, url, actualizadoEn]
+      properties:
+        fuente:
+          $ref: '#/components/schemas/Fuente'
+        idFuente:
+          type: string
+          description: '`unid` en EMSC; id preferido en USGS.'
+          maxLength: 64
+          examples: ['20261010_0000106', us6000u19w]
+        autor:
+          type: string
+          description: Agencia autora de la solución (`auth` de EMSC, `net` de USGS en mayúsculas).
+          maxLength: 32
+          examples: [IGC, IGN, NEIC, US]
+        magnitud:
+          type: number
+        magnitudTipo:
+          type: string
+          maxLength: 16
+        url:
+          $ref: '#/components/schemas/UrlFicha'
+        actualizadoEn:
+          $ref: '#/components/schemas/Instante'
+    Sismo:
+      type: object
+      description: |
+        Modelo común (ADR-0004). Los valores de nivel superior son los de la fuente preferida
+        según la precedencia: autor nacional (IGN en ES-*, IGC en PA) dentro de EMSC → EMSC →
+        USGS. Todos los textos son datos externos: la página los inserta como texto, nunca como
+        HTML (RNF-07).
+      required: [id, tiempo, lat, lon, profundidadKm, magnitud, magnitudTipo, lugar, pais, zona, zonaHoraria, autor, fuentePreferida, url, fuentes, actualizadoEn, recibidoEn, revision]
+      properties:
+        id:
+          type: string
+          description: |
+            Identificador estable `<fuente>:<idFuente>` del primer registro que creó el sismo. No
+            cambia aunque luego gane otra fuente.
+          pattern: '^(emsc|usgs):[A-Za-z0-9_.-]{1,64}$'
+          examples: ['emsc:20261010_0000106']
+        tiempo:
+          $ref: '#/components/schemas/Instante'
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+        lon:
+          type: number
+          minimum: -180
+          maximum: 180
+        profundidadKm:
+          type: ['number', 'null']
+          minimum: -10
+          maximum: 800
+          description: |
+            Kilómetros, positivos hacia abajo. EMSC se toma de `properties.depth` (su
+            `coordinates[2]` es negativo); USGS de `coordinates[2]`. Puede ser ligeramente negativa
+            (foco sobre el nivel del mar, rango de AM-05). `null` si la fuente no la da.
+        magnitud:
+          type: number
+          description: Sin redondear. La página muestra y compara con un decimal (D1).
+        magnitudTipo:
+          type: string
+          maxLength: 16
+          examples: [ml, mb, mww, m]
+        lugar:
+          type: string
+          maxLength: 200
+          description: '`flynn_region` de EMSC o `place` de USGS, tal cual.'
+        pais:
+          $ref: '#/components/schemas/CodigoPais'
+        zona:
+          $ref: '#/components/schemas/Zona'
+        zonaHoraria:
+          $ref: '#/components/schemas/ZonaHoraria'
+        autor:
+          type: string
+          maxLength: 32
+        fuentePreferida:
+          $ref: '#/components/schemas/Fuente'
+        url:
+          $ref: '#/components/schemas/UrlFicha'
+        fuentes:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/RegistroFuente'
+        actualizadoEn:
+          $ref: '#/components/schemas/Instante'
+        recibidoEn:
+          $ref: '#/components/schemas/Instante'
+        revision:
+          type: integer
+          minimum: 1
+          description: Aumenta en 1 con cada cambio visible del sismo.
+    Filtro:
+      type: object
+      required: [paises, magMin, periodo, desde]
+      properties:
+        paises:
+          type: array
+          items:
+            $ref: '#/components/schemas/CodigoPais'
+        magMin:
+          type: ['number', 'null']
+          description: '`null` = Todas.'
+        periodo:
+          $ref: '#/components/schemas/Periodo'
+        desde:
+          $ref: '#/components/schemas/Instante'
+    EstadoFuente:
+      type: object
+      required: [fuente, estado, cambiadoEn]
+      properties:
+        fuente:
+          $ref: '#/components/schemas/IdFuenteOperativa'
+        estado:
+          type: string
+          description: |
+            `ok`: responde. `degradada`: el último intento falló pero aún no se considera caída.
+            `caida`: dos fallos seguidos o WebSocket cerrado sin reconectar. `iniciando`: aún sin
+            primer resultado.
+          enum: [iniciando, ok, degradada, caida]
+        cambiadoEn:
+          $ref: '#/components/schemas/Instante'
+        ultimoExitoEn:
+          oneOf:
+            - $ref: '#/components/schemas/Instante'
+            - type: 'null'
+        proximoIntentoEn:
+          oneOf:
+            - $ref: '#/components/schemas/Instante'
+            - type: 'null'
+        mensaje:
+          type: ['string', 'null']
+          maxLength: 200
+          description: Motivo breve en español (p. ej. «Tiempo de espera agotado»). Sin URLs ni trazas.
+    RespuestaSismos:
+      type: object
+      required: [generadoEn, filtro, ultimoEventoId, completo, total, truncado, fuentes, sismos]
+      properties:
+        generadoEn:
+          $ref: '#/components/schemas/Instante'
+        filtro:
+          $ref: '#/components/schemas/Filtro'
+        ultimoEventoId:
+          $ref: '#/components/schemas/IdEvento'
+        completo:
+          type: boolean
+          description: '`false` si alguna consulta a una fuente necesaria para estos filtros falló o agotó el tiempo.'
+        total:
+          type: integer
+          minimum: 0
+        truncado:
+          type: boolean
+          description: '`true` si había más de 10 000 sismos y se devolvieron los 10 000 más recientes.'
+        fuentes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EstadoFuente'
+        sismos:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: '#/components/schemas/Sismo'
+    Salud:
+      type: object
+      required: [estado, version, arrancadoEn, segundosActivo, fuentes, sismosEnMemoria, clientesSse, memoriaRssMb]
+      properties:
+        estado:
+          type: string
+          description: '`ok` si todas las fuentes están `ok`; `degradado` en otro caso.'
+          enum: [ok, degradado]
+        version:
+          type: string
+          examples: ['2.0.0']
+        arrancadoEn:
+          $ref: '#/components/schemas/Instante'
+        segundosActivo:
+          type: integer
+          minimum: 0
+        fuentes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EstadoFuente'
+        sismosEnMemoria:
+          type: integer
+          minimum: 0
+        clientesSse:
+          type: integer
+          minimum: 0
+        memoriaRssMb:
+          type: number
+          minimum: 0
+    DatosSismo:
+      type: object
+      required: [sismo, notificable, cambios]
+      properties:
+        sismo:
+          $ref: '#/components/schemas/Sismo'
+        notificable:
+          type: boolean
+          description: Hora de origen dentro de la ventana de aviso (1 h por defecto) al emitir.
+        cambios:
+          type: array
+          description: Campos que cambiaron (vacío en `sismo.nuevo` por alta).
+          items:
+            type: string
+            enum: [magnitud, ubicacion, profundidad, tiempo, lugar, pais, fuentes, preferida]
+    DatosSismoEliminado:
+      type: object
+      required: [id, motivo]
+      properties:
+        id:
+          type: string
+        motivo:
+          type: string
+          description: |
+            `fusionado`: era un duplicado de `reemplazadoPor`; la página traslada a ese id el
+            estado «ya notificado». `fuera-de-filtro`: una revisión hace que ya no cumpla los
+            filtros de este cliente. `fuera-de-zona`: la nueva ubicación no cae en ningún país.
+            `retirado`: la fuente lo borró o lo reclasificó como no sísmico.
+          enum: [fusionado, fuera-de-filtro, fuera-de-zona, retirado]
+        reemplazadoPor:
+          type: ['string', 'null']
+    DatosFlujoReiniciar:
+      type: object
+      required: [motivo]
+      properties:
+        motivo:
+          type: string
+          enum: [arranque-distinto, historial-insuficiente]
+    Evento:
+      type: object
+      description: Sobre común del `data` de cada mensaje SSE. `tipo` coincide con el campo `event`.
+      required: [tipo, version, ocurridoEn, datos]
+      properties:
+        tipo:
+          type: string
+          enum: [sismo.nuevo, sismo.actualizado, sismo.eliminado, estado.fuente, flujo.reiniciar]
+        version:
+          type: integer
+          const: 1
+        ocurridoEn:
+          $ref: '#/components/schemas/Instante'
+        datos:
+          oneOf:
+            - $ref: '#/components/schemas/DatosSismo'
+            - $ref: '#/components/schemas/DatosSismoEliminado'
+            - $ref: '#/components/schemas/EstadoFuente'
+            - $ref: '#/components/schemas/DatosFlujoReiniciar'
+    Problema:
+      type: object
+      description: RFC 9457 Problem Details.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          pattern: '^urn:terremotos:problema:[a-z-]+$'
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        errors:
+          type: array
+          items:
+            type: object
+            required: [parametro, mensaje]
+            properties:
+              parametro:
+                type: string
+              mensaje:
+                type: string
+  examples:
+    RespuestaSismosPanama:
+      summary: Solo Panamá, M ≥ 4.0, 24 h; un sismo con EMSC (IGC) y USGS fusionados
+      value:
+        generadoEn: '2026-10-10T07:00:00.000Z'
+        filtro:
+          paises: [PA]
+          magMin: 4.0
+          periodo: 24h
+          desde: '2026-10-09T07:00:00.000Z'
+        ultimoEventoId: lx3k9a-57
+        completo: true
+        total: 1
+        truncado: false
+        fuentes:
+          - fuente: emsc-ws
+            estado: ok
+            cambiadoEn: '2026-10-10T05:59:01.000Z'
+            ultimoExitoEn: '2026-10-10T06:59:46.000Z'
+            proximoIntentoEn: null
+            mensaje: null
+        sismos:
+          - id: emsc:20261010_0000106
+            tiempo: '2026-10-10T06:04:20.000Z'
+            lat: 7.8117
+            lon: -81.056
+            profundidadKm: 5
+            magnitud: 4.4
+            magnitudTipo: m
+            lugar: PANAMA
+            pais: PA
+            zona: PA
+            zonaHoraria: America/Panama
+            autor: IGC
+            fuentePreferida: emsc
+            url: https://www.seismicportal.eu/eventdetails.html?unid=20261010_0000106
+            fuentes:
+              - fuente: emsc
+                idFuente: '20261010_0000106'
+                autor: IGC
+                magnitud: 4.4
+                magnitudTipo: m
+                url: https://www.seismicportal.eu/eventdetails.html?unid=20261010_0000106
+                actualizadoEn: '2026-10-10T06:08:30.760Z'
+              - fuente: usgs
+                idFuente: us6000u1cz
+                autor: US
+                magnitud: 4.3
+                magnitudTipo: mb
+                url: https://earthquake.usgs.gov/earthquakes/eventpage/us6000u1cz
+                actualizadoEn: '2026-10-10T06:31:12.000Z'
+            actualizadoEn: '2026-10-10T06:31:12.000Z'
+            recibidoEn: '2026-10-10T06:08:33.101Z'
+            revision: 2
+    SaludDegradada:
+      summary: USGS caída, el resto bien
+      value:
+        estado: degradado
+        version: 2.0.0
+        arrancadoEn: '2026-10-10T05:59:00.000Z'
+        segundosActivo: 3660
+        sismosEnMemoria: 512
+        clientesSse: 1
+        memoriaRssMb: 92.4
+        fuentes:
+          - fuente: emsc-ws
+            estado: ok
+            cambiadoEn: '2026-10-10T05:59:01.000Z'
+            ultimoExitoEn: '2026-10-10T06:59:46.000Z'
+            proximoIntentoEn: null
+            mensaje: null
+          - fuente: emsc-fdsn
+            estado: ok
+            cambiadoEn: '2026-10-10T05:59:02.000Z'
+            ultimoExitoEn: '2026-10-10T06:59:54.000Z'
+            proximoIntentoEn: null
+            mensaje: null
+          - fuente: usgs
+            estado: caida
+            cambiadoEn: '2026-10-10T06:58:30.000Z'
+            ultimoExitoEn: '2026-10-10T06:57:48.000Z'
+            proximoIntentoEn: '2026-10-10T07:00:10.000Z'
+            mensaje: Tiempo de espera agotado
