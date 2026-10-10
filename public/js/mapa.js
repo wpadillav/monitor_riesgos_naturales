@@ -191,8 +191,12 @@ export function contenidoVentana(entrada, ahora) {
 /**
  * Leyenda plegable (textos.md §7).
  * @param {boolean} abierta
+ * @param {boolean} arriba el control está en una esquina superior
  */
-function crearLeyenda(abierta) {
+function crearLeyenda(abierta, arriba) {
+  // La flecha indica hacia dónde se moverá el contenido: abajo, la leyenda se despliega hacia
+  // arriba; arriba (móvil), hacia abajo.
+  const flecha = (/** @type {boolean} */ abrir) => (abrir !== arriba ? 'abajo' : 'arriba');
   const lista = crear(
     'ul',
     {},
@@ -252,13 +256,13 @@ function crearLeyenda(abierta) {
         'aria-controls': 'leyenda-mapa',
       },
     },
-    ['Leyenda', icono(abierta ? 'abajo' : 'arriba', 'ico ico-s')],
+    ['Leyenda', icono(flecha(abierta), 'ico ico-s')],
   );
   boton.addEventListener('click', () => {
     const abrir = contenido.hidden;
     contenido.hidden = !abrir;
     boton.setAttribute('aria-expanded', String(abrir));
-    boton.querySelector('use')?.setAttribute('href', abrir ? '#i-abajo' : '#i-arriba');
+    boton.querySelector('use')?.setAttribute('href', `#i-${flecha(abrir)}`);
   });
   return crear('div', { clase: 'leyenda-control' }, [boton, contenido]);
 }
@@ -316,7 +320,7 @@ export function crearMapa({
   const ControlAviso = L.Control.extend({ onAdd: () => avisoTeselas });
   new ControlAviso({ position: 'topright' }).addTo(mapa);
 
-  const leyenda = crearLeyenda(leyendaAbierta);
+  const leyenda = crearLeyenda(leyendaAbierta, !leyendaAbierta);
   L.DomEvent.disableClickPropagation(leyenda);
   L.DomEvent.disableScrollPropagation(leyenda);
   const ControlLeyenda = L.Control.extend({ onAdd: () => leyenda });
