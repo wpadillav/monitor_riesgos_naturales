@@ -15,6 +15,8 @@ describe('loadConfig', () => {
       fuenteTimeoutMs: 10_000,
       retencionDias: 30,
       fuentesActivas: true,
+      avisoVentanaMin: 60,
+      sseMaxClientes: 8,
     });
   });
 
@@ -55,8 +57,24 @@ describe('loadConfig', () => {
     ['FUENTE_TIMEOUT_MS', '60000', /FUENTE_TIMEOUT_MS/],
     ['RETENCION_DIAS', '31', /RETENCION_DIAS/],
     ['FUENTES_ACTIVAS', 'false', /FUENTES_ACTIVAS/],
+    ['AVISO_VENTANA_MIN', '4', /AVISO_VENTANA_MIN .*5 a 1440/],
+    ['AVISO_VENTANA_MIN', '1441', /AVISO_VENTANA_MIN/],
+    ['AVISO_VENTANA_MIN', '60.5', /AVISO_VENTANA_MIN/],
+    ['SSE_MAX_CLIENTES', '0', /SSE_MAX_CLIENTES .*AM-13/],
+    ['SSE_MAX_CLIENTES', '17', /SSE_MAX_CLIENTES/],
   ])('rechaza %s=%s', (variable, valor, mensaje) => {
     expect(() => loadConfig({ [variable]: valor })).toThrow(mensaje);
+  });
+
+  it('lee AVISO_VENTANA_MIN (PRD E4) y SSE_MAX_CLIENTES (AM-13)', () => {
+    expect(loadConfig({ AVISO_VENTANA_MIN: '120', SSE_MAX_CLIENTES: '16' })).toMatchObject({
+      avisoVentanaMin: 120,
+      sseMaxClientes: 16,
+    });
+    expect(loadConfig({ AVISO_VENTANA_MIN: '5', SSE_MAX_CLIENTES: '1' })).toMatchObject({
+      avisoVentanaMin: 5,
+      sseMaxClientes: 1,
+    });
   });
 
   it('admite PORT=3100 y HOST=::1', () => {

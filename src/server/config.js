@@ -51,6 +51,9 @@ export class ConfigError extends Error {
  * @property {number} retencionDias `RETENCION_DIAS` (1–30)
  * @property {boolean} fuentesActivas `FUENTES_ACTIVAS` (`si`/`no`): con `no` no se consulta
  *   ninguna fuente (pruebas de arranque y trabajo sin red)
+ * @property {number} avisoVentanaMin `AVISO_VENTANA_MIN` (5–1440): ventana de `notificable`
+ *   en el stream (PRD E4)
+ * @property {number} sseMaxClientes `SSE_MAX_CLIENTES` (1–16): plazas SSE (AM-13)
  */
 
 /**
@@ -121,6 +124,15 @@ export function loadConfig(env) {
     errores.push(`FUENTES_ACTIVAS debe ser si o no (recibido: «${fuentesTexto}»).`);
   }
 
+  const avisoVentanaMin = entero(env.AVISO_VENTANA_MIN, '60');
+  if (!(avisoVentanaMin >= 5 && avisoVentanaMin <= 1440)) {
+    errores.push('AVISO_VENTANA_MIN debe ser un entero de 5 a 1440 minutos (PRD E4).');
+  }
+  const sseMaxClientes = entero(env.SSE_MAX_CLIENTES, '8');
+  if (!(sseMaxClientes >= 1 && sseMaxClientes <= 16)) {
+    errores.push('SSE_MAX_CLIENTES debe ser un entero de 1 a 16 (AM-13).');
+  }
+
   if (errores.length > 0) throw new ConfigError(errores);
 
   return Object.freeze(
@@ -136,6 +148,8 @@ export function loadConfig(env) {
       fuenteTimeoutMs,
       retencionDias,
       fuentesActivas: fuentesTexto === 'si',
+      avisoVentanaMin,
+      sseMaxClientes,
     }),
   );
 }
