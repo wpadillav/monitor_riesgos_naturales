@@ -5,7 +5,7 @@ test.describe('carga inicial con datos simulados', () => {
     const { peticiones } = await simular(page);
     await page.goto('/');
 
-    await expect(page.locator('#estado-texto')).toHaveText('Datos cargados');
+    await expect(page.locator('#estado-texto')).toHaveText('En vivo');
     await expect(page.locator('#h-sismos')).toHaveText('Sismos (5)');
     await expect(filas(page)).toHaveCount(5);
     expect(peticiones[0].toString()).toBe('paises=ES%2CCO%2CPA&magMin=2.0&periodo=24h');
@@ -118,7 +118,7 @@ test.describe('carga inicial con datos simulados', () => {
       await vacio.getByRole('button', { name: 'Reintentar ahora' }).click();
       await expect(filas(page)).toHaveCount(5);
       await expect(vacio).toBeHidden();
-      await expect(page.locator('#estado-texto')).toHaveText('Datos cargados');
+      await expect(page.locator('#estado-texto')).toHaveText('En vivo');
     });
   });
 

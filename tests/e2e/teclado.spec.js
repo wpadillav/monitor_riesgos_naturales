@@ -1,4 +1,4 @@
-import { expect, filas, simular, test } from './apoyo.js';
+import { espiarNotificaciones, expect, filas, simular, test } from './apoyo.js';
 
 test.describe('navegación con teclado (wireframes §9)', () => {
   test('el primer Tab es «Ir a la lista de sismos» y lleva el foco a la lista', async ({
@@ -16,13 +16,18 @@ test.describe('navegación con teclado (wireframes §9)', () => {
   });
 
   test('la lista es un único punto de tabulación con flechas, Inicio y Fin', async ({ page }) => {
+    // Permiso «sin decidir», como en un navegador recién instalado (Chromium sin interfaz lo
+    // deniega por defecto).
+    await espiarNotificaciones(page, { permiso: 'default' });
     await simular(page);
     await page.goto('/');
     await expect(filas(page)).toHaveCount(5);
     await expect(page.locator('#lista-sismos button[tabindex="0"]')).toHaveCount(1);
 
-    // Desde «Periodo», el siguiente Tab entra en la lista (avisos deshabilitados hasta T4.7).
+    // Desde «Periodo»: Tab va a «Activar avisos» y el siguiente entra en la lista.
     await page.locator('#periodo').focus();
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Activar avisos' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(filas(page).first()).toBeFocused();
 

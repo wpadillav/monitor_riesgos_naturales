@@ -4,6 +4,7 @@
  */
 
 import { test as base, expect } from '@playwright/test';
+import { crearSseSimulado } from './sse-simulado.js';
 
 /** Instante fijo de las pruebas: verano (horario de verano en Madrid y Canarias). */
 export const AHORA = Date.parse('2026-07-15T12:30:00.000Z');
@@ -245,6 +246,25 @@ export async function simular(page, opciones = {}) {
  */
 export const test = base.extend({
   erroresPermitidos: [[], { option: true }],
+  /**
+   * `/api/stream` simulado (T4.6b): cada prueba tiene su servidor SSE y la página se conecta a
+   * él sin saberlo. La prueba envía eventos con `sse.enviar(tipo, datos)`.
+   * @type {import('./sse-simulado.js').SseSimulado}
+   */
+  sse: [
+    async ({ page }, usar) => {
+      const sse = await crearSseSimulado();
+      await page.route('**/api/stream?*', (ruta) => {
+        const original = new URL(ruta.request().url());
+        return ruta.continue({
+          url: `http://127.0.0.1:${sse.puerto}${original.pathname}${original.search}`,
+        });
+      });
+      await usar(sse);
+      await sse.cerrar();
+    },
+    { auto: true },
+  ],
   vigilancia: [
     async ({ page, erroresPermitidos }, usar) => {
       /** @type {string[]} */
@@ -291,4 +311,96 @@ export { expect };
  */
 export function filas(page) {
   return page.locator('#lista-sismos button.item');
+}
+
+/**
+ * Registra las notificaciones que crea la página en `window.__avisos` (antes de cargarla).
+ * - Sin `permiso`: envuelve la `Notification` **real** del navegador; el permiso es el del
+ *   contexto de Playwright (`test.use({ permissions: ['notifications'] })`).
+ * - Con `permiso`: la sustituye por una simulada con ese permiso; `requestPermission` contesta
+ *   `respuesta` (para «denegado» y «sin respuesta», que el contexto no permite simular).
+ * - Con `soportado: false`: la elimina (navegador sin avisos).
+ * @param {import('@playwright/test').Page} page
+ * @param {{ permiso?: NotificationPermission, respuesta?: NotificationPermission,
+ *   soportado?: boolean }} [opciones]
+ */
+export async function espiarNotificaciones(page, opciones = {}) {
+  await page.addInitScript(
+    ({ permiso, respuesta, soportado }) => {
+      const w = /** @type {any} */ (window);
+      if (!soportado) {
+        delete w.Notification;
+        return;
+      }
+      w.__avisos = [];
+      w.__peticionesPermiso = 0;
+      if (permiso === null) {
+        const Original = w.Notification;
+        const pedirOriginal = Original.requestPermission.bind(Original);
+        w.Notification = class extends Original {
+          /** @param {string} titulo @param {NotificationOptions} [o] */
+          constructor(titulo, o) {
+            super(titulo, o);
+            w.__avisos.push(this);
+          }
+          static requestPermission() {
+            w.__peticionesPermiso += 1;
+            return pedirOriginal();
+          }
+        };
+        return;
+      }
+      let actual = permiso;
+      class NotificacionEspia extends EventTarget {
+        /** @param {string} titulo @param {NotificationOptions} [o] */
+        constructor(titulo, o = {}) {
+          super();
+          this.title = titulo;
+          this.body = o.body;
+          this.tag = o.tag;
+          this.lang = o.lang;
+          this.icon = o.icon;
+          this.cerrada = false;
+          w.__avisos.push(this);
+        }
+        close() {
+          this.cerrada = true;
+        }
+        static get permission() {
+          return actual;
+        }
+        static async requestPermission() {
+          w.__peticionesPermiso += 1;
+          actual = respuesta;
+          return actual;
+        }
+      }
+      w.Notification = NotificacionEspia;
+      w.__cambiarPermiso = (/** @type {NotificationPermission} */ p) => {
+        actual = p;
+      };
+    },
+    {
+      permiso: opciones.permiso ?? null,
+      respuesta: opciones.respuesta ?? 'granted',
+      soportado: opciones.soportado ?? true,
+    },
+  );
+}
+
+/**
+ * Notificaciones creadas (título, cuerpo y etiqueta).
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<{ title: string, body: string, tag: string, lang: string, icon: string }[]>}
+ */
+export function avisos(page) {
+  return page.evaluate(() =>
+    /** @type {any[]} */ (/** @type {any} */ (window).__avisos ?? []).map((n) => ({
+      title: n.title,
+      body: n.body,
+      tag: n.tag,
+      lang: n.lang,
+      icon: n.icon,
+    })),
+  );
 }
