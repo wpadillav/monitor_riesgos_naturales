@@ -10,3 +10,6 @@ docs/
 /index.html
 *.md
 LICENSE
+
+# Generado por scripts/generar-zonas.js (no pasa por Prettier)
+src/shared/zonas.js

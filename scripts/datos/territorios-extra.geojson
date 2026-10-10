@@ -1,0 +1,50 @@
+{
+  "type": "FeatureCollection",
+  "_descripcion": "Territorios que Natural Earth 10m v5.1.2 no asigna a su país (ADR-0005, STACK.lock A9). Polígonos pequeños y aproximados que envuelven el islote; basta con que contengan su posición. Los usa scripts/generar-zonas.js.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Isla de Alborán",
+        "pais": "ES",
+        "zona": "ES-PEN",
+        "fuente": "Centro 35°56′21″N 3°02′05″O (Wikipedia, «Isla de Alborán», y nomenclátor geográfico del IGN). Isla de unos 600 × 260 m orientada al ENE; el polígono es un rectángulo aproximado que la envuelve.",
+        "motivo": "Natural Earth no la incluye en España: el vértice español más cercano está a 68 km (ADR-0005)."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-3.0385, 35.9375],
+            [-3.0305, 35.9375],
+            [-3.0305, 35.941],
+            [-3.0385, 35.941],
+            [-3.0385, 35.9375]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Peñón de Vélez de la Gomera",
+        "pais": "ES",
+        "zona": "ES-PEN",
+        "fuente": "Centro 35°10′22″N 4°18′01″O (Wikipedia, «Peñón de Vélez de la Gomera»). Peñón de unos 400 × 100 m unido a la costa por un tómbolo; el polígono es un rectángulo aproximado que lo envuelve.",
+        "motivo": "En Natural Earth queda dentro del polígono de Marruecos (ADR-0005). El script lo resta de la tierra marroquí."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-4.3025, 35.1715],
+            [-4.298, 35.1715],
+            [-4.298, 35.174],
+            [-4.3025, 35.174],
+            [-4.3025, 35.1715]
+          ]
+        ]
+      }
+    }
+  ]
+}

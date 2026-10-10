@@ -14,6 +14,7 @@
     "test": "vitest run",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
+    "zonas": "node scripts/generar-zonas.js",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "check": "npm run lint && npm test && npm run audit:prod",
     "sbom": "npm sbom --sbom-format cyclonedx --omit=dev > sbom.cdx.json",
