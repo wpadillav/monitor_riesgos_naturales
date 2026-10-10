@@ -23,7 +23,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Las cadenas del USGS (`place`, `url`) se insertan con `innerHTML` y en el popup de Leaflet sin escapar. Tenlo en cuenta si se añaden campos o fuentes de datos.
 - Hay que mantener el aviso "Solo informativo. No es un sistema de alerta temprana…" y la atribución de datos (USGS y Esri).
 
-## Git
+## Git y licencia
+
+- Repositorio público: https://github.com/wpadillav/monitor_riesgos_naturales. Licencia **AGPL-3.0-or-later** ([LICENSE](LICENSE)). Toda dependencia nueva debe tener una licencia compatible con la AGPL.
 
 - Los commits van **solo a nombre de `wpadillav`**, con la identidad local del repositorio. No añadas `Co-Authored-By` ni ninguna otra atribución a Claude, ni en commits ni en PRs. Esta regla se aplica también a los encargos a subagentes.
 
