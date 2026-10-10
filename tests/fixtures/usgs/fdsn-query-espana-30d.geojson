@@ -1,0 +1,53 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "generated": 1791617060000,
+    "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2026-09-10&minmagnitude=1.5&minlatitude=34.5&maxlatitude=44.5&minlongitude=-10.5&maxlongitude=5",
+    "title": "USGS Earthquakes",
+    "status": 200,
+    "api": "2.8.1",
+    "count": 1
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 2.9,
+        "place": "4 km S of Abanilla, Spain",
+        "time": 1790327076938,
+        "updated": 1790752589677,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000txjq",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000txjq&format=geojson",
+        "felt": 11,
+        "cdi": 3.4,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 133,
+        "net": "us",
+        "code": "6000txjq",
+        "ids": ",us6000txjq,",
+        "sources": ",us,",
+        "types": ",dyfi,origin,phase-data,",
+        "nst": 6,
+        "dmin": 2.764,
+        "rms": 0.22,
+        "gap": 230,
+        "magType": "mb_lg",
+        "type": "earthquake",
+        "title": "M 2.9 - 4 km S of Abanilla, Spain"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.0319,
+          38.1618,
+          10
+        ]
+      },
+      "id": "us6000txjq"
+    }
+  ]
+}

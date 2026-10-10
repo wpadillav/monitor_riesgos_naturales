@@ -1,0 +1,144 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "generated": 1791611612000,
+    "url": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2026-09-10&minmagnitude=2.5&minlatitude=-5&maxlatitude=14&minlongitude=-84&maxlongitude=-66&orderby=time&limit=50",
+    "title": "USGS Earthquakes",
+    "status": 200,
+    "api": "2.8.1",
+    "limit": 50,
+    "offset": 1,
+    "count": 3,
+    "_recortado": "fixture recortado a 3 eventos"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 6.6,
+        "place": "14 km W of Río Grande, Panama",
+        "time": 1791577539080,
+        "updated": 1791599377126,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000u19w",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000u19w&format=geojson",
+        "felt": 26,
+        "cdi": 7.1,
+        "mmi": 8.131,
+        "alert": "yellow",
+        "status": "reviewed",
+        "tsunami": 1,
+        "sig": 689,
+        "net": "us",
+        "code": "6000u19w",
+        "ids": ",pt26282001,us6000u19w,attmnq2s,usauto6000u19w,",
+        "sources": ",pt,us,at,usauto,",
+        "types": ",dyfi,ground-failure,impact-link,internal-moment-tensor,losspager,moment-tensor,origin,phase-data,shakemap,",
+        "nst": 84,
+        "dmin": 2.163,
+        "rms": 0.81,
+        "gap": 127,
+        "magType": "mww",
+        "type": "earthquake",
+        "title": "M 6.6 - 14 km W of Río Grande, Panama"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -81.4687,
+          7.7176,
+          10
+        ]
+      },
+      "id": "us6000u19w"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 7.7,
+        "place": "12 km WSW of Pitaloza Arriba, Panama",
+        "time": 1791568566036,
+        "updated": 1791612244923,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000u18k",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000u18k&format=geojson",
+        "felt": 703,
+        "cdi": 8.5,
+        "mmi": 9.139,
+        "alert": "red",
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 2598,
+        "net": "us",
+        "code": "6000u18k",
+        "ids": ",pt26282000,us6000u18k,usauto6000u18k,",
+        "sources": ",pt,us,usauto,",
+        "types": ",dyfi,event-sequence,finite-fault,general-text,ground-failure,internal-moment-tensor,losspager,moment-tensor,oaf,origin,phase-data,shakemap,",
+        "nst": 108,
+        "dmin": 1.82,
+        "rms": 0.84,
+        "gap": 45,
+        "magType": "mww",
+        "type": "earthquake",
+        "title": "M 7.7 - 12 km WSW of Pitaloza Arriba, Panama"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -80.769,
+          7.5868,
+          12.647
+        ]
+      },
+      "id": "us6000u18k"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mag": 4.5,
+        "place": "9 km WNW of Flores, Panama",
+        "time": 1791606783219,
+        "updated": 1791607896040,
+        "tz": null,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us6000u1ck",
+        "detail": "https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=us6000u1ck&format=geojson",
+        "felt": null,
+        "cdi": null,
+        "mmi": null,
+        "alert": null,
+        "status": "reviewed",
+        "tsunami": 0,
+        "sig": 312,
+        "net": "us",
+        "code": "6000u1ck",
+        "ids": ",us6000u1ck,",
+        "sources": ",us,",
+        "types": ",origin,phase-data,",
+        "nst": 24,
+        "dmin": 1.751,
+        "rms": 1.39,
+        "gap": 127,
+        "magType": "mb",
+        "type": "earthquake",
+        "title": "M 4.5 - 9 km WNW of Flores, Panama"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -80.4791,
+          7.5239,
+          10
+        ]
+      },
+      "id": "us6000u1ck"
+    }
+  ],
+  "bbox": [
+    -82.7171,
+    -3.1213,
+    10,
+    -72.9801,
+    7.8349,
+    162.357
+  ]
+}

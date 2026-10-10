@@ -9,7 +9,7 @@ Todo lo que aparece como **«a verificar»** se comprueba en la Fase 1 (investig
 
 ## 1. Objetivo y alcance
 
-Transformar [index.html](../index.html) en una aplicación que muestre los sismos **lo más en vivo posible** para España, Colombia y Panamá. Debe permitir **filtrar antes de consultar**, mostrar **alertas oficiales de tsunami** y **avisar con notificaciones del navegador**. Se ejecuta en local con Node.js y se puede publicar gratis en Cloudflare o en Vercel.
+Transformar [index.html](../index.html) en una aplicación que muestre los sismos **lo más en vivo posible** para España, Colombia y Panamá. Debe permitir **filtrar antes de consultar**, mostrar **alertas oficiales de tsunami** y **avisar con notificaciones del navegador**. Se ejecuta **solo en local** con Node.js.
 
 ### Dentro del alcance
 
@@ -26,7 +26,16 @@ Transformar [index.html](../index.html) en una aplicación que muestre los sismo
 | A8 | Hora local | Hora local del país del sismo, además de «hace X min». |
 | A10 | Modo oscuro y modo día | Por defecto sigue la preferencia del sistema operativo; hay un botón para cambiarlo y la elección se guarda. Las teselas del mapa cambian con el tema (Esri gris oscuro o gris claro). |
 | A11 | Idioma | Solo español. |
-| A9 | Publicación gratuita | Despliegue en Cloudflare (recomendado) o en Vercel con costo cero. |
+| A9 | Ejecución local | Servidor Node.js local, funcional de punta a punta. **Sin publicación en internet.** |
+
+### Entregas (decisión del Director, 2026-10-10)
+
+| Entrega | Incluye | Queda fuera |
+|---|---|---|
+| **1 — Versión mínima** | A1 en vivo, A2 magnitud, A3 y A3b países, A5 tiempo, A7 notificaciones (solo sismos), A8 hora local, A9 ejecución local, A10 modo oscuro/día, A11 español | Tsunamis y filtro de radio |
+| **2** | A4 filtro de radio y A6 tsunamis, con su notificación | — |
+
+La entrega 1 se construye, se prueba y se acepta (🔒) antes de empezar la 2. La investigación de tsunamis de T1.2 se conserva para la entrega 2.
 
 ### Fuera del alcance de esta versión
 
@@ -42,7 +51,7 @@ Transformar [index.html](../index.html) en una aplicación que muestre los sismo
 |---|---|
 | Lenguaje | **Node.js**, con JavaScript en el servidor y en la página |
 | Ejecución | Local, en la máquina de desarrollo (Linux Mint 22.3) |
-| Publicación | Opcional y gratuita, en Cloudflare o Vercel |
+| Publicación | **Ninguna: solo uso local** (Cloudflare y Vercel descartados) |
 | Países | España (incluye Canarias, Baleares, Ceuta y Melilla), Colombia y Panamá |
 | Notificaciones | Sí, del navegador. Umbral por defecto: M > 4.5 |
 | Países por defecto | Los tres marcados; se puede desmarcar cualquiera |
@@ -54,57 +63,51 @@ Transformar [index.html](../index.html) en una aplicación que muestre los sismo
 
 ## 3. Arquitectura propuesta
 
-### 3.1 Consecuencia de publicar gratis
+### 3.1 Servidor local siempre conectado
 
-Los planes gratuitos de Cloudflare y Vercel ejecutan **funciones bajo demanda**. Una función arranca con una petición y termina al responder, así que no puede quedarse conectada todo el día a una fuente. Por eso la idea anterior, un servidor Node.js siempre conectado a EMSC, **no se puede desplegar gratis tal cual**.
-
-**Propuesta:** dividir el trabajo en tres capas, según lo rápido que tiene que llegar cada dato.
+El Director decidió que el proyecto sea **solo de uso local** (2026-10-10). Sin publicación, desaparece la limitación de las funciones bajo demanda y se usa la arquitectura más rápida: un **servidor Node.js permanente** que mantiene las conexiones con las fuentes y **empuja** cada novedad al navegador.
 
 | Capa | Mecanismo | Latencia objetivo |
 |---|---|---|
-| **1. Tiempo real** | El **navegador se conecta directamente al WebSocket de EMSC**. Las conexiones WebSocket no están sujetas a CORS. *A verificar.* | Segundos |
-| **2. Consulta periódica** | La página llama a `/api/sismos` cada ~30 s. Esa función consulta USGS, EMSC (búsqueda), IGN, SGC e IGC con los filtros ya aplicados. Normaliza los datos a un formato común, quita duplicados y guarda un caché corto. | ≤ 90 s |
-| **3. Tsunamis** | La página llama a `/api/tsunamis` cada ~60 s. Esa función lee los avisos de NOAA, IGN y GDACS (formatos Atom o CAP) y los devuelve filtrados por país. | ≤ 2 min |
+| **1. Tiempo real** | El **servidor** mantiene una conexión WebSocket con EMSC y reenvía cada sismo al navegador por **Server-Sent Events** (`/api/stream`). | Segundos |
+| **2. Consulta periódica** | El servidor consulta USGS, EMSC (búsqueda), IGN, SGC e IGC cada ~30 s con filtros amplios: los tres países y la magnitud mínima. Normaliza, quita duplicados, guarda en memoria y emite por el mismo stream solo lo nuevo o lo modificado. | ≤ 60 s |
+| **3. Tsunamis** | El servidor lee los avisos de NOAA, IGN y GDACS cada ~60 s y los emite por el stream. | ≤ 90 s |
 
-Si el WebSocket se cae, la página sigue funcionando con la capa 2 y se reconecta sola.
+- **Carga inicial:** `GET /api/sismos?paises=…&minmag=…&desde=…&radio=…`. Para rangos largos (7 o 30 días) consulta las fuentes con esos filtros; para el resto responde desde la memoria.
+- **Filtros del usuario:** viajan en la consulta inicial y en la suscripción al stream; el servidor solo envía lo que pasa los filtros.
+- **Ventajas frente al plan anterior:**
+  - no hay problemas de CORS;
+  - las fuentes reciben una sola conexión, sin importar cuántas pestañas haya abiertas;
+  - la eliminación de duplicados se hace en un solo sitio.
+- **Si se corta una fuente:** el servidor se reconecta con espera creciente entre intentos. Si se corta el stream, `EventSource` se reconecta solo y recupera lo perdido con `Last-Event-ID`.
 
-### 3.2 Código portable: Hono
+### 3.2 Hono sobre Node.js
 
-El servidor se escribe con **Hono**, un framework que funciona igual en los tres entornos:
-
-- **Local:** sobre Node.js, con el adaptador para Node.
-- **Cloudflare:** como Worker, con los archivos estáticos servidos desde el mismo Worker.
-- **Vercel:** como función.
-
-La lógica de dominio va en un módulo compartido que usan tanto el servidor como la página: modelo común de sismo, filtros geográficos con Turf.js y eliminación de duplicados.
+El servidor usa **Hono** con `@hono/node-server`: sirve la página (`public/`), la API y el stream. La lógica de dominio va en `src/shared`, compartida entre el servidor y la página: modelo común de sismo, filtros con Turf.js y eliminación de duplicados.
 
 ```mermaid
 flowchart LR
+  EMSCWS[(EMSC WebSocket)] -- tiempo real --> S
+  USGS[(USGS)] & EMSC[(EMSC FDSN)] & IGN[(IGN España)] & SGC[(SGC Colombia)] & IGC[(IGC-UP Panamá)] -- cada 30 s --> S
+  NOAA[(NOAA PTWC/NTWC)] & IGNT[(IGN tsunamis)] & GDACS[(GDACS)] -- cada 60 s --> S
+  subgraph S["Servidor local · Node.js + Hono"]
+    M[(memoria: sismos y avisos)]
+  end
+  S -- "SSE /api/stream" --> UI
+  S -- "GET /api/sismos" --> UI
   subgraph Navegador
-    UI[index.html + Leaflet<br/>filtros · lista · mapa · panel tsunami]
+    UI[Leaflet · filtros · lista · panel tsunami · tema]
     N[Notification API]
   end
-  EMSCWS[(EMSC WebSocket)] -- tiempo real --> UI
-  UI -- cada 30 s --> API1["/api/sismos"]
-  UI -- cada 60 s --> API2["/api/tsunamis"]
-  subgraph Hono["Hono (Node local / Cloudflare Worker / Vercel)"]
-    API1 --> C[(caché corto)]
-    API2 --> C
-  end
-  API1 --> USGS[(USGS FDSN)] & EMSC[(EMSC FDSN)] & IGN[(IGN España)] & SGC[(SGC Colombia)] & IGC[(IGC-UP Panamá)]
-  API2 --> NOAA[(NOAA PTWC/NTWC)] & IGNT[(IGN tsunamis)] & GDACS[(GDACS)]
   UI --> N
 ```
 
-### 3.3 Dónde publicar: recomendación inicial
+### 3.3 Cómo se ejecuta
 
-Se recomienda **Cloudflare**. Motivos, todos *a verificar*:
-
-- plan gratuito con más margen de peticiones;
-- tareas programadas (Cron Triggers) y almacén KV incluidos para el caché;
-- el plan Hobby de Vercel está limitado a uso no comercial.
-
-La decisión final se toma con un ADR en la Fase 3 🔒.
+- **Desarrollo:** `npm run dev` (recarga al cambiar el código).
+- **Uso diario:** `npm start` en `http://localhost:<puerto>`.
+- El Director **arranca la aplicación a mano** (2026-10-10): no hay servicio systemd ni proxy de Apache.
+- No se publica en internet.
 
 ### 3.4 Filtros geográficos
 
@@ -133,7 +136,15 @@ La decisión final se toma con un ADR en la Fase 3 🔒.
 
 ---
 
-## 4. Fuentes de datos (todas a verificar en la Fase 1)
+## 4. Fuentes de datos
+
+> **Verificado en T1.2 (2026-10-10):** ver [investigacion-fuentes.md](investigacion-fuentes.md). Resumen:
+> - Tiempo real: WebSocket de EMSC desde el servidor, unos 2 s de retraso.
+> - Consulta periódica: **EMSC FDSN como fuente principal** (ya incluye datos del IGN y del IGC-UP) y USGS como complemento.
+> - IGN, SGC e IGC-UP: no se consumen directamente en la entrega 1.
+> - Tsunamis (entrega 2): NOAA PTWC cubre Colombia y Panamá. **España no tiene feed oficial**: se usa el plan B (GDACS, marcado como no oficial, más enlaces a IGN, 112 y ES-Alert).
+>
+> La tabla siguiente es la hipótesis original y se conserva como referencia.
 
 | Fuente | Uso | ¿Necesita pasar por nuestro servidor? | Qué hay que verificar |
 |---|---|---|---|
@@ -167,10 +178,10 @@ Leyenda: 🔒 = aprobación del Director · ⇢ = depende de
 |---|---|---|---|
 | T1.1 | Aplicar la política de versiones a Node.js LTS, Hono, Leaflet, Turf.js, Wrangler y Vitest/Playwright, y redactar el borrador de `STACK.lock.md` | investigador-stack | Cada versión tiene fuente oficial y fecha de fin de soporte (EOL) ≥ 18 meses |
 | T1.2 | Verificar cada fuente de §4: URL, formato, CORS, términos, si pide clave, y una muestra guardada como fixture | ingeniero-datos | Entrega `docs/investigacion-fuentes.md` con una fila verificada por fuente y los fixtures en `tests/fixtures/` |
-| T1.3 | Prueba de concepto: WebSocket de EMSC desde el navegador y medición de latencia frente a USGS durante ≥ 24 h | backend-senior | Tabla de latencias por fuente y país, y conclusión sobre si la capa 1 es viable |
-| T1.4 | Confirmar los límites gratuitos de Cloudflare y Vercel: peticiones, Cron Triggers, KV y uso comercial | devops-sre | Tabla comparativa con enlaces oficiales |
+| T1.3 | ~~Medición de 24 h~~ — **sustituida**: T1.2 ya midió unos 2 s en el WebSocket de EMSC. El servidor registrará la latencia de cada fuente en sus logs (se incorpora a T4.3) | — | — |
+| ~~T1.4~~ | ~~Límites gratuitos de Cloudflare y Vercel~~ — **cancelada**: el proyecto es solo local | — | — |
 
-T1.1, T1.2 y T1.4 se hacen en paralelo. T1.3 ⇢ T1.2 (EMSC).
+T1.1 y T1.2 se hacen en paralelo. T1.3 ⇢ T1.2 (EMSC). T1.3 no bloquea la entrega 1: corre en paralelo con la construcción y sus datos ajustan los objetivos de latencia.
 
 ### Fase 2 — Requerimientos 🔒
 
@@ -182,7 +193,7 @@ T1.1, T1.2 y T1.4 se hacen en paralelo. T1.3 ⇢ T1.2 (EMSC).
 
 | ID | Tarea | Agente | Criterio de aceptación |
 |---|---|---|---|
-| T3.1 | `docs/01-arquitectura.md` y ADRs: 001 Hono portable · 002 tiempo real directo con EMSC · 003 Cloudflare frente a Vercel · 004 modelo común y duplicados | arquitecto-software | Los ADR están aprobados y son coherentes con `STACK.lock.md` |
+| T3.1 | `docs/01-arquitectura.md` y ADRs: 001 servidor local Hono/Node · 002 tiempo real con WebSocket de EMSC y SSE · 003 versión de Node (24 o 26 LTS) · 004 modelo común y duplicados | arquitecto-software | Los ADR están aprobados y son coherentes con `STACK.lock.md` |
 | T3.2 | Modelo de amenazas: inyección desde las fuentes (XSS), CSP, abuso de `/api` y privacidad de la ubicación | arquitecto-seguridad | Cada amenaza tiene una mitigación asignada a una tarea |
 | T3.3 | Wireframes (escritorio y móvil), panel de tsunamis, flujo del permiso de notificaciones, textos y tokens de color para modo oscuro y modo día | disenador-ux-ui | Cumplen WCAG 2.2 AA y el Director los aprueba |
 
@@ -197,11 +208,11 @@ Cada tarea va en su propia rama. Las tareas de una misma oleada se hacen en para
 | 1 | T4.1 | Esqueleto: Hono en Node local, `npm run dev`, linter, Vitest, estructura `src/shared`, `src/server` y `public` | backend-senior | Fase 3 | `npm run dev` sirve la página actual y `npm test` y el linter terminan sin errores |
 | 2 | T4.2 | Módulo compartido: modelo común, filtros de país (polígonos con franja marina) y de radio, y eliminación de duplicados | backend-senior | T4.1 | Pruebas unitarias con casos límite: Ceuta, Melilla, Canarias, San Andrés y sismos en el mar cerca de la costa |
 | 2 | T4.3 | Adaptadores de fuentes de sismos y `/api/sismos` con filtros y caché | backend-senior | T4.1 | Pruebas con los fixtures de T1.2; una fuente caída no rompe la respuesta |
-| 2 | T4.4 | Adaptadores de tsunamis y `/api/tsunamis` | backend-senior | T4.1 | Pruebas con fixtures reales de avisos de NOAA y del plan B |
+| 2 *(entrega 2)* | T4.4 | Adaptadores de tsunamis y `/api/tsunamis` | backend-senior | T4.1 | Pruebas con fixtures reales de avisos de NOAA y del plan B |
 | 3 | T4.5 | Interfaz: panel de filtros (aplicados antes de consultar), lista, mapa, panel de tsunamis, hora local, modo oscuro/día y escapado seguro | frontend-senior | T4.2, T3.3 | Coincide con los wireframes; no queda ningún `innerHTML` con datos externos |
 | 3 | T4.6 | Cliente del WebSocket de EMSC con reconexión y respaldo en la consulta periódica, fusionado con `/api/sismos` | frontend-senior | T4.2, T4.3 | Un sismo nuevo aparece sin recargar la página; si se corta la red, se recupera solo |
 | 3 | T4.7 | Notificaciones: permiso al pulsar el botón, umbral, tsunamis y preferencias guardadas | frontend-senior | T4.5 | Probado en Chrome y Firefox; si el usuario niega el permiso, la página sigue funcionando |
-| 4 | T4.8 | Configuración de despliegue en Cloudflare, y en Vercel si el ADR-003 lo pide; `npm run deploy` | devops-sre | T4.3–T4.7 | Despliegue de prueba accesible con costo 0 |
+| 4 | T4.8 | Ejecución local: `npm start` y un archivo de variables de ejemplo; sin systemd ni Apache | devops-sre | T4.3–T4.7 | Con el repositorio limpio, `npm ci && npm start` deja la aplicación funcionando en local |
 
 ### Fase 5 — Calidad
 
@@ -220,12 +231,12 @@ Si algo falla, la tarea vuelve a su autor. Tras 3 ciclos sin resolverse, se esca
 |---|---|---|---|
 | T6.1 | README (instalación local y despliegue), documento operativo para cuando falle una fuente, atribuciones y actualización de `CLAUDE.md` | documentador-tecnico | Una persona nueva lo arranca en local siguiendo solo el README |
 
-### Fase 7 — Publicación 🔒
+### Fase 7 — Versión local 🔒
 
 | ID | Tarea | Agente | Criterio de aceptación |
 |---|---|---|---|
 | T7.1 | Versión SemVer, CHANGELOG y tag | especialista-git | Tag creado tras la aprobación |
-| T7.2 | Despliegue en producción en la plataforma elegida | devops-sre | URL pública funcionando y sin costo |
+| T7.2 | Puesta en marcha en el equipo del Director, sin publicar en internet | devops-sre | La aplicación funciona en local y el Director la acepta |
 
 ---
 
@@ -257,6 +268,9 @@ Si algo falla, la tarea vuelve a su autor. Tras 3 ciclos sin resolverse, se esca
 ---
 
 ## 8. Respuestas del Director (2026-10-10)
+
+> **Cambio de alcance (2026-10-10):** solo uso local y totalmente funcional. Sin Cloudflare ni Vercel. La arquitectura de §3 se actualizó en consecuencia y T1.4 queda cancelada.
+
 
 1. **Filtro de lugar:** por defecto, los tres países completos. El radio alrededor de una ciudad queda como filtro opcional.
 2. **Umbral de notificación:** M > 4.5. En el PRD se confirma si una M 4.5 exacta debe notificar.
