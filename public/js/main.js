@@ -1,19 +1,17 @@
 /**
- * Arranque de la página (T4.5): tema, filtros, lista, mapa y carga desde `GET /api/sismos`.
+ * Arranque de la página: tema, filtros, lista, mapa, carga desde `GET /api/sismos` (T4.5),
+ * datos en vivo por `/api/stream` (T4.6b, `stream.js`) y avisos del navegador (T4.7,
+ * `avisos.js` y `avisos-ui.js`).
  *
- * **Integración con T4.6b y T4.7.** Todo lo que necesitan está en el objeto `integracion` de
- * abajo: el estado de la vista (`aplicarSismo`, `eliminarSismo`, `reemplazar`, `suscribir`),
- * la barra de estado (`poner('en-vivo' | 'reconectando' | 'sin-conexion')`, `ponerFuentes`),
- * los filtros actuales, el `ultimoEventoId` de la última carga y `recargar()`. Hasta que exista
- * el stream, `iniciarRecargaPeriodica` vuelve a pedir `/api/sismos` cada minuto; T4.6b la
- * sustituye por la suscripción SSE. Notas para T4.6b (contrato de `/api/stream`):
- * - `paises` es obligatorio: sin países marcados no se abre el stream;
- * - `avisoMin` solo admite 4.0, 4.5, 5.0, 5.5 y 6.0, y solo se envía con los avisos activados;
- * - `ultimoId` = `obtenerUltimoEventoId()`; con `flujo.reiniciar`, `recargar()` y reabrir;
- * - al cambiar los filtros (`alCambiar`), tras la nueva carga se reabre el stream.
+ * Ciclo de una carga: al empezar se cierra el stream; al terminar bien, los sismos cargados se
+ * dan por conocidos (no se notifican) y el stream se abre con el `ultimoEventoId` de la carga, de
+ * modo que no se pierde ni se duplica nada. Con `flujo.reiniciar`, recarga silenciosa y reapertura.
+ * El indicador pasa a «En vivo» cuando el stream se abre (wireframes §6).
  */
 
 import { ErrorApi, consultarFuentes, consultarSismos } from './api.js';
+import { crearMostrador, crearNotificador } from './avisos.js';
+import { crearAvisosUI } from './avisos-ui.js';
 import { crearBarraEstado } from './barra-estado.js';
 import { crear, esMovil, icono } from './dom.js';
 import { crearEstado } from './estado.js';
@@ -22,6 +20,7 @@ import { crearFiltrosUI } from './filtros-ui.js';
 import { formatearNumero } from './formato.js';
 import { textoFuentes } from './fuentes.js';
 import { crearLista } from './lista.js';
+import { redondearMagnitud } from './magnitud.js';
 import { crearMapa } from './mapa.js';
 import {
   almacenNavegador,
@@ -31,8 +30,8 @@ import {
   leerTema,
   resolverTema,
 } from './preferencias.js';
+import { crearAnunciadorNuevos, crearConexionVivo } from './stream.js';
 
-const RECARGA_MS = 60_000;
 const SALUD_MS = 30_000;
 const REFRESCO_MS = 30_000;
 const LENTO_MS = 3_000;
@@ -100,6 +99,9 @@ const notaColombia = /** @type {HTMLElement} */ (document.getElementById('nota-c
 
 /** @type {string | null} */
 let seleccion = null;
+/** @type {string | null} ventana abierta sola por un sismo nuevo (§8.4): al cerrarse no mueve el foco */
+let ventanaAutomatica = null;
+let abriendoAutomatica = false;
 
 /**
  * De la lista al mapa: vuela al sismo, abre su ventana y, con teclado, lleva el foco al título.
@@ -109,10 +111,58 @@ let seleccion = null;
 function verEnMapa(id, { enfocar }) {
   const entrada = estado.obtener(id);
   if (!entrada || !mapa) return;
+  ventanaAutomatica = null;
   seleccion = id;
   lista.seleccionar(id);
   if (esMovil()) contenedorMapa.scrollIntoView({ block: 'nearest' });
   mapa.abrir(entrada, { enfocar });
+}
+
+/**
+ * Sismo nuevo que supera el umbral con la pestaña a la vista (textos.md §8.4): abre su ventana
+ * **sin mover el foco**. No sustituye una ventana en la que el usuario tiene el foco.
+ * @param {string} id
+ */
+function abrirSinFoco(id) {
+  const entrada = estado.obtener(id);
+  if (!entrada || !mapa) return;
+  const activo = document.activeElement;
+  if (activo instanceof Element && activo.closest('.leaflet-popup')) return;
+  // La ventana que se cierre al abrir esta tampoco mueve el foco.
+  abriendoAutomatica = true;
+  try {
+    mapa.abrir(entrada, { volar: false, enfocar: false });
+  } finally {
+    abriendoAutomatica = false;
+  }
+  ventanaAutomatica = id;
+}
+
+/**
+ * Clic en la notificación de un sismo (HU-11): ventana emergente con el foco en su título. Si el
+ * sismo no está en la lista (aviso por debajo de la magnitud mínima de la lista, D4), se abre la
+ * ventana con los datos del aviso.
+ * @param {string} id
+ * @param {import('./estado.js').Sismo | null} sismo
+ */
+function verAviso(id, sismo) {
+  if (estado.obtener(id)) {
+    verEnMapa(id, { enfocar: true });
+    return;
+  }
+  if (!sismo || !mapa) return;
+  ventanaAutomatica = null;
+  if (esMovil()) contenedorMapa.scrollIntoView({ block: 'nearest' });
+  mapa.abrir(
+    {
+      sismo,
+      instante: Date.parse(sismo.tiempo),
+      llegadoEn: null,
+      magnitudAnterior: null,
+      version: 0,
+    },
+    { enfocar: true },
+  );
 }
 
 const lista = crearLista({
@@ -137,8 +187,13 @@ mapa = crearMapa({
       seleccion = null;
       lista.seleccionar(null);
     }
-    // Esc o «Cerrar» devuelven el foco al elemento de la lista (wireframes §9.2).
-    if (focoDentro || document.activeElement === document.body) lista.enfocar(id);
+    const automatica = abriendoAutomatica || ventanaAutomatica === id;
+    if (automatica) ventanaAutomatica = null;
+    // Esc o «Cerrar» devuelven el foco al elemento de la lista (wireframes §9.2). Una ventana
+    // que se abrió sola y se cierra sin haber tenido el foco no lo mueve (§8.4).
+    if (focoDentro || (!automatica && document.activeElement === document.body)) {
+      lista.enfocar(id);
+    }
   },
 });
 new ResizeObserver(() => mapa?.invalidar()).observe(contenedorMapa);
@@ -266,7 +321,7 @@ let temporizadorMuyLento = 0;
 let intentos = 0;
 let temporizadorReintento = 0;
 let segundosRestantes = 0;
-/** @type {'inicial' | 'filtros' | 'periodica'} */
+/** @type {'inicial' | 'filtros' | 'reanudacion'} */
 let motivoPendiente = 'inicial';
 /** @type {HTMLElement[]} */
 let cuentas = [];
@@ -311,10 +366,10 @@ function ponerFuentes(fuentes) {
 
 /**
  * @param {number} n
- * @param {'inicial' | 'filtros' | 'periodica'} motivo
+ * @param {'inicial' | 'filtros' | 'reanudacion'} motivo
  */
 function anunciarResultado(n, motivo) {
-  if (motivo === 'periodica') return;
+  if (motivo === 'reanudacion') return;
   if (n === 0) anunciar('No hay sismos con estos filtros.');
   else if (motivo === 'inicial') {
     anunciar(n === 1 ? '1 sismo cargado.' : `${formatearNumero(n)} sismos cargados.`);
@@ -323,7 +378,7 @@ function anunciarResultado(n, motivo) {
 
 /**
  * Consulta `GET /api/sismos` con los filtros actuales. Cancela la anterior (AbortController).
- * @param {'inicial' | 'filtros' | 'periodica'} motivo
+ * @param {'inicial' | 'filtros' | 'reanudacion'} motivo
  */
 async function cargar(motivo) {
   const filtros = filtrosUI.filtros;
@@ -331,6 +386,8 @@ async function cargar(motivo) {
   controlador = null;
   cancelarReintento();
   terminarConsulta();
+  // El stream se reabre al terminar la carga, con su `ultimoEventoId`.
+  vivo.cerrar();
 
   if (filtros.paises.length === 0) {
     errorActual = null;
@@ -345,7 +402,7 @@ async function cargar(motivo) {
 
   const ctrl = new AbortController();
   controlador = ctrl;
-  const silenciosa = motivo === 'periodica';
+  const silenciosa = motivo === 'reanudacion';
   if (!silenciosa) {
     consultando = true;
     if (estado.tamano === 0) barra.poner('cargando');
@@ -378,9 +435,13 @@ async function cargar(motivo) {
     cargaHecha = true;
     ultimaCarga = Date.now();
     ultimoEventoId = respuesta.ultimoEventoId;
+    // Lo que llega en una carga nunca se notifica (HU-11; AM-22, también tras `flujo.reiniciar`).
+    notificador.conocer(respuesta.sismos);
     estado.reemplazar(respuesta.sismos, { marcarNuevos: silenciosa });
     ponerFuentes(respuesta.fuentes);
-    barra.poner('cargado', { n: estado.tamano, hora: ultimaCarga });
+    // El indicador pasa a «En vivo» al abrirse el stream; sin `EventSource`, «Datos cargados».
+    if (globalThis.EventSource) vivo.abrir();
+    else barra.poner('cargado', { n: estado.tamano, hora: ultimaCarga });
     filtrosUI.ponerResultado(estado.tamano);
     anunciarResultado(estado.tamano, primera ? 'inicial' : motivo);
     pintarVacio();
@@ -395,20 +456,20 @@ async function cargar(motivo) {
 /**
  * Error: reintento automático con espera creciente y cuenta atrás que no se anuncia.
  * @param {ErrorApi} error
- * @param {'inicial' | 'filtros' | 'periodica'} motivo
+ * @param {'inicial' | 'filtros' | 'reanudacion'} motivo
  */
 function programarReintento(error, motivo) {
   const espera = ESPERAS_S[Math.min(intentos, ESPERAS_S.length - 1)];
   intentos += 1;
   segundosRestantes = espera;
-  motivoPendiente = motivo === 'periodica' ? 'periodica' : motivo;
+  motivoPendiente = motivo;
   const primerError = errorActual === null;
   errorActual = error;
   cuentas = [];
 
   barra.poner(error.tipo === 'red' ? 'sin-conexion' : 'error-servidor', { hora: ultimaCarga });
 
-  if (estado.tamano > 0 && motivo !== 'periodica') {
+  if (estado.tamano > 0 && motivo !== 'reanudacion') {
     const reintentar = crear('button', {
       clase: 'btn-texto',
       texto: 'Reintentar ahora',
@@ -440,30 +501,72 @@ function programarReintento(error, motivo) {
   }, 1000);
 }
 
-/* ---------- Integración con T4.6b (stream) y T4.7 (avisos) ---------- */
-export const integracion = Object.freeze({
-  estado,
-  barra,
-  anunciar,
-  /** @returns {import('./filtros.js').Filtros} */
-  obtenerFiltros: () => filtrosUI.filtros,
-  /** @returns {string | null} `ultimoEventoId` de la última carga (para `/api/stream`) */
-  obtenerUltimoEventoId: () => ultimoEventoId,
-  /** Abre la ventana emergente de un sismo (clic en una notificación, T4.7). */
-  verEnMapa,
-  recargar: () => cargar('filtros'),
+/* ---------- Avisos (T4.7) ---------- */
+const NotificationApi =
+  typeof globalThis.Notification === 'function' ? globalThis.Notification : null;
+
+const notificador = crearNotificador({
+  mostrar: NotificationApi
+    ? crearMostrador({
+        NotificationImpl: NotificationApi,
+        enfocarPestana: () => window.focus(),
+        alPulsar(aviso) {
+          if (aviso.tipo === 'sismo' && aviso.sismo) verAviso(aviso.sismo.id, aviso.sismo);
+          else if (aviso.tipo === 'resumen' && !lista.enfocar()) tituloLista.focus();
+        },
+      })
+    : () => {},
 });
 
+const avisosUI = crearAvisosUI({
+  contenedor: /** @type {HTMLElement} */ (document.getElementById('avisos-cuerpo')),
+  almacen,
+  anunciar,
+  notificador,
+  NotificationImpl: NotificationApi,
+  alCambiar: () => vivo.reabrir(),
+});
+
+/* ---------- Datos en vivo (T4.6b) ---------- */
+const anunciadorNuevos = crearAnunciadorNuevos({ anunciar });
+
 /**
- * Provisional hasta T4.6b: vuelve a pedir los sismos cada minuto. Los que no estaban se marcan
- * como «Nuevo». T4.6b sustituye esta función por la suscripción a `/api/stream`.
+ * Cada sismo que llega por el stream: anuncio, aviso del navegador y, con la pestaña a la vista,
+ * su ventana emergente si supera el umbral (textos.md §8.4 y §10).
+ * @param {import('./stream.js').Resultado} r
  */
-function iniciarRecargaPeriodica() {
-  window.setInterval(() => {
-    if (controlador || temporizadorReintento || filtrosUI.filtros.paises.length === 0) return;
-    cargar('periodica');
-  }, RECARGA_MS);
+function alEventoVivo(r) {
+  if (r.tipo === 'sismo.eliminado') {
+    if (r.motivo === 'fusionado') notificador.trasladar(r.id, r.reemplazadoPor);
+    return;
+  }
+  if (r.alta && r.enLista) anunciadorNuevos.nuevo(r.sismo);
+  notificador.procesar({
+    sismo: r.sismo,
+    notificable: r.notificable,
+    paises: filtrosUI.filtros.paises,
+  });
+  if (
+    r.alta &&
+    r.enLista &&
+    r.notificable &&
+    redondearMagnitud(r.sismo.magnitud) >= avisosUI.umbral &&
+    document.visibilityState === 'visible'
+  ) {
+    abrirSinFoco(r.sismo.id);
+  }
 }
+
+const vivo = crearConexionVivo({
+  estado,
+  barra,
+  obtenerFiltros: () => filtrosUI.filtros,
+  obtenerUltimoEventoId: () => ultimoEventoId,
+  obtenerAvisoMin: () => avisosUI.avisoMin,
+  recargar: () => cargar('reanudacion'),
+  ponerFuentes,
+  alEvento: alEventoVivo,
+});
 
 /* ---------- Tareas periódicas ---------- */
 // «hace X», etiqueta «Nuevo», halos y sismos que salen del periodo (HU-05), cada 30 s.
@@ -500,4 +603,3 @@ botonFuentes.addEventListener('click', () => {
 /* ---------- Arranque ---------- */
 mapa.encuadrar(filtrosUI.filtros.paises, { animar: false });
 cargar('inicial');
-iniciarRecargaPeriodica();

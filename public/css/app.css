@@ -565,6 +565,44 @@ legend,
   margin-top: 6px;
 }
 
+.avisos-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.avisos-fila-cab {
+  justify-content: space-between;
+}
+
+.avisos-fila-umbral {
+  align-items: flex-end;
+  margin-top: 6px;
+}
+
+.avisos-fila-umbral .campo {
+  flex: 1 1 9rem;
+}
+
+.avisos-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: var(--texto-sm);
+  font-weight: 600;
+}
+
+.avisos-fila .avisos-estado {
+  margin: 0;
+}
+
+.btn[aria-disabled='true'] {
+  opacity: 0.65;
+  cursor: progress;
+}
+
 /* ---------- Lista ---------- */
 .lis {
   position: relative;
