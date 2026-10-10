@@ -6,7 +6,11 @@
  * la barra de estado (`poner('en-vivo' | 'reconectando' | 'sin-conexion')`, `ponerFuentes`),
  * los filtros actuales, el `ultimoEventoId` de la última carga y `recargar()`. Hasta que exista
  * el stream, `iniciarRecargaPeriodica` vuelve a pedir `/api/sismos` cada minuto; T4.6b la
- * sustituye por la suscripción SSE.
+ * sustituye por la suscripción SSE. Notas para T4.6b (contrato de `/api/stream`):
+ * - `paises` es obligatorio: sin países marcados no se abre el stream;
+ * - `avisoMin` solo admite 4.0, 4.5, 5.0, 5.5 y 6.0, y solo se envía con los avisos activados;
+ * - `ultimoId` = `obtenerUltimoEventoId()`; con `flujo.reiniciar`, `recargar()` y reabrir;
+ * - al cambiar los filtros (`alCambiar`), tras la nueva carga se reabre el stream.
  */
 
 import { ErrorApi, consultarFuentes, consultarSismos } from './api.js';
