@@ -12,6 +12,7 @@
     "start": "node --env-file-if-exists=.env src/server/index.js",
     "dev": "node --watch --env-file-if-exists=.env src/server/index.js",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "zonas": "node scripts/generar-zonas.js",
