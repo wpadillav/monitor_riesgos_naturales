@@ -1,4 +1,4 @@
-# PRD — Terremotos en vivo v2 · Entrega 1 (versión mínima)
+# PRD — Monitor de Riesgos Naturales · Entrega 1 (versión mínima)
 
 **Versión:** 0.2 · **Estado:** ✅ aprobado por el Director el 2026-10-10 · **Autor:** analista-requerimientos (T2.1, revisión T2.2) · **Fecha:** 2026-10-10
 
@@ -456,12 +456,12 @@ Como operador quiero arrancarla con un solo comando para usarla sin conocimiento
 Escenario: Arranque limpio
   Dado el repositorio recién clonado y la versión de Node fijada en STACK.lock
   Cuando ejecuto «npm ci» y «npm start»
-  Entonces la consola muestra «Terremotos en vivo en http://localhost:3000»
+  Entonces la consola muestra «Monitor de Riesgos Naturales en http://localhost:3000»
   Y al abrir esa dirección se ve la aplicación con datos
 
 Escenario: Cambiar el puerto
   Cuando ejecuto «PORT=3100 npm start»
-  Entonces la consola muestra «Terremotos en vivo en http://localhost:3100»
+  Entonces la consola muestra «Monitor de Riesgos Naturales en http://localhost:3100»
 
 Escenario: Puerto ocupado
   Dado que el puerto configurado está en uso

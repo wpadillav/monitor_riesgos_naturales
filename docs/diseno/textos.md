@@ -1,4 +1,4 @@
-# Textos de la interfaz — Terremotos en vivo v2 · Entrega 1
+# Textos de la interfaz — Monitor de Riesgos Naturales · Entrega 1
 
 **Tarea:** T3.3 · **Autor:** disenador-ux-ui · **Fecha:** 2026-10-10 · **Estado:** borrador, pendiente de aprobación del Director 🔒
 
@@ -28,10 +28,10 @@ Pantallas de referencia: [wireframes.html](wireframes.html). Colores y tamaños:
 
 | Elemento | Texto |
 |---|---|
-| `<title>` | `Terremotos en vivo` |
-| `<title>` con avisos nuevos y la pestaña en segundo plano (opcional, *Could*) | `({n}) Terremotos en vivo` — vuelve al original al ver la pestaña |
+| `<title>` | `Monitor de Riesgos Naturales` |
+| `<title>` con avisos nuevos y la pestaña en segundo plano (opcional, *Could*) | `({n}) Monitor de Riesgos Naturales` — vuelve al original al ver la pestaña |
 | Enlace para saltar (primer elemento enfocable) | `Ir a la lista de sismos` |
-| `h1` | `Terremotos en vivo` |
+| `h1` | `Monitor de Riesgos Naturales` |
 | Botón de tema en modo oscuro — texto visible | `Modo día` |
 | Botón de tema en modo oscuro — `aria-label` | `Cambiar a modo día` |
 | Botón de tema en modo día — texto visible | `Modo oscuro` |

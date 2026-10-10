@@ -1,4 +1,4 @@
-# Arquitectura — Terremotos en vivo v2 · Entrega 1
+# Arquitectura — Monitor de Riesgos Naturales · Entrega 1
 
 **Versión:** 0.1 · **Estado:** propuesta, pendiente de aprobación del Director 🔒 (Fase 3) · **Autor:** arquitecto-software (T3.1) · **Fecha:** 2026-10-10
 
@@ -48,7 +48,7 @@ flowchart LR
   U(["Director<br/>usuario y operador local"])
   subgraph EQ["Equipo del Director · Linux Mint 22.3"]
     NAV["Navegador<br/>Chrome / Firefox"]
-    SYS["Terremotos en vivo<br/>servidor local 127.0.0.1:3000"]
+    SYS["Monitor de Riesgos Naturales<br/>servidor local 127.0.0.1:3000"]
   end
   EMSCWS[("EMSC WebSocket<br/>wss://www.seismicportal.eu")]
   EMSCF[("EMSC FDSN<br/>https://www.seismicportal.eu")]
@@ -67,7 +67,7 @@ flowchart LR
 | Elemento | Tipo | Relación | Notas |
 |---|---|---|---|
 | Director | Persona | Usa la página y arranca el servidor | Un solo usuario. Sin cuentas (PRD §3) |
-| Terremotos en vivo | Sistema | — | Solo escucha en loopback (RNF-09) |
+| Monitor de Riesgos Naturales | Sistema | — | Solo escucha en loopback (RNF-09) |
 | EMSC WebSocket | Externo | Tiempo real | CC BY 4.0. Emite todo el mundo, sin filtros |
 | EMSC FDSN | Externo | Fuente principal de la consulta periódica | CC BY 4.0. Incluye `auth=IGN` y `auth=IGC` |
 | USGS FDSN | Externo | Complemento | Dominio público |
@@ -546,7 +546,7 @@ No hay autenticación (un usuario y uso local, PRD §3). El control es **de red 
 - textos libres de las fuentes: solo ids, fuentes y números (AM-29);
 - datos personales.
 
-**Primera línea de la consola:** `Terremotos en vivo en http://localhost:<PORT>`, en texto plano en los dos formatos (HU-12).
+**Primera línea de la consola:** `Monitor de Riesgos Naturales en http://localhost:<PORT>`, en texto plano en los dos formatos (HU-12).
 
 | `evento` | Nivel | Cuándo | Campos |
 |---|---|---|---|
