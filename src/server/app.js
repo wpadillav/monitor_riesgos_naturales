@@ -16,7 +16,9 @@ import {
 } from './http/middlewares.js';
 import { registerHealthRoutes } from './http/rutas-salud.js';
 import { registerSismosRoutes } from './http/rutas-sismos.js';
+import { registerStreamRoutes } from './http/rutas-stream.js';
 import { createConsultaSismos } from './dominio/consulta-sismos.js';
+import { createDifusor } from './stream/difusor.js';
 import { ZONAS } from '../shared/zonas.js';
 import { silentLog } from './infra/log.js';
 import { systemClock } from './infra/reloj.js';
@@ -36,6 +38,8 @@ const PROJECT_ROOT = fileURLToPath(new URL('../../', import.meta.url));
  * @property {() => number} [medirMemoriaRssMb]
  * @property {import('./dominio/consulta-sismos.js').ServicioSismos} [consultaSismos]
  *   caso de uso de `GET /api/sismos`; por defecto, uno sin fuentes ni sismos
+ * @property {ReturnType<typeof createDifusor>} [difusor] difusor SSE de `GET /api/stream`; por
+ *   defecto, uno sin catálogo ni fuentes
  * @property {string} [projectRoot]
  */
 
@@ -63,14 +67,23 @@ export function createApp(deps) {
   const arrancadoEn = deps.arrancadoEn ?? reloj.ahora();
   const obtenerFuentes = deps.obtenerFuentes ?? (() => []);
 
-  // Hasta T4.6 no hay SSE: el número de clientes es 0.
+  const difusor =
+    deps.difusor ??
+    createDifusor({
+      catalogo: { on: () => () => {} },
+      estadoFuentes: { alCambiar: () => () => {}, obtener: obtenerFuentes },
+      reloj,
+      log,
+      arrancadoEn,
+    });
+
   registerHealthRoutes(app, {
     version: deps.version ?? '0.0.0',
     arrancadoEn,
     reloj,
     obtenerFuentes,
     contarSismos: deps.contarSismos ?? (() => 0),
-    contarClientesSse: deps.contarClientesSse ?? (() => 0),
+    contarClientesSse: deps.contarClientesSse ?? difusor.contarClientes,
     medirMemoriaRssMb: deps.medirMemoriaRssMb ?? (() => process.memoryUsage.rss() / 1048576),
   });
 
@@ -81,11 +94,13 @@ export function createApp(deps) {
         catalogo: { listar: () => ({ sismos: [], total: 0, truncado: false }) },
         planificador: null,
         obtenerFuentes,
-        obtenerUltimoEventoId: () => `${arrancadoEn.toString(36)}-0`,
+        obtenerUltimoEventoId: difusor.ultimoId,
         zonas: ZONAS_POR_PAIS,
         reloj,
       }),
   });
+
+  registerStreamRoutes(app, { difusor });
 
   registerStatic(app, deps.projectRoot ?? PROJECT_ROOT);
 

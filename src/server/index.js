@@ -14,6 +14,7 @@ import { createCobertura } from './dominio/cobertura.js';
 import { createConsultaSismos } from './dominio/consulta-sismos.js';
 import { createRetencion } from './dominio/retencion.js';
 import { createEmscFdsn } from './fuentes/emsc-fdsn.js';
+import { CANAL_EMSC_WS, createEmscWs } from './fuentes/emsc-ws.js';
 import { createEstadoFuentes } from './fuentes/estado-fuentes.js';
 import { createHttpClient } from './fuentes/http-cliente.js';
 import { createPlanificador } from './fuentes/planificador.js';
@@ -22,6 +23,7 @@ import { FRANJA_KM, asignarPais } from './geo/asignar-pais.js';
 import { createLog } from './infra/log.js';
 import { createMetricasLatencia } from './infra/metricas-latencia.js';
 import { systemClock } from './infra/reloj.js';
+import { createDifusor } from './stream/difusor.js';
 
 const HORA_MS = 3_600_000;
 
@@ -60,17 +62,19 @@ const catalogo = createCatalogo({
 const retencion = createRetencion({ catalogo, reloj, log });
 const metricas = createMetricasLatencia({ log });
 
-// Fuentes de consulta periódica (arquitectura §5.3). El WebSocket de EMSC llega en T4.6.
+// Fuentes: WebSocket de EMSC (tiempo real) y consulta periódica (arquitectura §5.3).
 const estadoFuentes = createEstadoFuentes({
-  canales: config.fuentesActivas ? ['emsc-fdsn', 'usgs'] : [],
+  canales: config.fuentesActivas ? [CANAL_EMSC_WS, 'emsc-fdsn', 'usgs'] : [],
   reloj,
   log,
 });
+// AM-35: identificable y sin datos personales.
+const userAgent = `TerremotosEnVivo/${version} (uso local; sin contacto)`;
 let planificador = null;
+let emscWs = null;
 if (config.fuentesActivas) {
   const http = createHttpClient({
-    // AM-35: identificable y sin datos personales.
-    userAgent: `TerremotosEnVivo/${version} (uso local; sin contacto)`,
+    userAgent,
     timeoutMs: config.fuenteTimeoutMs,
     ahora: reloj.ahora,
   });
@@ -98,7 +102,34 @@ if (config.fuentesActivas) {
     magInicial: config.ingestaMagMin,
     ventanaMs: config.retencionDias * 86_400_000,
   });
+  const planificadorFdsn = planificador;
+  emscWs = createEmscWs({
+    catalogo,
+    estado: estadoFuentes,
+    reloj,
+    log,
+    metricas,
+    zonas: ZONAS.map((z) => ({ id: z.id, rectangulo: z.rectangulo })),
+    userAgent,
+    // AM-17: si la cola se desborda, la consulta FDSN de EMSC recupera lo perdido.
+    alDesbordar: () => planificadorFdsn.resincronizar('emsc-fdsn'),
+  });
 }
+
+// Difusor SSE (ADR-0002). Mientras dura la carga de 30 días nada es notificable (PRD E4).
+let cargaInicialEnCurso = config.fuentesActivas;
+const difusor = createDifusor({
+  catalogo,
+  estadoFuentes,
+  reloj,
+  log,
+  arrancadoEn,
+  ventanaAvisoMin: config.avisoVentanaMin,
+  maxClientes: config.sseMaxClientes,
+  // Un sismo en la franja CO-PA llega a quien marque cualquiera de los dos (HU-03).
+  paisesDe: (s) => asignarPais(s.lat, s.lon)?.paisesCandidatos ?? [s.pais],
+  enCargaInicial: () => cargaInicialEnCurso,
+});
 
 const app = createApp({
   port: config.port,
@@ -108,12 +139,12 @@ const app = createApp({
   arrancadoEn,
   obtenerFuentes: estadoFuentes.obtener,
   contarSismos: catalogo.contar,
+  difusor,
   consultaSismos: createConsultaSismos({
     catalogo,
     planificador,
     obtenerFuentes: estadoFuentes.obtener,
-    // Hasta T4.6 (difusor SSE) no hay eventos: secuencia 0 del arranque actual.
-    obtenerUltimoEventoId: () => `${arrancadoEn.toString(36)}-0`,
+    obtenerUltimoEventoId: difusor.ultimoId,
     zonas: ZONAS_POR_PAIS,
     reloj,
   }),
@@ -130,9 +161,16 @@ const server = serve({ fetch: app.fetch, port: config.port, hostname: config.hos
     fuentes: config.fuentesActivas,
   });
   retencion.arrancar();
-  planificador?.arrancar().catch((err) => {
-    log.error('error', { mensaje: err instanceof Error ? err.message : String(err) });
-  });
+  // Primero la carga de 30 días; después el WebSocket (arquitectura §5.6).
+  planificador
+    ?.arrancar()
+    .catch((err) => {
+      log.error('error', { mensaje: err instanceof Error ? err.message : String(err) });
+    })
+    .finally(() => {
+      cargaInicialEnCurso = false;
+      emscWs?.arrancar();
+    });
 });
 
 // Resúmenes horarios (RNF-02, RNF-05, RNF-15, RNF-16).
@@ -143,7 +181,7 @@ const resumenHorario = setInterval(() => {
     rssMb: Math.round((memoria.rss / 1048576) * 10) / 10,
     heapMb: Math.round((memoria.heapUsed / 1048576) * 10) / 10,
     sismos: catalogo.contar(),
-    clientesSse: 0,
+    clientesSse: difusor.contarClientes(),
   });
 }, HORA_MS);
 resumenHorario.unref();
@@ -165,8 +203,11 @@ process.on('unhandledRejection', (motivo) => {
 /** @param {NodeJS.Signals} senal */
 function shutdown(senal) {
   log.info('servidor.parando', { senal });
+  emscWs?.detener();
   planificador?.detener();
   retencion.detener();
+  // Cierra los flujos SSE: si no, `server.close` esperaría a que los cerrara la página.
+  difusor.cerrar();
   clearInterval(resumenHorario);
   server.close(() => process.exit(0));
   // Si alguna conexión no se cierra en 5 s, se fuerza la salida.

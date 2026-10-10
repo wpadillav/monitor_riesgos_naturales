@@ -19,7 +19,6 @@ const PARAMETROS = Object.freeze(['paises', 'magMin', 'periodo']);
 
 const MENSAJES = Object.freeze({
   consulta: `La consulta supera ${MAX_QUERY_BYTES} bytes.`,
-  desconocido: `Solo se admiten los parámetros ${PARAMETROS.join(', ')}.`,
   repetido: 'El parámetro está repetido.',
   paisesFalta: `Es obligatorio. Valores permitidos: ${PAISES.join(', ')}.`,
   paises: `Valores permitidos: ${PAISES.join(', ')}, separados por comas y sin repetir.`,
@@ -37,11 +36,13 @@ const MENSAJES = Object.freeze({
  */
 
 /**
- * Valida la *query* de `/api/sismos`. Función pura.
+ * Comprobaciones comunes de la *query* (AM-08): tamaño, parámetros conocidos y sin repetir.
  * @param {string} search parte `?…` de la URL tal como llegó (codificada)
- * @returns {ResultadoParseo}
+ * @param {ReadonlyArray<string>} permitidos
+ * @returns {{ ok: true, q: URLSearchParams } |
+ *   { ok: false, errors: import('./errores.js').ErrorParametro[] }}
  */
-export function parsearConsultaSismos(search) {
+export function validarConsulta(search, permitidos) {
   const cruda = search.startsWith('?') ? search.slice(1) : search;
   if (new TextEncoder().encode(cruda).byteLength > MAX_QUERY_BYTES) {
     return { ok: false, errors: [{ parametro: 'consulta', mensaje: MENSAJES.consulta }] };
@@ -52,15 +53,30 @@ export function parsearConsultaSismos(search) {
 
   let desconocido = false;
   for (const nombre of new Set(q.keys())) {
-    if (!PARAMETROS.includes(nombre)) {
+    if (!permitidos.includes(nombre)) {
       desconocido = true;
     } else if (q.getAll(nombre).length > 1) {
       errors.push({ parametro: nombre, mensaje: MENSAJES.repetido });
     }
   }
-  if (desconocido) errors.push({ parametro: 'desconocido', mensaje: MENSAJES.desconocido });
+  if (desconocido) {
+    errors.push({
+      parametro: 'desconocido',
+      mensaje: `Solo se admiten los parámetros ${permitidos.join(', ')}.`,
+    });
+  }
   if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, q };
+}
 
+/**
+ * Lee `paises`, `magMin` y `periodo` de una *query* ya validada con `validarConsulta`. Añade a
+ * `errors` los que no cumplen las listas cerradas.
+ * @param {URLSearchParams} q
+ * @param {import('./errores.js').ErrorParametro[]} errors
+ * @returns {FiltroSismos}
+ */
+export function leerFiltro(q, errors) {
   /** @type {CodigoPais[]} */
   const paises = [];
   const paisesTexto = q.get('paises');
@@ -91,9 +107,22 @@ export function parsearConsultaSismos(search) {
     if (Object.hasOwn(PERIODOS_MS, periodoTexto)) periodo = /** @type {Periodo} */ (periodoTexto);
     else errors.push({ parametro: 'periodo', mensaje: MENSAJES.periodo });
   }
+  return { paises, magMin, periodo };
+}
 
+/**
+ * Valida la *query* de `/api/sismos`. Función pura.
+ * @param {string} search parte `?…` de la URL tal como llegó (codificada)
+ * @returns {ResultadoParseo}
+ */
+export function parsearConsultaSismos(search) {
+  const base = validarConsulta(search, PARAMETROS);
+  if (!base.ok) return base;
+  /** @type {import('./errores.js').ErrorParametro[]} */
+  const errors = [];
+  const filtro = leerFiltro(base.q, errors);
   if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, filtro: { paises, magMin, periodo } };
+  return { ok: true, filtro };
 }
 
 /**

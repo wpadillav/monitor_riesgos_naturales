@@ -32,6 +32,11 @@ export const PROBLEMAS = Object.freeze({
     title: 'Host no permitido',
     detail: 'La aplicación solo atiende peticiones dirigidas a localhost.',
   },
+  'demasiadas-conexiones': {
+    status: 503,
+    title: 'Demasiadas conexiones en vivo',
+    detail: 'Se alcanzó el máximo de conexiones en vivo. Cierra alguna pestaña de la aplicación.',
+  },
   'error-interno': {
     status: 500,
     title: 'Error interno',
