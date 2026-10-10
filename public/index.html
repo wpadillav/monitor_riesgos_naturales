@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Monitor de Riesgos Naturales</title>
+    <!-- Síncrono y antes de las hojas de estilo: evita el parpadeo del tema (AM-36, T4.5). -->
+    <script src="/js/tema-inicial.js"></script>
+    <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <header class="cabecera">
+      <h1>Monitor de Riesgos Naturales</h1>
+    </header>
+    <main class="contenido">
+      <div id="mapa" class="mapa" role="region" aria-label="Mapa de sismos"></div>
+    </main>
+    <footer class="pie">
+      <p class="aviso">
+        Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales oficiales
+        de tu país.
+      </p>
+      <p class="atribucion">
+        Datos: EMSC / seismicportal.eu (CC BY 4.0) y U.S. Geological Survey (USGS). Mapa: Esri.
+      </p>
+    </footer>
+    <script src="/vendor/leaflet/leaflet.js"></script>
+    <script type="module" src="/js/main.js"></script>
+  </body>
+</html>

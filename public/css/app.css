@@ -1,0 +1,44 @@
+/* Estilos mínimos del esqueleto (T4.1). Los tokens y los temas llegan en T4.5. */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: #111418;
+  color: #e6e8eb;
+  font-family: system-ui, sans-serif;
+}
+
+.cabecera,
+.pie {
+  padding: 0.5rem 1rem;
+}
+
+.cabecera h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.contenido {
+  flex: 1;
+  min-height: 0;
+}
+
+.mapa {
+  height: 100%;
+  min-height: 300px;
+}
+
+.pie p {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.aviso {
+  font-weight: 600;
+}
