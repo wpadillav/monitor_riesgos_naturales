@@ -41,7 +41,6 @@ pnpm-debug.log*
 /index.html
 .fabrica/
 .claude/
-tests/
 
 # Editores
 .vscode/*

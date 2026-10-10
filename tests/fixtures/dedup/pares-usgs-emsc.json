@@ -1,0 +1,1400 @@
+{
+ "_descripcion": "Pares reales USGS↔EMSC del mismo sismo, emparejados por la regla Δt/30 s + Δd/100 km mínima (ventana de búsqueda 120 s). Base para calibrar ADR-0004 en T4.2. Derivado de consultas FDSN en vivo del 2026-10-10 ~07:00Z.",
+ "_consultas": {
+  "emsc-america": "https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime=2026-10-08T00:00:00&minmag=3.5&minlat=-4.5&maxlat=14&minlon=-83.3&maxlon=-66.5&limit=2000",
+  "usgs-america": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2026-10-08T00:00:00&minmagnitude=3.5&minlatitude=-4.5&maxlatitude=14&minlongitude=-83.3&maxlongitude=-66.5&limit=2000",
+  "emsc-espana": "https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime=2026-07-01T00:00:00&minmag=2.5&minlat=26&maxlat=44.5&minlon=-19.5&maxlon=5&limit=2000",
+  "usgs-espana": "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2026-07-01T00:00:00&minmagnitude=2.5&minlatitude=26&maxlatitude=44.5&minlongitude=-19.5&maxlongitude=5&limit=2000"
+ },
+ "pares": [
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1e5",
+    "tiempo": "2026-10-10T10:35:11.922Z",
+    "lat": 7.7463,
+    "lon": -81.3092,
+    "profundidadKm": 10,
+    "magnitud": 4.8,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000175",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T10:35:11.922Z",
+    "lat": 7.7463,
+    "lon": -81.3092,
+    "profundidadKm": 10.0,
+    "magnitud": 4.8,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1df",
+    "tiempo": "2026-10-10T07:24:35.015Z",
+    "lat": 7.6534,
+    "lon": -80.5839,
+    "profundidadKm": 10,
+    "magnitud": 4.4,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000127",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T07:24:35.015Z",
+    "lat": 7.6534,
+    "lon": -80.5839,
+    "profundidadKm": 10.0,
+    "magnitud": 4.3,
+    "magnitudTipo": "m"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1dc",
+    "tiempo": "2026-10-10T07:13:30.583Z",
+    "lat": 7.6182,
+    "lon": -80.5348,
+    "profundidadKm": 10,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000138",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T07:13:30.583Z",
+    "lat": 7.6182,
+    "lon": -80.5348,
+    "profundidadKm": 10.0,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1db",
+    "tiempo": "2026-10-10T06:47:49.431Z",
+    "lat": 7.4558,
+    "lon": -79.9613,
+    "profundidadKm": 10,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000137",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T06:47:49.431Z",
+    "lat": 7.4558,
+    "lon": -79.9613,
+    "profundidadKm": 10.0,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1d7",
+    "tiempo": "2026-10-10T06:30:03.521Z",
+    "lat": 7.2997,
+    "lon": -79.9687,
+    "profundidadKm": 10,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000112",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T06:30:03.521Z",
+    "lat": 7.2997,
+    "lon": -79.9687,
+    "profundidadKm": 10.0,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1d5",
+    "tiempo": "2026-10-10T06:27:09.602Z",
+    "lat": 7.2969,
+    "lon": -79.9827,
+    "profundidadKm": 10,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000114",
+    "auth": "GFZ",
+    "tiempo": "2026-10-10T06:27:10.600Z",
+    "lat": 7.311,
+    "lon": -80.06,
+    "profundidadKm": 10.0,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 1.0,
+   "distanciaKm": 8.7,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1d2",
+    "tiempo": "2026-10-10T06:18:55.288Z",
+    "lat": 7.3663,
+    "lon": -80.3171,
+    "profundidadKm": 10,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000109",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T06:18:55.288Z",
+    "lat": 7.3663,
+    "lon": -80.3171,
+    "profundidadKm": 10.0,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1d1",
+    "tiempo": "2026-10-10T06:16:32.545Z",
+    "lat": 7.3167,
+    "lon": -79.9478,
+    "profundidadKm": 10,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000121",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T06:16:32.545Z",
+    "lat": 7.3167,
+    "lon": -79.9478,
+    "profundidadKm": 10.0,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1cz",
+    "tiempo": "2026-10-10T06:04:20.546Z",
+    "lat": 7.7715,
+    "lon": -80.9764,
+    "profundidadKm": 10,
+    "magnitud": 4.3,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000106",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T06:04:20.546Z",
+    "lat": 7.7715,
+    "lon": -80.9764,
+    "profundidadKm": 10.0,
+    "magnitud": 4.6,
+    "magnitudTipo": "m"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.3
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1cx",
+    "tiempo": "2026-10-10T05:45:59.396Z",
+    "lat": 5.267,
+    "lon": -75.6127,
+    "profundidadKm": 115.143,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000115",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T05:45:59.396Z",
+    "lat": 5.267,
+    "lon": -75.6127,
+    "profundidadKm": 115.1,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1cs",
+    "tiempo": "2026-10-10T05:21:07.987Z",
+    "lat": 7.5274,
+    "lon": -81.3734,
+    "profundidadKm": 10,
+    "magnitud": 4.4,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000105",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T05:21:07.987Z",
+    "lat": 7.5274,
+    "lon": -81.3734,
+    "profundidadKm": 10.0,
+    "magnitud": 4.4,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1ck",
+    "tiempo": "2026-10-10T04:33:03.219Z",
+    "lat": 7.5239,
+    "lon": -80.4791,
+    "profundidadKm": 10,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000086",
+    "auth": "IGC",
+    "tiempo": "2026-10-10T04:33:03.000Z",
+    "lat": 7.5598,
+    "lon": -80.5975,
+    "profundidadKm": 11.0,
+    "magnitud": 3.6,
+    "magnitudTipo": "m"
+   },
+   "deltaSegundos": 0.22,
+   "distanciaKm": 13.6,
+   "deltaMagnitud": 0.9
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1cf",
+    "tiempo": "2026-10-10T04:14:01.786Z",
+    "lat": 7.5068,
+    "lon": -80.5985,
+    "profundidadKm": 10,
+    "magnitud": 6,
+    "magnitudTipo": "mww"
+   },
+   "emsc": {
+    "unid": "20261010_0000077",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T04:14:01.786Z",
+    "lat": 7.5068,
+    "lon": -80.5985,
+    "profundidadKm": 10.0,
+    "magnitud": 6.0,
+    "magnitudTipo": "mw"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1cb",
+    "tiempo": "2026-10-10T03:56:17.471Z",
+    "lat": 7.5141,
+    "lon": -80.5849,
+    "profundidadKm": 10,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000075",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T03:56:17.471Z",
+    "lat": 7.5141,
+    "lon": -80.5849,
+    "profundidadKm": 10.0,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1bw",
+    "tiempo": "2026-10-10T02:43:38.371Z",
+    "lat": 7.5746,
+    "lon": -81.2493,
+    "profundidadKm": 10,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000052",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T02:43:38.371Z",
+    "lat": 7.5746,
+    "lon": -81.2493,
+    "profundidadKm": 10.0,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1bu",
+    "tiempo": "2026-10-10T02:26:32.740Z",
+    "lat": 7.4178,
+    "lon": -80.4348,
+    "profundidadKm": 10,
+    "magnitud": 5.1,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000041",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T02:26:32.740Z",
+    "lat": 7.4178,
+    "lon": -80.4348,
+    "profundidadKm": 10.0,
+    "magnitud": 5.1,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1bp",
+    "tiempo": "2026-10-10T01:35:47.527Z",
+    "lat": 7.6272,
+    "lon": -81.3237,
+    "profundidadKm": 10,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000026",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T01:35:47.527Z",
+    "lat": 7.6272,
+    "lon": -81.3237,
+    "profundidadKm": 10.0,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1bl",
+    "tiempo": "2026-10-10T01:11:47.812Z",
+    "lat": 7.5302,
+    "lon": -80.5858,
+    "profundidadKm": 10,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000015",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T01:11:47.812Z",
+    "lat": 7.5302,
+    "lon": -80.5858,
+    "profundidadKm": 10.0,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1bj",
+    "tiempo": "2026-10-10T00:51:48.773Z",
+    "lat": 7.5164,
+    "lon": -80.5568,
+    "profundidadKm": 10,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000058",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T00:51:48.773Z",
+    "lat": 7.5164,
+    "lon": -80.5568,
+    "profundidadKm": 10.0,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1bg",
+    "tiempo": "2026-10-10T00:45:20.511Z",
+    "lat": 7.5127,
+    "lon": -80.0092,
+    "profundidadKm": 10,
+    "magnitud": 4,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000042",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T00:45:20.511Z",
+    "lat": 7.5127,
+    "lon": -80.0092,
+    "profundidadKm": 10.0,
+    "magnitud": 4.0,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1b5",
+    "tiempo": "2026-10-10T00:03:04.799Z",
+    "lat": 7.4053,
+    "lon": -80.2957,
+    "profundidadKm": 10,
+    "magnitud": 4.8,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261010_0000017",
+    "auth": "NEIC",
+    "tiempo": "2026-10-10T00:03:04.799Z",
+    "lat": 7.4053,
+    "lon": -80.2957,
+    "profundidadKm": 10.0,
+    "magnitud": 4.8,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1b4",
+    "tiempo": "2026-10-09T23:57:38.179Z",
+    "lat": 7.7378,
+    "lon": -81.4599,
+    "profundidadKm": 10,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000377",
+    "auth": "NEIC",
+    "tiempo": "2026-10-09T23:57:38.179Z",
+    "lat": 7.7378,
+    "lon": -81.4599,
+    "profundidadKm": 10.0,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1b3",
+    "tiempo": "2026-10-09T23:54:22.924Z",
+    "lat": 7.1444,
+    "lon": -79.8903,
+    "profundidadKm": 10,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000374",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T23:54:23.210Z",
+    "lat": 7.2361,
+    "lon": -79.8538,
+    "profundidadKm": 6.0,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.29,
+   "distanciaKm": 11.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1az",
+    "tiempo": "2026-10-09T23:23:13.082Z",
+    "lat": 7.6651,
+    "lon": -81.4005,
+    "profundidadKm": 10,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000364",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T23:23:13.300Z",
+    "lat": 7.7633,
+    "lon": -81.3262,
+    "profundidadKm": 10.0,
+    "magnitud": 5.0,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.22,
+   "distanciaKm": 13.6,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1ay",
+    "tiempo": "2026-10-09T23:12:37.790Z",
+    "lat": 7.4366,
+    "lon": -80.0968,
+    "profundidadKm": 10,
+    "magnitud": 5.4,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000361",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T23:12:38.250Z",
+    "lat": 7.505,
+    "lon": -80.1819,
+    "profundidadKm": 10.0,
+    "magnitud": 5.4,
+    "magnitudTipo": "mw"
+   },
+   "deltaSegundos": 0.46,
+   "distanciaKm": 12.1,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1ax",
+    "tiempo": "2026-10-09T23:10:02.875Z",
+    "lat": 7.3962,
+    "lon": -80.5284,
+    "profundidadKm": 10,
+    "magnitud": 5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000360",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T23:10:02.980Z",
+    "lat": 7.4281,
+    "lon": -80.5425,
+    "profundidadKm": 10.0,
+    "magnitud": 5.1,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.11,
+   "distanciaKm": 3.9,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1ai",
+    "tiempo": "2026-10-09T21:47:49.913Z",
+    "lat": 7.7551,
+    "lon": -81.319,
+    "profundidadKm": 10,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000349",
+    "auth": "NEIC",
+    "tiempo": "2026-10-09T21:47:49.913Z",
+    "lat": 7.7551,
+    "lon": -81.319,
+    "profundidadKm": 10.0,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1a9",
+    "tiempo": "2026-10-09T21:05:25.304Z",
+    "lat": 7.7299,
+    "lon": -81.452,
+    "profundidadKm": 10,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000328",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T21:05:25.470Z",
+    "lat": 7.7257,
+    "lon": -81.4692,
+    "profundidadKm": 10.0,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.17,
+   "distanciaKm": 2.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1a6",
+    "tiempo": "2026-10-09T20:54:56.367Z",
+    "lat": 7.8349,
+    "lon": -81.467,
+    "profundidadKm": 10,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000326",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T20:54:56.120Z",
+    "lat": 7.8024,
+    "lon": -81.4702,
+    "profundidadKm": 10.0,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.25,
+   "distanciaKm": 3.6,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1aa",
+    "tiempo": "2026-10-09T20:42:08.725Z",
+    "lat": 7.7249,
+    "lon": -81.4589,
+    "profundidadKm": 10,
+    "magnitud": 5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000325",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T20:42:12.270Z",
+    "lat": 7.7249,
+    "lon": -81.4909,
+    "profundidadKm": 35.0,
+    "magnitud": 5.1,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 3.55,
+   "distanciaKm": 3.5,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u1a5",
+    "tiempo": "2026-10-09T20:41:04.293Z",
+    "lat": 7.6771,
+    "lon": -81.0923,
+    "profundidadKm": 10,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000317",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T20:41:05.110Z",
+    "lat": 7.6887,
+    "lon": -81.1021,
+    "profundidadKm": 15.0,
+    "magnitud": 5.1,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.82,
+   "distanciaKm": 1.7,
+   "deltaMagnitud": 0.2
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u19w",
+    "tiempo": "2026-10-09T20:25:39.080Z",
+    "lat": 7.7176,
+    "lon": -81.4687,
+    "profundidadKm": 10,
+    "magnitud": 6.6,
+    "magnitudTipo": "mww"
+   },
+   "emsc": {
+    "unid": "20261009_0000316",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T20:25:40.240Z",
+    "lat": 7.7017,
+    "lon": -81.3833,
+    "profundidadKm": 10.0,
+    "magnitud": 6.6,
+    "magnitudTipo": "mw"
+   },
+   "deltaSegundos": 1.16,
+   "distanciaKm": 9.6,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u19t",
+    "tiempo": "2026-10-09T20:21:37.940Z",
+    "lat": 7.4734,
+    "lon": -80.5491,
+    "profundidadKm": 10,
+    "magnitud": 5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000309",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T20:21:37.780Z",
+    "lat": 7.4759,
+    "lon": -80.527,
+    "profundidadKm": 8.1,
+    "magnitud": 5.1,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.16,
+   "distanciaKm": 2.5,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u19s",
+    "tiempo": "2026-10-09T20:20:23.334Z",
+    "lat": 7.6169,
+    "lon": -81.0268,
+    "profundidadKm": 10,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000313",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T20:20:24.720Z",
+    "lat": 7.6843,
+    "lon": -81.06,
+    "profundidadKm": 15.0,
+    "magnitud": 5.0,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 1.39,
+   "distanciaKm": 8.3,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u19h",
+    "tiempo": "2026-10-09T19:48:55.624Z",
+    "lat": 7.6417,
+    "lon": -81.2677,
+    "profundidadKm": 10,
+    "magnitud": 5.2,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000294",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T19:48:56.890Z",
+    "lat": 7.793,
+    "lon": -81.2435,
+    "profundidadKm": 10.0,
+    "magnitud": 5.3,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 1.27,
+   "distanciaKm": 17.0,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u19i",
+    "tiempo": "2026-10-09T19:45:58.101Z",
+    "lat": 7.5448,
+    "lon": -80.1336,
+    "profundidadKm": 10,
+    "magnitud": 4.8,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000299",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T19:46:01.720Z",
+    "lat": 7.5684,
+    "lon": -80.1219,
+    "profundidadKm": 35.0,
+    "magnitud": 4.9,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 3.62,
+   "distanciaKm": 2.9,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u19e",
+    "tiempo": "2026-10-09T19:42:50.202Z",
+    "lat": 7.5554,
+    "lon": -80.2145,
+    "profundidadKm": 10,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000333",
+    "auth": "NEIC",
+    "tiempo": "2026-10-09T19:42:50.202Z",
+    "lat": 7.5554,
+    "lon": -80.2145,
+    "profundidadKm": 10.0,
+    "magnitud": 4.5,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u19c",
+    "tiempo": "2026-10-09T19:32:19.273Z",
+    "lat": 7.5147,
+    "lon": -80.5899,
+    "profundidadKm": 10,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000331",
+    "auth": "NEIC",
+    "tiempo": "2026-10-09T19:32:19.273Z",
+    "lat": 7.5147,
+    "lon": -80.5899,
+    "profundidadKm": 10.0,
+    "magnitud": 4.7,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.0,
+   "distanciaKm": 0.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u198",
+    "tiempo": "2026-10-09T19:17:22.610Z",
+    "lat": 7.6086,
+    "lon": -81.0415,
+    "profundidadKm": 25.962,
+    "magnitud": 4.8,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000288",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T19:17:21.360Z",
+    "lat": 7.6508,
+    "lon": -80.9914,
+    "profundidadKm": 15.0,
+    "magnitud": 5.1,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 1.25,
+   "distanciaKm": 7.2,
+   "deltaMagnitud": 0.3
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u197",
+    "tiempo": "2026-10-09T19:04:49.305Z",
+    "lat": 7.6161,
+    "lon": -81.2492,
+    "profundidadKm": 10,
+    "magnitud": 5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000285",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T19:04:50.760Z",
+    "lat": 7.7128,
+    "lon": -81.264,
+    "profundidadKm": 13.9,
+    "magnitud": 5.0,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 1.45,
+   "distanciaKm": 10.9,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u194",
+    "tiempo": "2026-10-09T18:50:12.134Z",
+    "lat": 7.3504,
+    "lon": -80.1178,
+    "profundidadKm": 10,
+    "magnitud": 5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000282",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T18:50:15.190Z",
+    "lat": 7.2793,
+    "lon": -80.1737,
+    "profundidadKm": 35.0,
+    "magnitud": 5.0,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 3.06,
+   "distanciaKm": 10.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u195",
+    "tiempo": "2026-10-09T18:47:04.065Z",
+    "lat": 7.5783,
+    "lon": -81.0943,
+    "profundidadKm": 10,
+    "magnitud": 5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000275",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T18:47:05.420Z",
+    "lat": 7.6308,
+    "lon": -81.07,
+    "profundidadKm": 15.0,
+    "magnitud": 5.2,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 1.36,
+   "distanciaKm": 6.4,
+   "deltaMagnitud": 0.2
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u18x",
+    "tiempo": "2026-10-09T18:37:46.146Z",
+    "lat": 7.4362,
+    "lon": -80.4012,
+    "profundidadKm": 10,
+    "magnitud": 5.8,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000274",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T18:37:46.760Z",
+    "lat": 7.4791,
+    "lon": -80.444,
+    "profundidadKm": 10.0,
+    "magnitud": 5.8,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.61,
+   "distanciaKm": 6.7,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u18t",
+    "tiempo": "2026-10-09T18:22:15.709Z",
+    "lat": 7.586,
+    "lon": -80.2885,
+    "profundidadKm": 10,
+    "magnitud": 5.5,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20261009_0000266",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T18:22:15.650Z",
+    "lat": 7.6175,
+    "lon": -80.2921,
+    "profundidadKm": 8.4,
+    "magnitud": 5.5,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.06,
+   "distanciaKm": 3.5,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "america",
+   "usgs": {
+    "id": "us6000u18k",
+    "tiempo": "2026-10-09T17:56:06.036Z",
+    "lat": 7.5868,
+    "lon": -80.769,
+    "profundidadKm": 12.647,
+    "magnitud": 7.7,
+    "magnitudTipo": "mww"
+   },
+   "emsc": {
+    "unid": "20261009_0000264",
+    "auth": "EMSC",
+    "tiempo": "2026-10-09T17:56:07.320Z",
+    "lat": 7.5647,
+    "lon": -80.6722,
+    "profundidadKm": 10.0,
+    "magnitud": 7.7,
+    "magnitudTipo": "mw"
+   },
+   "deltaSegundos": 1.28,
+   "distanciaKm": 10.9,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us6000txjq",
+    "tiempo": "2026-09-25T09:04:36.938Z",
+    "lat": 38.1618,
+    "lon": -1.0319,
+    "profundidadKm": 10,
+    "magnitud": 2.9,
+    "magnitudTipo": "mb_lg"
+   },
+   "emsc": {
+    "unid": "20260925_0000093",
+    "auth": "EMSC",
+    "tiempo": "2026-09-25T09:04:35.250Z",
+    "lat": 37.9489,
+    "lon": -0.9547,
+    "profundidadKm": 7.8,
+    "magnitud": 3.5,
+    "magnitudTipo": "ml"
+   },
+   "deltaSegundos": 1.69,
+   "distanciaKm": 24.6,
+   "deltaMagnitud": 0.6
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us6000tlmq",
+    "tiempo": "2026-08-18T10:39:43.272Z",
+    "lat": 37.1044,
+    "lon": -3.6657,
+    "profundidadKm": 10,
+    "magnitud": 4.4,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20260818_0000350",
+    "auth": "EMSC",
+    "tiempo": "2026-08-18T10:39:43.380Z",
+    "lat": 37.1129,
+    "lon": -3.6309,
+    "profundidadKm": 10.0,
+    "magnitud": 4.1,
+    "magnitudTipo": "ml"
+   },
+   "deltaSegundos": 0.11,
+   "distanciaKm": 3.2,
+   "deltaMagnitud": 0.3
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us6000tlmc",
+    "tiempo": "2026-08-18T09:34:37.451Z",
+    "lat": 37.098,
+    "lon": -3.7294,
+    "profundidadKm": 10,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20260818_0000313",
+    "auth": "EMSC",
+    "tiempo": "2026-08-18T09:34:35.970Z",
+    "lat": 37.1237,
+    "lon": -3.6486,
+    "profundidadKm": 0.0,
+    "magnitud": 4.6,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 1.48,
+   "distanciaKm": 7.7,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us6000tllu",
+    "tiempo": "2026-08-18T08:37:44.739Z",
+    "lat": 37.1267,
+    "lon": -3.6589,
+    "profundidadKm": 10,
+    "magnitud": 4.9,
+    "magnitudTipo": "mww"
+   },
+   "emsc": {
+    "unid": "20260818_0000278",
+    "auth": "EMSC",
+    "tiempo": "2026-08-18T08:37:44.950Z",
+    "lat": 37.1361,
+    "lon": -3.621,
+    "profundidadKm": 10.0,
+    "magnitud": 4.9,
+    "magnitudTipo": "mw"
+   },
+   "deltaSegundos": 0.21,
+   "distanciaKm": 3.5,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us6000tkv2",
+    "tiempo": "2026-08-14T23:04:40.798Z",
+    "lat": 37.1085,
+    "lon": -3.6641,
+    "profundidadKm": 10,
+    "magnitud": 5.2,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20260814_0000322",
+    "auth": "EMSC",
+    "tiempo": "2026-08-14T23:04:40.180Z",
+    "lat": 37.1147,
+    "lon": -3.6316,
+    "profundidadKm": 2.1,
+    "magnitud": 5.2,
+    "magnitudTipo": "mb"
+   },
+   "deltaSegundos": 0.62,
+   "distanciaKm": 3.0,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us6000tklb",
+    "tiempo": "2026-08-13T18:53:23.004Z",
+    "lat": 37.3638,
+    "lon": -2.0107,
+    "profundidadKm": 10,
+    "magnitud": 3,
+    "magnitudTipo": "mb_lg"
+   },
+   "emsc": {
+    "unid": "20260813_0000264",
+    "auth": "EMSC",
+    "tiempo": "2026-08-13T18:53:22.960Z",
+    "lat": 37.3531,
+    "lon": -1.9896,
+    "profundidadKm": 10.0,
+    "magnitud": 3.0,
+    "magnitudTipo": "ml"
+   },
+   "deltaSegundos": 0.04,
+   "distanciaKm": 2.2,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us6000thv7",
+    "tiempo": "2026-08-03T20:14:45.641Z",
+    "lat": 32.2354,
+    "lon": -5.1362,
+    "profundidadKm": 10,
+    "magnitud": 4.7,
+    "magnitudTipo": "mww"
+   },
+   "emsc": {
+    "unid": "20260803_0000324",
+    "auth": "EMSC",
+    "tiempo": "2026-08-03T20:14:45.870Z",
+    "lat": 32.2039,
+    "lon": -5.2113,
+    "profundidadKm": 8.1,
+    "magnitud": 4.7,
+    "magnitudTipo": "mw"
+   },
+   "deltaSegundos": 0.23,
+   "distanciaKm": 7.9,
+   "deltaMagnitud": 0.0
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us6000th76",
+    "tiempo": "2026-07-27T20:56:56.754Z",
+    "lat": 43.7074,
+    "lon": -10.1745,
+    "profundidadKm": 10,
+    "magnitud": 4.2,
+    "magnitudTipo": "mb"
+   },
+   "emsc": {
+    "unid": "20260727_0000351",
+    "auth": "EMSC",
+    "tiempo": "2026-07-27T20:57:05.910Z",
+    "lat": 43.3928,
+    "lon": -10.1171,
+    "profundidadKm": 30.0,
+    "magnitud": 4.1,
+    "magnitudTipo": "ml"
+   },
+   "deltaSegundos": 9.16,
+   "distanciaKm": 35.3,
+   "deltaMagnitud": 0.1
+  },
+  {
+   "zona": "espana",
+   "usgs": {
+    "id": "us7000t3hl",
+    "tiempo": "2026-07-26T13:39:28.924Z",
+    "lat": 37.1468,
+    "lon": -3.5957,
+    "profundidadKm": 10,
+    "magnitud": 3.1,
+    "magnitudTipo": "mb_lg"
+   },
+   "emsc": {
+    "unid": "20260726_0000204",
+    "auth": "EMSC",
+    "tiempo": "2026-07-26T13:39:28.060Z",
+    "lat": 37.1648,
+    "lon": -3.6269,
+    "profundidadKm": 10.0,
+    "magnitud": 3.5,
+    "magnitudTipo": "ml"
+   },
+   "deltaSegundos": 0.86,
+   "distanciaKm": 3.4,
+   "deltaMagnitud": 0.4
+  }
+ ],
+ "eventosDistintosCercanosEnTiempo": [
+  {
+   "emscA": "20261009_0000376",
+   "emscB": "20261009_0000371",
+   "deltaSegundos": 57.0,
+   "distanciaKm": 99.6,
+   "magnitudes": [
+    4.1,
+    4.2
+   ]
+  },
+  {
+   "emscA": "20261010_0000042",
+   "emscB": "20261010_0000028",
+   "deltaSegundos": 14.5,
+   "distanciaKm": 331.1,
+   "magnitudes": [
+    4.0,
+    4.7
+   ]
+  },
+  {
+   "emscA": "20261010_0000124",
+   "emscB": "20261010_0000077",
+   "deltaSegundos": 51.8,
+   "distanciaKm": 231.4,
+   "magnitudes": [
+    4.8,
+    6.0
+   ]
+  }
+ ],
+ "resumen": {
+  "pares": 54,
+  "deltaSegundosMax": 9.16,
+  "distanciaKmMax": 35.3,
+  "deltaMagnitudMax": 0.9,
+  "paresConAuthNEIC": 23
+ }
+}

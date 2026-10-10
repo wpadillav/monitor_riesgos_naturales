@@ -1,0 +1,6 @@
+// Prueba negativa del linter (AM-26). No es código del proyecto: cada línea debe dar error.
+export function peligroso(el, dato, x) {
+  el.innerHTML = dato;
+  eval(x);
+  return { rejectUnauthorized: false };
+}
