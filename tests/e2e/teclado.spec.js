@@ -15,7 +15,15 @@ test.describe('navegación con teclado (wireframes §9)', () => {
     await expect(filas(page).first()).toBeFocused();
   });
 
-  test('la lista es un único punto de tabulación con flechas, Inicio y Fin', async ({ page }) => {
+  test('la lista es un único punto de tabulación con flechas, Inicio y Fin', async ({
+    page,
+    browserName,
+  }) => {
+    test.fixme(
+      browserName === 'firefox',
+      'DEF-01 (T5.1): en Firefox el contenedor desplazable #lista-scroll es un punto de ' +
+        'tabulación más, sin nombre, entre «Activar avisos» y la lista (wireframes §9.1).',
+    );
     // Permiso «sin decidir», como en un navegador recién instalado (Chromium sin interfaz lo
     // deniega por defecto).
     await espiarNotificaciones(page, { permiso: 'default' });

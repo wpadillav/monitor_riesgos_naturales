@@ -1,4 +1,7 @@
-import { expect, filas, simular, test } from './apoyo.js';
+import { contarConsultas, expect, filas, pararReloj, simular, test } from './apoyo.js';
+
+/** Espera de los filtros antes de consultar (`ESPERA_MS` de public/js/filtros-ui.js). */
+const ESPERA_MS = 400;
 
 test.describe('filtros aplicados al momento (HU-03 a HU-06)', () => {
   test('valores por defecto: tres países, 2.0 o más y últimas 24 h', async ({ page }) => {
@@ -67,30 +70,44 @@ test.describe('filtros aplicados al momento (HU-03 a HU-06)', () => {
   });
 
   test('cambios seguidos se agrupan en una sola consulta (espera de 400 ms)', async ({ page }) => {
+    const consultas = await contarConsultas(page);
     const { peticiones } = await simular(page);
     await page.goto('/');
     await expect(filas(page)).toHaveCount(5);
+    // Reloj parado: la espera de 400 ms no depende de lo cargada que esté la máquina (T5.1).
+    await pararReloj(page);
     await page.locator('#magnitud').selectOption('3.0');
     await page.locator('#periodo').selectOption('7d');
     await page.getByRole('checkbox', { name: 'Panamá' }).uncheck();
+    await page.clock.runFor(ESPERA_MS - 1);
+    expect(await consultas()).toBe(1);
+    await page.clock.runFor(1);
+    expect(await consultas()).toBe(2);
+    await page.clock.runFor(2 * ESPERA_MS);
+    expect(await consultas()).toBe(2);
     await expect.poll(() => peticiones.length).toBe(2);
-    await page.waitForTimeout(800);
-    expect(peticiones).toHaveLength(2);
     expect(peticiones[1].toString()).toBe('paises=ES%2CCO&magMin=3.0&periodo=7d');
   });
 
   test('ningún país marcado: no consulta y lo dice (HU-03)', async ({ page }) => {
+    const consultas = await contarConsultas(page);
     const { peticiones } = await simular(page);
     await page.goto('/');
     await expect(filas(page)).toHaveCount(5);
+    // Reloj parado mientras se desmarcan: si no, con la máquina lenta vencen las esperas
+    // intermedias (p. ej. «CO,PA») y se consulta legítimamente antes de quitar el último país.
+    await pararReloj(page);
     for (const pais of ['España', 'Colombia', 'Panamá']) {
       await page.getByRole('checkbox', { name: pais }).uncheck();
     }
+    await page.clock.runFor(2 * ESPERA_MS);
+    expect(await consultas()).toBe(1);
+    await page.clock.resume();
     await expect(page.locator('#lista-vacio')).toContainText('Selecciona al menos un país');
     await expect(page.locator('#error-paises')).toBeVisible();
     await expect(page.locator('#estado-texto')).toHaveText('Sin consulta: no hay países marcados');
     await expect(filas(page)).toHaveCount(0);
-    await page.waitForTimeout(600);
+    expect(await consultas()).toBe(1);
     expect(peticiones).toHaveLength(1);
   });
 
@@ -116,7 +133,11 @@ test.describe('filtros aplicados al momento (HU-03 a HU-06)', () => {
     await page.getByRole('checkbox', { name: 'Colombia' }).uncheck();
     await page.locator('#magnitud').selectOption('3.0');
     await page.locator('#periodo').selectOption('7d');
-    await expect.poll(() => peticiones.length).toBeGreaterThan(1);
+    // Se guarda al vencer la espera de 400 ms: se espera a que lo guardado sea el estado final
+    // (antes bastaba con la primera consulta, y con la máquina lenta se recargaba a medias).
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem('filtros')))
+      .toBe('{"paises":["PA"],"magMin":"3.0","periodo":"7d"}');
     await page.reload();
     await expect(page.getByRole('checkbox', { name: 'Panamá' })).toBeChecked();
     await expect(page.getByRole('checkbox', { name: 'España' })).not.toBeChecked();

@@ -46,8 +46,15 @@ test.describe('tema Sistema / Oscuro / Día (HU-09)', () => {
     page,
   }) => {
     await simular(page);
-    await page.emulateMedia({ colorScheme: 'dark' });
+    // Firefox: la cabecera `Cross-Origin-Opener-Policy: same-origin` hace que la primera
+    // navegación desde about:blank cambie de grupo de contextos, y Playwright 1.64 pierde ahí la
+    // emulación de `prefers-color-scheme` (también la de `test.use({ colorScheme })`). Por eso se
+    // emula después de la primera carga y se recarga: la recarga es del mismo origen y la
+    // conserva. Comprobado en T5.1 quitando la cabecera COOP: sin ella, Firefox respeta la
+    // emulación. No es un defecto de la aplicación.
     await page.goto('/');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.reload();
     await expect(html(page)).toHaveAttribute('data-tema', 'oscuro');
     await page.getByRole('radio', { name: 'Día' }).check();
     await expect(html(page)).toHaveAttribute('data-tema', 'dia');

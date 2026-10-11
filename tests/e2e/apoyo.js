@@ -241,6 +241,40 @@ export async function simular(page, opciones = {}) {
 }
 
 /**
+ * Cuenta, **dentro de la página**, las llamadas a `fetch('/api/sismos…')` (antes de cargarla).
+ * La interceptación de red (`simular`) registra la petición de forma asíncrona; este contador se
+ * incrementa en el mismo instante en que la página decide consultar, así que sirve de barrera
+ * para comprobar que **no** se ha hecho una consulta sin esperar un tiempo fijo (T5.1).
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<() => Promise<number>>} lectura del contador
+ */
+export async function contarConsultas(page) {
+  await page.addInitScript(() => {
+    const w = /** @type {any} */ (window);
+    const original = w.fetch.bind(w);
+    w.__consultas = 0;
+    w.fetch = (/** @type {RequestInfo | URL} */ recurso, /** @type {RequestInit} */ opciones) => {
+      if (String(recurso).startsWith('/api/sismos')) w.__consultas += 1;
+      return original(recurso, opciones);
+    };
+  });
+  return () => page.evaluate(() => /** @type {any} */ (window).__consultas);
+}
+
+/**
+ * Detiene el reloj simulado de la página (instalado por `vigilancia`): a partir de aquí ningún
+ * temporizador vence hasta `page.clock.runFor()`. Sirve para probar esperas como la de 400 ms de
+ * los filtros sin depender de la velocidad de la máquina (T5.1). `pauseAt` no admite instantes
+ * pasados y el reloj sigue corriendo mientras se le llama, así que se adelanta 5 s: no vence
+ * ningún plazo de la página que afecte a las pruebas (el más corto, «sin conexión», es de 10 s).
+ * @param {import('@playwright/test').Page} page
+ */
+export async function pararReloj(page) {
+  const ahora = await page.evaluate(() => Date.now());
+  await page.clock.pauseAt(ahora + 5_000);
+}
+
+/**
  * `test` con vigilancia automática: al terminar cada prueba exige 0 violaciones de CSP, 0 errores
  * de consola (salvo el aviso conocido de `bluetooth` y los que la prueba declare) y 0 diálogos.
  */

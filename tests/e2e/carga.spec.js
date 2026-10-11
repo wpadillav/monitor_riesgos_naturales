@@ -123,11 +123,43 @@ test.describe('carga inicial con datos simulados', () => {
   });
 
   test('lista virtualizada con 10 000 sismos (RNF-03)', async ({ page }) => {
+    // Tiempo medido **dentro de la página**, desde que llega la respuesta de /api/sismos hasta
+    // que la lista muestra los 10 000 (T5.1). Antes se medía el reloj de pared de la prueba, que
+    // incluye pasar ~7 MB por el protocolo de Playwright (`route.fulfill`) y la carga de la
+    // máquina con varios workers: fallaba a veces sin que la aplicación fuese más lenta. El
+    // tiempo de respuesta del servidor es RNF-04, y la medición formal de RNF-03 (panel
+    // Rendimiento, tareas > 200 ms) es T5.4.
+    await page.addInitScript(() => {
+      const w = /** @type {any} */ (window);
+      const original = w.fetch.bind(w);
+      w.fetch = async (/** @type {RequestInfo | URL} */ r, /** @type {RequestInit} */ o) => {
+        const respuesta = await original(r, o);
+        if (String(r).startsWith('/api/sismos')) w.__respuestaEn = performance.now();
+        return respuesta;
+      };
+      new MutationObserver((_, observador) => {
+        if (document.getElementById('h-sismos')?.textContent === 'Sismos (10.000)') {
+          w.__pintadoEn = performance.now();
+          observador.disconnect();
+        }
+      }).observe(document, { childList: true, subtree: true, characterData: true });
+    });
     await simular(page, { sismos: muchosSismos(10_000) });
     const inicio = Date.now();
     await page.goto('/');
     await expect(page.locator('#h-sismos')).toHaveText('Sismos (10.000)');
-    expect(Date.now() - inicio).toBeLessThan(5_000);
+    const pared = Date.now() - inicio;
+    const { respuestaEn, pintadoEn } = await page.evaluate(() => ({
+      respuestaEn: /** @type {any} */ (window).__respuestaEn,
+      pintadoEn: /** @type {any} */ (window).__pintadoEn,
+    }));
+    const enPagina = pintadoEn - respuestaEn;
+    test.info().annotations.push({
+      type: 'RNF-03',
+      description: `respuesta → lista: ${Math.round(enPagina)} ms; reloj de pared: ${pared} ms`,
+    });
+    expect(enPagina).toBeGreaterThan(0);
+    expect(enPagina).toBeLessThan(3_000);
     const pintadas = await page.locator('#lista-sismos > li').count();
     expect(pintadas).toBeGreaterThan(3);
     expect(pintadas).toBeLessThan(80);

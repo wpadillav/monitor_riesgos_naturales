@@ -12,6 +12,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: true,
   retries: 0,
+  // Estabilidad (T5.1): 2 workers fijos, sea cual sea la máquina. Con más, Firefox y Chromium
+  // compiten por la CPU (cada página pinta un mapa de Leaflet y la lista) y las pruebas con
+  // tiempos (RNF-03) o con esperas encadenadas se vuelven lentas. Las esperas son siempre por
+  // condición: el margen de `expect` se amplía para máquinas cargadas, no para tapar fallos.
+  workers: 2,
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   reporter: [['list']],
   use: {
     baseURL: `http://localhost:${PUERTO}`,
