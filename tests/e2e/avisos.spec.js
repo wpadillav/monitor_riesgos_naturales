@@ -13,10 +13,7 @@ import {
 
 const MIN = 60_000;
 
-// Chromium «headless shell» devuelve `Notification.permission === 'denied'` aunque el contexto
-// conceda el permiso; el modo sin interfaz nuevo (`channel: 'chromium'`) se comporta como el
-// navegador normal.
-test.use({ channel: 'chromium' });
+// Se ejecuta en el proyecto `chromium-avisos` (modo sin interfaz nuevo; ver playwright.config.js).
 
 /**
  * Sismo en Colombia de hace 1 min (07:29 hora de Colombia).

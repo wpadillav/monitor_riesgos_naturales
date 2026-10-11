@@ -19,7 +19,23 @@ export default defineConfig({
     timezoneId: 'Europe/Madrid',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: '**/avisos.spec.js',
+    },
+    {
+      // Notificaciones (T4.7): Chromium «headless shell» devuelve `Notification.permission ===
+      // 'denied'` aunque el contexto conceda el permiso; el modo sin interfaz nuevo
+      // (`channel: 'chromium'`) se comporta como el navegador normal. Es más pesado, así que va
+      // después del resto para no falsear las pruebas con tiempos (RNF-03).
+      name: 'chromium-avisos',
+      use: { ...devices['Desktop Chrome'], channel: 'chromium' },
+      testMatch: '**/avisos.spec.js',
+      dependencies: ['chromium'],
+    },
+  ],
   webServer: {
     command: 'node src/server/index.js',
     url: `http://localhost:${PUERTO}/api/salud`,
