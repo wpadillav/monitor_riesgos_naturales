@@ -200,7 +200,13 @@ test.describe('datos en vivo (HU-01, HU-02)', () => {
   test.describe('sin plazas en el stream (503)', () => {
     // El navegador registra el 503 del stream y de la comprobación HEAD; es lo que se prueba.
     // Una sola expresión: `test.use` leería un segundo elemento como opciones del fixture.
-    test.use({ erroresPermitidos: [/status of 503|EventSource's response has a MIME type/] });
+    // Chromium: «status of 503» y el MIME del EventSource; Firefox: «can’t establish a
+    // connection» al rendirse el EventSource.
+    test.use({
+      erroresPermitidos: [
+        /status of 503|EventSource's response has a MIME type|can.t establish a connection to the server at \S+\/api\/stream\?/,
+      ],
+    });
 
     test('503: indica «sin plazas», conserva la lista, reintenta con Retry-After y vuelve a «En vivo»', async ({
       page,
