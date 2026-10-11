@@ -171,6 +171,75 @@ test.describe('datos en vivo (HU-01, HU-02)', () => {
     await expect.poll(() => sse.clientes).toBe(1);
   });
 
+  test('con latidos cada 20 s no reconecta en reposo y renueva «actualizado a las…»', async ({
+    page,
+    sse,
+  }) => {
+    await simular(page);
+    await page.goto('/');
+    await expect(page.locator('#estado-texto')).toHaveText('En vivo');
+    const complemento = page.locator('#estado-complemento');
+    const horaInicial = await complemento.textContent();
+
+    // 3 minutos en reposo: solo latidos.
+    for (let i = 0; i < 9; i += 1) {
+      await page.clock.fastForward(20_000);
+      sse.latido();
+    }
+    await expect(complemento).not.toHaveText(horaInicial ?? '');
+    await expect(complemento).toHaveText(/^· 5 sismos · actualizado a las \d\d:\d\d:\d\d$/);
+    // Margen para que una reconexión indebida (45 s) se hubiera producido.
+    await page.clock.fastForward(20_000);
+    sse.latido();
+    expect(sse.conexiones).toHaveLength(1);
+    expect(sse.clientes).toBe(1);
+    expect(sse.comprobaciones).toHaveLength(0);
+    await expect(page.locator('#estado-texto')).toHaveText('En vivo');
+  });
+
+  test.describe('sin plazas en el stream (503)', () => {
+    // El navegador registra el 503 del stream y de la comprobación HEAD; es lo que se prueba.
+    // Una sola expresión: `test.use` leería un segundo elemento como opciones del fixture.
+    test.use({ erroresPermitidos: [/status of 503|EventSource's response has a MIME type/] });
+
+    test('503: indica «sin plazas», conserva la lista, reintenta con Retry-After y vuelve a «En vivo»', async ({
+      page,
+      sse,
+    }) => {
+      sse.sinPlazas(10);
+      const { peticiones } = await simular(page);
+      await page.goto('/');
+      await expect(filas(page)).toHaveCount(5);
+      await expect(page.locator('#estado-texto')).toHaveText(
+        'Tiempo real no disponible: hay demasiadas pestañas abiertas. Reintentando…',
+      );
+      await expect(page.locator('#estado-ind')).toHaveClass(/e-aviso/);
+      await expect(page.locator('#estado-complemento')).toHaveText(/^· 5 sismos/);
+      expect(sse.comprobaciones.length).toBeGreaterThanOrEqual(1);
+      expect(sse.comprobaciones[0].get('paises')).toBe('ES,CO,PA');
+      const intentos = sse.conexiones.length;
+      const comprobaciones = sse.comprobaciones.length;
+
+      // Pasado el plazo de «Sin conexión…», sigue el mismo estado: el servidor responde.
+      await page.clock.fastForward(10_000);
+      await expect.poll(() => sse.conexiones.length).toBeGreaterThan(intentos);
+      await expect.poll(() => sse.comprobaciones.length).toBeGreaterThan(comprobaciones);
+      await expect(page.locator('#estado-texto')).toHaveText(
+        'Tiempo real no disponible: hay demasiadas pestañas abiertas. Reintentando…',
+      );
+      await expect(page.locator('#estado-texto')).not.toHaveText(/Sin conexión/);
+
+      // Queda una plaza: en el siguiente reintento (Retry-After: 10 s) vuelve a «En vivo».
+      sse.sinPlazas(false);
+      await page.clock.fastForward(10_000);
+      await expect(page.locator('#estado-texto')).toHaveText('En vivo');
+      await expect(filas(page)).toHaveCount(5);
+      // Todo sin recargar /api/sismos.
+      expect(peticiones).toHaveLength(1);
+      expect(sse.conexiones.at(-1)?.query.get('ultimoId')).toBe('abc-1');
+    });
+  });
+
   test('al cambiar los filtros, recarga y reabre el stream con los nuevos', async ({
     page,
     sse,
