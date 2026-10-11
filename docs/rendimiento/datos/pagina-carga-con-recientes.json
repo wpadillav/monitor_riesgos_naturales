@@ -1,0 +1,213 @@
+{
+  "escenario": "carga",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "periodo": "30d",
+  "cpuX": 1,
+  "rondas": [
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 8,
+      "dcl": 413,
+      "load": 562,
+      "api": {
+        "inicio": 404,
+        "fin": 640,
+        "kB": 7070
+      },
+      "datosPintadosMs": 1300,
+      "utilizableMs": 2181,
+      "clicFilaAVentanaMs": 1761,
+      "tareasCarga": {
+        "tareasLargas": 7,
+        "mayorTareaMs": 727,
+        "tareasMas200ms": 3,
+        "tiempoBloqueoMs": 1237,
+        "loafMas200ms": 2,
+        "mayorLoafMs": 701
+      },
+      "tareasLargasDetalle": [
+        [
+          318,
+          96
+        ],
+        [
+          643,
+          87
+        ],
+        [
+          733,
+          286
+        ],
+        [
+          1020,
+          279
+        ],
+        [
+          1300,
+          53
+        ],
+        [
+          1357,
+          727
+        ],
+        [
+          2122,
+          59
+        ]
+      ],
+      "fluidez": {
+        "lista": {
+          "tareasLargas": 1,
+          "mayorTareaMs": 50,
+          "tareasMas200ms": 0,
+          "tiempoBloqueoMs": 0,
+          "loafMas200ms": 0,
+          "mayorLoafMs": 78,
+          "frames": 390,
+          "frameP95Ms": 16.8,
+          "framesMas50ms": 2,
+          "scrollTopFinal": 0
+        },
+        "mapa": {
+          "tareasLargas": 6,
+          "mayorTareaMs": 135,
+          "tareasMas200ms": 0,
+          "tiempoBloqueoMs": 205,
+          "loafMas200ms": 2,
+          "mayorLoafMs": 279,
+          "frames": 269,
+          "frameP95Ms": 66.7,
+          "framesMas50ms": 33
+        }
+      },
+      "memoria": {
+        "heapUsadoMb": 20.2,
+        "heapTotalMb": 21,
+        "nodos": 1963,
+        "oyentes": 317,
+        "documentos": 1
+      }
+    },
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 8,
+      "dcl": 332,
+      "load": 432,
+      "api": {
+        "inicio": 324,
+        "fin": 520,
+        "kB": 7070
+      },
+      "datosPintadosMs": 1172,
+      "utilizableMs": 2064,
+      "clicFilaAVentanaMs": 1658,
+      "tareasCarga": {
+        "tareasLargas": 7,
+        "mayorTareaMs": 723,
+        "tareasMas200ms": 3,
+        "tiempoBloqueoMs": 1236,
+        "loafMas200ms": 2,
+        "mayorLoafMs": 691
+      },
+      "tareasLargasDetalle": [
+        [
+          250,
+          84
+        ],
+        [
+          523,
+          84
+        ],
+        [
+          611,
+          281
+        ],
+        [
+          892,
+          278
+        ],
+        [
+          1172,
+          57
+        ],
+        [
+          1234,
+          723
+        ],
+        [
+          1985,
+          79
+        ]
+      ],
+      "fluidez": null,
+      "memoria": {
+        "heapUsadoMb": 20.7,
+        "heapTotalMb": 21.8,
+        "nodos": 3050,
+        "oyentes": 285,
+        "documentos": 1
+      }
+    },
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 9,
+      "dcl": 340,
+      "load": 454,
+      "api": {
+        "inicio": 332,
+        "fin": 506,
+        "kB": 7070
+      },
+      "datosPintadosMs": 1188,
+      "utilizableMs": 2083,
+      "clicFilaAVentanaMs": 1628,
+      "tareasCarga": {
+        "tareasLargas": 7,
+        "mayorTareaMs": 726,
+        "tareasMas200ms": 3,
+        "tiempoBloqueoMs": 1257,
+        "loafMas200ms": 2,
+        "mayorLoafMs": 702
+      },
+      "tareasLargasDetalle": [
+        [
+          257,
+          85
+        ],
+        [
+          518,
+          80
+        ],
+        [
+          601,
+          292
+        ],
+        [
+          894,
+          292
+        ],
+        [
+          1188,
+          51
+        ],
+        [
+          1247,
+          726
+        ],
+        [
+          2002,
+          81
+        ]
+      ],
+      "fluidez": null,
+      "memoria": {
+        "heapUsadoMb": 20.7,
+        "heapTotalMb": 22,
+        "nodos": 3187,
+        "oyentes": 465,
+        "documentos": 1
+      }
+    }
+  ]
+}

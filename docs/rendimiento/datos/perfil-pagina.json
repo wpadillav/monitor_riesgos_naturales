@@ -1,0 +1,337 @@
+{
+  "carga": {
+    "totalMs": 5255,
+    "propio": [
+      {
+        "funcion": "(garbage collector) :0",
+        "ms": 276
+      },
+      {
+        "funcion": "_updateLevels leaflet.js:5",
+        "ms": 69
+      },
+      {
+        "funcion": "(anónima) formato.js:1",
+        "ms": 53
+      },
+      {
+        "funcion": "sincronizar mapa.js:503",
+        "ms": 48
+      },
+      {
+        "funcion": "_fillStroke leaflet.js:5",
+        "ms": 47
+      },
+      {
+        "funcion": "p leaflet.js:5",
+        "ms": 27
+      },
+      {
+        "funcion": "(anónima) leaflet.js:5",
+        "ms": 26
+      },
+      {
+        "funcion": "pintarUnaVez lista.js:201",
+        "ms": 24
+      },
+      {
+        "funcion": "esSismoValido estado.js:55",
+        "ms": 24
+      },
+      {
+        "funcion": "recordar avisos.js:183",
+        "ms": 23
+      },
+      {
+        "funcion": "c leaflet.js:5",
+        "ms": 22
+      },
+      {
+        "funcion": "_update leaflet.js:5",
+        "ms": 19
+      },
+      {
+        "funcion": "crearEntrada estado.js:107",
+        "ms": 19
+      },
+      {
+        "funcion": "fire leaflet.js:5",
+        "ms": 19
+      },
+      {
+        "funcion": "addLayer leaflet.js:5",
+        "ms": 18
+      },
+      {
+        "funcion": "M leaflet.js:5",
+        "ms": 18
+      },
+      {
+        "funcion": "l leaflet.js:5",
+        "ms": 17
+      },
+      {
+        "funcion": "reemplazar estado.js:130",
+        "ms": 16
+      },
+      {
+        "funcion": "_retainChildren leaflet.js:5",
+        "ms": 15
+      },
+      {
+        "funcion": "createTile leaflet.js:5",
+        "ms": 15
+      }
+    ],
+    "inclusivo": [
+      {
+        "funcion": "pintarDatos main.js:225",
+        "ms": 432
+      },
+      {
+        "funcion": "sincronizar mapa.js:503",
+        "ms": 355
+      },
+      {
+        "funcion": "addTo leaflet.js:5",
+        "ms": 341
+      },
+      {
+        "funcion": "addLayer leaflet.js:5",
+        "ms": 331
+      },
+      {
+        "funcion": "whenReady leaflet.js:5",
+        "ms": 299
+      },
+      {
+        "funcion": "_layerAdd leaflet.js:5",
+        "ms": 297
+      },
+      {
+        "funcion": "(garbage collector) :0",
+        "ms": 276
+      },
+      {
+        "funcion": "onAdd leaflet.js:5",
+        "ms": 247
+      },
+      {
+        "funcion": "(anónima) main.js:1",
+        "ms": 241
+      },
+      {
+        "funcion": "_resetView leaflet.js:5",
+        "ms": 181
+      },
+      {
+        "funcion": "_setView leaflet.js:5",
+        "ms": 170
+      },
+      {
+        "funcion": "crearMapa mapa.js:280",
+        "ms": 145
+      },
+      {
+        "funcion": "(anónima) mapa.js:338",
+        "ms": 124
+      },
+      {
+        "funcion": "ponerTeselas mapa.js:336",
+        "ms": 124
+      },
+      {
+        "funcion": "fire leaflet.js:5",
+        "ms": 104
+      },
+      {
+        "funcion": "cargar main.js:383",
+        "ms": 103
+      },
+      {
+        "funcion": "crearMarcador mapa.js:365",
+        "ms": 83
+      },
+      {
+        "funcion": "_redraw leaflet.js:5",
+        "ms": 81
+      },
+      {
+        "funcion": "_draw leaflet.js:5",
+        "ms": 80
+      },
+      {
+        "funcion": "_update leaflet.js:5",
+        "ms": 74
+      }
+    ]
+  },
+  "rafaga": {
+    "sismos": 200,
+    "totalMs": 7840,
+    "propio": [
+      {
+        "funcion": "sincronizar mapa.js:503",
+        "ms": 2344
+      },
+      {
+        "funcion": "actualizar lista.js:370",
+        "ms": 1128
+      },
+      {
+        "funcion": "tomarAncla lista.js:127",
+        "ms": 471
+      },
+      {
+        "funcion": "recalcular lista.js:102",
+        "ms": 439
+      },
+      {
+        "funcion": "pintarUnaVez lista.js:201",
+        "ms": 257
+      },
+      {
+        "funcion": "lista estado.js:190",
+        "ms": 161
+      },
+      {
+        "funcion": "(anónima) lista.js:375",
+        "ms": 93
+      },
+      {
+        "funcion": "(garbage collector) :0",
+        "ms": 92
+      },
+      {
+        "funcion": "masReciente estado.js:79",
+        "ms": 89
+      },
+      {
+        "funcion": "partesLocales hora.js:63",
+        "ms": 79
+      },
+      {
+        "funcion": "pintarDatos main.js:225",
+        "ms": 69
+      },
+      {
+        "funcion": "_fillStroke leaflet.js:5",
+        "ms": 41
+      },
+      {
+        "funcion": "ajustarHalo mapa.js:425",
+        "ms": 37
+      },
+      {
+        "funcion": "setAttribute :0",
+        "ms": 34
+      },
+      {
+        "funcion": "obtenerFila lista.js:146",
+        "ms": 27
+      },
+      {
+        "funcion": "fill :0",
+        "ms": 24
+      },
+      {
+        "funcion": "formatearNumero formato.js:88",
+        "ms": 16
+      },
+      {
+        "funcion": "poner barra-estado.js:66",
+        "ms": 16
+      },
+      {
+        "funcion": "matchMedia :0",
+        "ms": 16
+      },
+      {
+        "funcion": "createElementNS :0",
+        "ms": 15
+      }
+    ],
+    "inclusivo": [
+      {
+        "funcion": "pintarDatos main.js:225",
+        "ms": 5417
+      },
+      {
+        "funcion": "actualizar lista.js:370",
+        "ms": 2540
+      },
+      {
+        "funcion": "sincronizar mapa.js:503",
+        "ms": 2525
+      },
+      {
+        "funcion": "pintar lista.js:193",
+        "ms": 858
+      },
+      {
+        "funcion": "pintarUnaVez lista.js:201",
+        "ms": 844
+      },
+      {
+        "funcion": "tomarAncla lista.js:127",
+        "ms": 471
+      },
+      {
+        "funcion": "recalcular lista.js:102",
+        "ms": 439
+      },
+      {
+        "funcion": "lista estado.js:190",
+        "ms": 248
+      },
+      {
+        "funcion": "ajustarHalo mapa.js:425",
+        "ms": 148
+      },
+      {
+        "funcion": "obtenerFila lista.js:146",
+        "ms": 118
+      },
+      {
+        "funcion": "_redraw leaflet.js:5",
+        "ms": 109
+      },
+      {
+        "funcion": "_draw leaflet.js:5",
+        "ms": 109
+      },
+      {
+        "funcion": "addTo leaflet.js:5",
+        "ms": 108
+      },
+      {
+        "funcion": "addLayer leaflet.js:5",
+        "ms": 108
+      },
+      {
+        "funcion": "whenReady leaflet.js:5",
+        "ms": 103
+      },
+      {
+        "funcion": "_layerAdd leaflet.js:5",
+        "ms": 102
+      },
+      {
+        "funcion": "_updatePath leaflet.js:5",
+        "ms": 100
+      },
+      {
+        "funcion": "_updateCircle leaflet.js:5",
+        "ms": 99
+      },
+      {
+        "funcion": "(anónima) lista.js:375",
+        "ms": 93
+      },
+      {
+        "funcion": "(garbage collector) :0",
+        "ms": 92
+      }
+    ]
+  }
+}

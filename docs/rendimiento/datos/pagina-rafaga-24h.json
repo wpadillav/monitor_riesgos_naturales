@@ -1,0 +1,50 @@
+{
+  "escenario": "rafaga",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "periodo": "24h",
+  "cpuX": 1,
+  "contadorInicial": "(334)",
+  "rafagas": [
+    {
+      "n": 50,
+      "lote": 1,
+      "ingestaServidorMs": 54.3,
+      "recibidos": 50,
+      "latenciaMs": {
+        "p50": 428,
+        "p95": 465,
+        "max": 466
+      },
+      "tareas": {
+        "tareasLargas": 1,
+        "mayorTareaMs": 149,
+        "tareasMas200ms": 0,
+        "tiempoBloqueoMs": 99,
+        "loafMas200ms": 0,
+        "mayorLoafMs": 157
+      },
+      "contador": "(384)"
+    },
+    {
+      "n": 1000,
+      "lote": 1000,
+      "ingestaServidorMs": 588.7,
+      "recibidos": 1000,
+      "latenciaMs": {
+        "p50": 4398,
+        "p95": 4402,
+        "max": 4402
+      },
+      "tareas": {
+        "tareasLargas": 3,
+        "mayorTareaMs": 3102,
+        "tareasMas200ms": 2,
+        "tiempoBloqueoMs": 3723,
+        "loafMas200ms": 2,
+        "mayorLoafMs": 3223
+      },
+      "contador": "(1384)"
+    }
+  ]
+}

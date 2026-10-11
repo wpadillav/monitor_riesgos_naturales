@@ -1,0 +1,50 @@
+[
+  {
+    "cambios": 0,
+    "CircleMarker": 14493,
+    "Popup": 0,
+    "AbortController": 0,
+    "EventSource": 1,
+    "HTMLLIElement": 9,
+    "Map": 21,
+    "Set": 13,
+    "Array": 34037,
+    "heapMb": 20.6
+  },
+  {
+    "cambios": 50,
+    "CircleMarker": 12244,
+    "Popup": 0,
+    "AbortController": 0,
+    "EventSource": 1,
+    "HTMLLIElement": 9,
+    "Map": 21,
+    "Set": 13,
+    "Array": 35650,
+    "heapMb": 23.6
+  },
+  {
+    "cambios": 100,
+    "CircleMarker": 12155,
+    "Popup": 0,
+    "AbortController": 0,
+    "EventSource": 1,
+    "HTMLLIElement": 9,
+    "Map": 21,
+    "Set": 13,
+    "Array": 35557,
+    "heapMb": 23.1
+  },
+  {
+    "cambios": 150,
+    "CircleMarker": 12068,
+    "Popup": 0,
+    "AbortController": 0,
+    "EventSource": 1,
+    "HTMLLIElement": 9,
+    "Map": 21,
+    "Set": 13,
+    "Array": 35462,
+    "heapMb": 23
+  }
+]

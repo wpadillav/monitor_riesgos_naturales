@@ -1,0 +1,39 @@
+{
+  "escenario": "filtros",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "periodo": "30d",
+  "cambios": 50,
+  "antes": {
+    "heapUsadoMb": 22.5,
+    "heapTotalMb": 23.5,
+    "nodos": 5985,
+    "oyentes": 275,
+    "documentos": 1
+  },
+  "despues": {
+    "heapUsadoMb": 25.7,
+    "heapTotalMb": 26.3,
+    "nodos": 3683,
+    "oyentes": 275,
+    "documentos": 1
+  },
+  "deltaHeapMb": 3.2,
+  "deltaNodos": -2302,
+  "deltaOyentes": 0,
+  "clientesSseAntes": 1,
+  "clientesSseDespues": 1,
+  "cambioHastaEnVivoMs": {
+    "p50": 648,
+    "p95": 1330,
+    "max": 1457
+  },
+  "tareas": {
+    "tareasLargas": 82,
+    "mayorTareaMs": 374,
+    "tareasMas200ms": 10,
+    "tiempoBloqueoMs": 5370,
+    "loafMas200ms": 7,
+    "mayorLoafMs": 396
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "escenario": "filtros",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "periodo": "30d",
+  "cambios": 400,
+  "cada50": [
+    {
+      "cambios": 50,
+      "heapUsadoMb": 5.7,
+      "heapTotalMb": 6.1,
+      "nodos": 1099,
+      "oyentes": 275,
+      "documentos": 1
+    },
+    {
+      "cambios": 100,
+      "heapUsadoMb": 24.4,
+      "heapTotalMb": 25.3,
+      "nodos": 2815,
+      "oyentes": 275,
+      "documentos": 1
+    },
+    {
+      "cambios": 150,
+      "heapUsadoMb": 4.5,
+      "heapTotalMb": 5.1,
+      "nodos": 878,
+      "oyentes": 275,
+      "documentos": 1
+    },
+    {
+      "cambios": 200,
+      "heapUsadoMb": 12.7,
+      "heapTotalMb": 13.1,
+      "nodos": 1548,
+      "oyentes": 275,
+      "documentos": 1
+    },
+    {
+      "cambios": 250,
+      "heapUsadoMb": 5.9,
+      "heapTotalMb": 6.6,
+      "nodos": 1083,
+      "oyentes": 275,
+      "documentos": 1
+    },
+    {
+      "cambios": 300,
+      "heapUsadoMb": 24.4,
+      "heapTotalMb": 25.3,
+      "nodos": 2701,
+      "oyentes": 275,
+      "documentos": 1
+    },
+    {
+      "cambios": 350,
+      "heapUsadoMb": 4.6,
+      "heapTotalMb": 5.1,
+      "nodos": 878,
+      "oyentes": 275,
+      "documentos": 1
+    }
+  ],
+  "antes": {
+    "heapUsadoMb": 20.4,
+    "heapTotalMb": 21,
+    "nodos": 2882,
+    "oyentes": 275,
+    "documentos": 1
+  },
+  "despues": {
+    "heapUsadoMb": 27.4,
+    "heapTotalMb": 28.5,
+    "nodos": 2644,
+    "oyentes": 275,
+    "documentos": 1
+  },
+  "deltaHeapMb": 7,
+  "deltaNodos": -238,
+  "deltaOyentes": 0,
+  "clientesSseAntes": 1,
+  "clientesSseDespues": 1,
+  "cambioHastaEnVivoMs": {
+    "p50": 692,
+    "p95": 1521,
+    "max": 2640
+  },
+  "tareas": {
+    "tareasLargas": 618,
+    "mayorTareaMs": 621,
+    "tareasMas200ms": 94,
+    "tiempoBloqueoMs": 46859,
+    "loafMas200ms": 75,
+    "mayorLoafMs": 760
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "escenario": "soak",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "periodo": "30d",
+  "minutos": 10,
+  "sismosEnviados": 585,
+  "inicio": {
+    "heapUsadoMb": 21.4,
+    "heapTotalMb": 22,
+    "nodos": 5480,
+    "oyentes": 262,
+    "documentos": 1
+  },
+  "final": {
+    "heapUsadoMb": 22.3,
+    "heapTotalMb": 23.3,
+    "nodos": 3745,
+    "oyentes": 317,
+    "documentos": 1
+  },
+  "contadorFinal": "(10.585)",
+  "estadoFinal": "En vivo",
+  "crecimientoHeapMb": 0.9,
+  "tareasDuranteSoak": {
+    "tareasLargas": 381,
+    "mayorTareaMs": 638,
+    "tareasMas200ms": 2,
+    "tiempoBloqueoMs": 11928,
+    "loafMas200ms": 66,
+    "mayorLoafMs": 554
+  },
+  "tareaLargaP50Ms": 72,
+  "tareaLargaP95Ms": 141,
+  "muestras": [
+    {
+      "minuto": 0,
+      "heapUsadoMb": 21.4,
+      "heapTotalMb": 22,
+      "nodos": 5480,
+      "oyentes": 262,
+      "documentos": 1,
+      "sismosServidor": 12300
+    },
+    {
+      "minuto": 0.5,
+      "heapUsadoMb": 20.2,
+      "heapTotalMb": 21,
+      "nodos": 3205,
+      "oyentes": 262,
+      "documentos": 1,
+      "contador": "(10.031)"
+    },
+    {
+      "minuto": 1,
+      "heapUsadoMb": 21.1,
+      "heapTotalMb": 21.8,
+      "nodos": 3235,
+      "oyentes": 275,
+      "documentos": 1,
+      "contador": "(10.060)"
+    },
+    {
+      "minuto": 1.5,
+      "heapUsadoMb": 21.2,
+      "heapTotalMb": 21.5,
+      "nodos": 3241,
+      "oyentes": 275,
+      "documentos": 1,
+      "contador": "(10.089)"
+    },
+    {
+      "minuto": 2,
+      "heapUsadoMb": 21.2,
+      "heapTotalMb": 21.8,
+      "nodos": 3316,
+      "oyentes": 285,
+      "documentos": 1,
+      "contador": "(10.118)"
+    },
+    {
+      "minuto": 2.5,
+      "heapUsadoMb": 21.3,
+      "heapTotalMb": 22,
+      "nodos": 3384,
+      "oyentes": 285,
+      "documentos": 1,
+      "contador": "(10.147)"
+    },
+    {
+      "minuto": 3,
+      "heapUsadoMb": 21.4,
+      "heapTotalMb": 22.3,
+      "nodos": 3395,
+      "oyentes": 285,
+      "documentos": 1,
+      "contador": "(10.175)"
+    },
+    {
+      "minuto": 3.5,
+      "heapUsadoMb": 21.5,
+      "heapTotalMb": 22.3,
+      "nodos": 3419,
+      "oyentes": 285,
+      "documentos": 1,
+      "contador": "(10.205)"
+    },
+    {
+      "minuto": 4,
+      "heapUsadoMb": 21.6,
+      "heapTotalMb": 22.3,
+      "nodos": 3439,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.234)"
+    },
+    {
+      "minuto": 4.5,
+      "heapUsadoMb": 21.6,
+      "heapTotalMb": 22.3,
+      "nodos": 3483,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.262)"
+    },
+    {
+      "minuto": 5,
+      "heapUsadoMb": 21.7,
+      "heapTotalMb": 22.5,
+      "nodos": 3519,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.291)"
+    },
+    {
+      "minuto": 5.5,
+      "heapUsadoMb": 21.8,
+      "heapTotalMb": 22.8,
+      "nodos": 3524,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.320)"
+    },
+    {
+      "minuto": 6,
+      "heapUsadoMb": 21.8,
+      "heapTotalMb": 22.8,
+      "nodos": 3552,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.349)"
+    },
+    {
+      "minuto": 6.5,
+      "heapUsadoMb": 21.9,
+      "heapTotalMb": 22.8,
+      "nodos": 3598,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.379)"
+    },
+    {
+      "minuto": 7,
+      "heapUsadoMb": 21.9,
+      "heapTotalMb": 22.8,
+      "nodos": 3611,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.407)"
+    },
+    {
+      "minuto": 7.5,
+      "heapUsadoMb": 22,
+      "heapTotalMb": 22.5,
+      "nodos": 3642,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.438)"
+    },
+    {
+      "minuto": 8,
+      "heapUsadoMb": 22.1,
+      "heapTotalMb": 23,
+      "nodos": 3670,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.467)"
+    },
+    {
+      "minuto": 8.5,
+      "heapUsadoMb": 22.2,
+      "heapTotalMb": 23,
+      "nodos": 3714,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.497)"
+    },
+    {
+      "minuto": 9,
+      "heapUsadoMb": 22.2,
+      "heapTotalMb": 23,
+      "nodos": 3733,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.526)"
+    },
+    {
+      "minuto": 9.5,
+      "heapUsadoMb": 22.3,
+      "heapTotalMb": 23,
+      "nodos": 3724,
+      "oyentes": 317,
+      "documentos": 1,
+      "contador": "(10.556)"
+    }
+  ]
+}

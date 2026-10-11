@@ -1,0 +1,49 @@
+{
+  "minutos": 20,
+  "cargaInicial": {
+    "ts": "2026-10-11T20:57:56.256Z",
+    "nivel": "info",
+    "evento": "carga.inicial",
+    "version": "2.0.0",
+    "sismos": 492,
+    "enMemoria": 632,
+    "ms": 2797,
+    "fallos": 0
+  },
+  "latencias": {
+    "emsc/ws": {
+      "n": 2,
+      "p50": 1383,
+      "p95": 1436,
+      "max": 1436
+    }
+  },
+  "rssMb": [
+    109,
+    93,
+    95,
+    94,
+    95,
+    95,
+    96,
+    97,
+    97,
+    98,
+    100,
+    101,
+    102,
+    102,
+    102,
+    102,
+    102,
+    102,
+    102
+  ],
+  "eventos": {
+    "servidor.escuchando": 1,
+    "fuente.estado": 3,
+    "carga.inicial": 1,
+    "fuente.conectada": 1,
+    "sismo.recibido": 2
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "escenario": "carga",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "periodo": "30d",
+  "cpuX": 1,
+  "rondas": [
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 9,
+      "dcl": 445,
+      "load": 600,
+      "api": {
+        "inicio": 435,
+        "fin": 663,
+        "kB": 7164
+      },
+      "datosPintadosMs": 1111,
+      "utilizableMs": 1111,
+      "clicFilaAVentanaMs": 1068,
+      "tareasCarga": {
+        "tareasLargas": 4,
+        "mayorTareaMs": 212,
+        "tareasMas200ms": 1,
+        "tiempoBloqueoMs": 338,
+        "loafMas200ms": 1,
+        "mayorLoafMs": 242
+      },
+      "tareasLargasDetalle": [
+        [
+          348,
+          98
+        ],
+        [
+          667,
+          84
+        ],
+        [
+          753,
+          212
+        ],
+        [
+          966,
+          144
+        ]
+      ],
+      "fluidez": {
+        "lista": {
+          "tareasLargas": 0,
+          "mayorTareaMs": 0,
+          "tareasMas200ms": 0,
+          "tiempoBloqueoMs": 0,
+          "loafMas200ms": 0,
+          "mayorLoafMs": 55,
+          "frames": 349,
+          "frameP95Ms": 33.4,
+          "framesMas50ms": 2,
+          "scrollTopFinal": 0
+        },
+        "mapa": {
+          "tareasLargas": 0,
+          "mayorTareaMs": 0,
+          "tareasMas200ms": 0,
+          "tiempoBloqueoMs": 0,
+          "loafMas200ms": 0,
+          "mayorLoafMs": 103,
+          "frames": 309,
+          "frameP95Ms": 49.9,
+          "framesMas50ms": 12
+        }
+      },
+      "memoria": {
+        "heapUsadoMb": 19.3,
+        "heapTotalMb": 19.8,
+        "nodos": 941,
+        "oyentes": 317,
+        "documentos": 1
+      }
+    },
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 9,
+      "dcl": 364,
+      "load": 490,
+      "api": {
+        "inicio": 357,
+        "fin": 603,
+        "kB": 7164
+      },
+      "datosPintadosMs": 1050,
+      "utilizableMs": 1050,
+      "clicFilaAVentanaMs": 1435,
+      "tareasCarga": {
+        "tareasLargas": 4,
+        "mayorTareaMs": 214,
+        "tareasMas200ms": 1,
+        "tiempoBloqueoMs": 320,
+        "loafMas200ms": 1,
+        "mayorLoafMs": 241
+      },
+      "tareasLargasDetalle": [
+        [
+          284,
+          82
+        ],
+        [
+          608,
+          86
+        ],
+        [
+          697,
+          214
+        ],
+        [
+          911,
+          138
+        ]
+      ],
+      "fluidez": null,
+      "memoria": {
+        "heapUsadoMb": 19.1,
+        "heapTotalMb": 20.5,
+        "nodos": 994,
+        "oyentes": 413,
+        "documentos": 1
+      }
+    },
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 9,
+      "dcl": 328,
+      "load": 439,
+      "api": {
+        "inicio": 321,
+        "fin": 562,
+        "kB": 7164
+      },
+      "datosPintadosMs": 996,
+      "utilizableMs": 996,
+      "clicFilaAVentanaMs": 1411,
+      "tareasCarga": {
+        "tareasLargas": 4,
+        "mayorTareaMs": 202,
+        "tareasMas200ms": 1,
+        "tiempoBloqueoMs": 311,
+        "loafMas200ms": 1,
+        "mayorLoafMs": 229
+      },
+      "tareasLargasDetalle": [
+        [
+          247,
+          83
+        ],
+        [
+          565,
+          83
+        ],
+        [
+          650,
+          202
+        ],
+        [
+          852,
+          143
+        ]
+      ],
+      "fluidez": null,
+      "memoria": {
+        "heapUsadoMb": 19.1,
+        "heapTotalMb": 20.3,
+        "nodos": 982,
+        "oyentes": 365,
+        "documentos": 1
+      }
+    }
+  ]
+}

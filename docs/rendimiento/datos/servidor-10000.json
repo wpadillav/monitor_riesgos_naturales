@@ -1,0 +1,286 @@
+{
+  "n": 10000,
+  "carga": {
+    "listo": true,
+    "puerto": 3008,
+    "sismos": 10000,
+    "visibles": 10000,
+    "generarMs": 99,
+    "ingerirMs": 13427
+  },
+  "memoriaTrasGc": {
+    "rssMb": 173,
+    "heapUsadoMb": 33.4,
+    "heapTotalMb": 44.2,
+    "externoMb": 4.1,
+    "arrayBuffersMb": 0.4
+  },
+  "rssPsMb": 173,
+  "api": {
+    "sismosEnServidor": 10000,
+    "memoria": {
+      "rssMb": 173,
+      "heapUsadoMb": 33.5,
+      "heapTotalMb": 44.2,
+      "externoMb": 4.1,
+      "arrayBuffersMb": 0.4
+    },
+    "resultados": [
+      {
+        "consulta": "paises=ES,CO,PA&magMin=2.0&periodo=24h",
+        "concurrencia": 1,
+        "peticiones": 200,
+        "errores": 0,
+        "bytesRespuesta": 243953,
+        "rps": 138.2,
+        "p50": 5.6,
+        "p95": 22.4,
+        "p99": 27.5,
+        "max": 34.8,
+        "cpuServidorMsPorPeticion": 5.4,
+        "rssPicoMb": 175
+      },
+      {
+        "consulta": "paises=ES,CO,PA&magMin=2.0&periodo=24h",
+        "concurrencia": 8,
+        "peticiones": 200,
+        "errores": 0,
+        "bytesRespuesta": 243953,
+        "rps": 212.6,
+        "p50": 32,
+        "p95": 63.7,
+        "p99": 130,
+        "max": 171.4,
+        "cpuServidorMsPorPeticion": 4.8,
+        "rssPicoMb": 175
+      },
+      {
+        "consulta": "paises=ES,CO,PA&magMin=2.0&periodo=30d",
+        "concurrencia": 1,
+        "peticiones": 200,
+        "errores": 0,
+        "bytesRespuesta": 7335464,
+        "rps": 10,
+        "p50": 99.7,
+        "p95": 110.4,
+        "p99": 113.5,
+        "max": 140.7,
+        "cpuServidorMsPorPeticion": 75.9,
+        "rssPicoMb": 427
+      },
+      {
+        "consulta": "paises=ES,CO,PA&magMin=2.0&periodo=30d",
+        "concurrencia": 8,
+        "peticiones": 200,
+        "errores": 0,
+        "bytesRespuesta": 7335464,
+        "rps": 13.9,
+        "p50": 546.7,
+        "p95": 1042.7,
+        "p99": 1535.8,
+        "max": 1806.6,
+        "cpuServidorMsPorPeticion": 73.2,
+        "rssPicoMb": 439
+      },
+      {
+        "consulta": "paises=ES&magMin=2.0&periodo=7d",
+        "concurrencia": 1,
+        "peticiones": 200,
+        "errores": 0,
+        "bytesRespuesta": 705619,
+        "rps": 57.4,
+        "p50": 13.8,
+        "p95": 39.4,
+        "p99": 44.4,
+        "max": 52.7,
+        "cpuServidorMsPorPeticion": 11.7,
+        "rssPicoMb": 278
+      },
+      {
+        "consulta": "paises=ES&magMin=2.0&periodo=7d",
+        "concurrencia": 8,
+        "peticiones": 200,
+        "errores": 0,
+        "bytesRespuesta": 705619,
+        "rps": 111.4,
+        "p50": 63.5,
+        "p95": 118,
+        "p99": 146.9,
+        "max": 163.5,
+        "cpuServidorMsPorPeticion": 9.1,
+        "rssPicoMb": 280
+      }
+    ]
+  },
+  "sse": {
+    "lote1000": {
+      "sismosAntes": 10000,
+      "clientes": 8,
+      "novenaConexionStatus": 503,
+      "rafaga": {
+        "n": 1000,
+        "lote": 1000,
+        "ingestaMs": 555.6,
+        "cpuMs": 682.9,
+        "inicioIngesta": 1791752048656,
+        "sismosAhora": 11000
+      },
+      "entregaCompletaMs": 1201,
+      "latenciaEmisionMs": {
+        "n": 8000,
+        "p50": 1087,
+        "p95": 1128,
+        "p99": 1132,
+        "max": 1133
+      },
+      "porCliente": [
+        {
+          "recibidos": 1000,
+          "p95": 1129,
+          "max": 1129,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 1069,
+          "max": 1069,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 1080,
+          "max": 1080,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 1095,
+          "max": 1095,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 1132,
+          "max": 1133,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 1106,
+          "max": 1106,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 1115,
+          "max": 1115,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 1123,
+          "max": 1123,
+          "kB": 791
+        }
+      ],
+      "cpuServidorMs": 1216,
+      "bucleEventosMs": {
+        "p50": 10.21,
+        "p99": 586.68,
+        "max": 586.68
+      },
+      "memoriaDespues": {
+        "rssMb": 262.4,
+        "heapUsadoMb": 89.5,
+        "heapTotalMb": 181.4,
+        "externoMb": 10.3,
+        "arrayBuffersMb": 6.6
+      }
+    },
+    "lote1": {
+      "sismosAntes": 11000,
+      "clientes": 8,
+      "novenaConexionStatus": 503,
+      "rafaga": {
+        "n": 1000,
+        "lote": 1,
+        "ingestaMs": 443.3,
+        "cpuMs": 456.8,
+        "inicioIngesta": 1791752051860,
+        "sismosAhora": 12000
+      },
+      "entregaCompletaMs": 1018,
+      "latenciaEmisionMs": {
+        "n": 8000,
+        "p50": 637,
+        "p95": 879,
+        "p99": 890,
+        "max": 893
+      },
+      "porCliente": [
+        {
+          "recibidos": 1000,
+          "p95": 865,
+          "max": 868,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 874,
+          "max": 877,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 878,
+          "max": 881,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 880,
+          "max": 883,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 882,
+          "max": 885,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 886,
+          "max": 889,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 888,
+          "max": 891,
+          "kB": 791
+        },
+        {
+          "recibidos": 1000,
+          "p95": 890,
+          "max": 893,
+          "kB": 791
+        }
+      ],
+      "cpuServidorMs": 928,
+      "bucleEventosMs": {
+        "p50": 10.17,
+        "p99": 460.06,
+        "max": 460.06
+      },
+      "memoriaDespues": {
+        "rssMb": 264.2,
+        "heapUsadoMb": 104,
+        "heapTotalMb": 183.9,
+        "externoMb": 16.5,
+        "arrayBuffersMb": 12.8
+      }
+    }
+  },
+  "rssFinalPsMb": 252
+}

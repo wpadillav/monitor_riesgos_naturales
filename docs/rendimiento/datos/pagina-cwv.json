@@ -1,0 +1,132 @@
+{
+  "escenario": "cwv",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "teselasReales": true,
+  "escritorio": {
+    "lcpMedianaMs": 468,
+    "clsMediana": 0,
+    "inpAproxMedianaMs": 88,
+    "fcpMedianaMs": 168,
+    "rondas": [
+      {
+        "fcpMs": 244,
+        "lcpMs": 592,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0.007,
+        "inpAproxMs": 96,
+        "interacciones": 3,
+        "datosPintadosMs": 507,
+        "tareasLargas": 5,
+        "contador": "(109)"
+      },
+      {
+        "fcpMs": 136,
+        "lcpMs": 404,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0.007,
+        "inpAproxMs": 88,
+        "interacciones": 3,
+        "datosPintadosMs": 365,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      },
+      {
+        "fcpMs": 172,
+        "lcpMs": 464,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0.007,
+        "inpAproxMs": 80,
+        "interacciones": 3,
+        "datosPintadosMs": 375,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      },
+      {
+        "fcpMs": 156,
+        "lcpMs": 476,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0.007,
+        "inpAproxMs": 80,
+        "interacciones": 3,
+        "datosPintadosMs": 362,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      },
+      {
+        "fcpMs": 168,
+        "lcpMs": 468,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0.007,
+        "inpAproxMs": 88,
+        "interacciones": 3,
+        "datosPintadosMs": 371,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      }
+    ]
+  },
+  "movil": {
+    "lcpMedianaMs": 388,
+    "clsMediana": 0,
+    "inpAproxMedianaMs": 64,
+    "fcpMedianaMs": 120,
+    "rondas": [
+      {
+        "fcpMs": 160,
+        "lcpMs": 388,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0,
+        "inpAproxMs": 64,
+        "interacciones": 5,
+        "datosPintadosMs": 342,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      },
+      {
+        "fcpMs": 120,
+        "lcpMs": 444,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0,
+        "inpAproxMs": 64,
+        "interacciones": 5,
+        "datosPintadosMs": 313,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      },
+      {
+        "fcpMs": 116,
+        "lcpMs": 388,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0,
+        "inpAproxMs": 64,
+        "interacciones": 5,
+        "datosPintadosMs": 314,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      },
+      {
+        "fcpMs": 116,
+        "lcpMs": 372,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0,
+        "inpAproxMs": 80,
+        "interacciones": 5,
+        "datosPintadosMs": 307,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      },
+      {
+        "fcpMs": 128,
+        "lcpMs": 368,
+        "lcpElemento": "IMG#.leaflet-tile leaflet-tile-loaded",
+        "cls": 0,
+        "inpAproxMs": 64,
+        "interacciones": 5,
+        "datosPintadosMs": 305,
+        "tareasLargas": 1,
+        "contador": "(109)"
+      }
+    ]
+  }
+}

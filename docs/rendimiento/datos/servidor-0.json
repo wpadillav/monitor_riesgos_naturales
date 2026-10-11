@@ -1,0 +1,19 @@
+{
+  "n": 0,
+  "carga": {
+    "listo": true,
+    "puerto": 3008,
+    "sismos": 0,
+    "visibles": 0,
+    "generarMs": 0,
+    "ingerirMs": 0
+  },
+  "memoriaTrasGc": {
+    "rssMb": 89.4,
+    "heapUsadoMb": 9.9,
+    "heapTotalMb": 13.9,
+    "externoMb": 4.1,
+    "arrayBuffersMb": 0.4
+  },
+  "rssPsMb": 91
+}

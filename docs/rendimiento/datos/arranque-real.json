@@ -1,0 +1,161 @@
+{
+  "cargaInicial": {
+    "ts": "2026-10-11T19:58:52.161Z",
+    "nivel": "info",
+    "evento": "carga.inicial",
+    "version": "2.0.0",
+    "sismos": 489,
+    "enMemoria": 629,
+    "ms": 1451,
+    "fallos": 0,
+    "__ms": 1704
+  },
+  "rssTrasCargaMb": 108,
+  "franjaReal": {
+    "sismos": 489,
+    "enFranja": 2,
+    "asignarPaisTotalMs": 121
+  },
+  "apiDesdeMemoria": [
+    {
+      "q": "paises=ES,CO,PA&magMin=2.0&periodo=24h",
+      "n": 100,
+      "p50": 3.6,
+      "p95": 6.5,
+      "max": 180.8,
+      "bytes": 73630,
+      "total": 109,
+      "completo": true
+    },
+    {
+      "q": "paises=ES,CO,PA&magMin=2.0&periodo=30d",
+      "n": 100,
+      "p50": 13.3,
+      "p95": 17.8,
+      "max": 25.8,
+      "bytes": 347880,
+      "total": 489,
+      "completo": true
+    }
+  ],
+  "apiConsultandoFuentes": [
+    {
+      "q": "paises=ES,CO,PA&periodo=30d",
+      "n": 1,
+      "p50": 780.7,
+      "p95": 780.7,
+      "max": 780.7,
+      "bytes": 500280,
+      "total": 716,
+      "completo": true
+    },
+    {
+      "q": "paises=ES,CO,PA&periodo=7d",
+      "n": 1,
+      "p50": 5.9,
+      "p95": 5.9,
+      "max": 5.9,
+      "bytes": 243882,
+      "total": 348,
+      "completo": true
+    }
+  ],
+  "apiTodasDesdeMemoria": {
+    "q": "paises=ES,CO,PA&periodo=30d",
+    "n": 50,
+    "p50": 8.2,
+    "p95": 21.5,
+    "max": 22.5,
+    "bytes": 500280,
+    "total": 716,
+    "completo": true
+  },
+  "rssFinalMb": 123,
+  "salud": {
+    "estado": "ok",
+    "version": "2.0.0",
+    "arrancadoEn": "2026-10-11T19:58:50.690Z",
+    "segundosActivo": 5,
+    "fuentes": [
+      {
+        "fuente": "emsc-ws",
+        "estado": "ok",
+        "cambiadoEn": "2026-10-11T19:58:52.772Z",
+        "ultimoExitoEn": "2026-10-11T19:58:52.772Z",
+        "proximoIntentoEn": null,
+        "mensaje": null
+      },
+      {
+        "fuente": "emsc-fdsn",
+        "estado": "ok",
+        "cambiadoEn": "2026-10-11T19:58:51.398Z",
+        "ultimoExitoEn": "2026-10-11T19:58:55.715Z",
+        "proximoIntentoEn": null,
+        "mensaje": null
+      },
+      {
+        "fuente": "usgs",
+        "estado": "ok",
+        "cambiadoEn": "2026-10-11T19:58:51.229Z",
+        "ultimoExitoEn": "2026-10-11T19:58:55.544Z",
+        "proximoIntentoEn": null,
+        "mensaje": null
+      }
+    ],
+    "sismosEnMemoria": 892,
+    "clientesSse": 0,
+    "memoriaRssMb": 123
+  },
+  "lineasRelevantes": [
+    {
+      "ts": "2026-10-11T19:58:51.229Z",
+      "nivel": "info",
+      "evento": "fuente.estado",
+      "version": "2.0.0",
+      "fuente": "usgs",
+      "de": "iniciando",
+      "a": "ok",
+      "__ms": 772
+    },
+    {
+      "ts": "2026-10-11T19:58:51.398Z",
+      "nivel": "info",
+      "evento": "fuente.estado",
+      "version": "2.0.0",
+      "fuente": "emsc-fdsn",
+      "de": "iniciando",
+      "a": "ok",
+      "__ms": 942
+    },
+    {
+      "ts": "2026-10-11T19:58:52.161Z",
+      "nivel": "info",
+      "evento": "carga.inicial",
+      "version": "2.0.0",
+      "sismos": 489,
+      "enMemoria": 629,
+      "ms": 1451,
+      "fallos": 0,
+      "__ms": 1704
+    },
+    {
+      "ts": "2026-10-11T19:58:52.772Z",
+      "nivel": "info",
+      "evento": "fuente.estado",
+      "version": "2.0.0",
+      "fuente": "emsc-ws",
+      "de": "iniciando",
+      "a": "ok",
+      "__ms": 2315
+    },
+    {
+      "ts": "2026-10-11T19:58:52.772Z",
+      "nivel": "info",
+      "evento": "fuente.conectada",
+      "version": "2.0.0",
+      "fuente": "emsc-ws",
+      "intento": 0,
+      "__ms": 2316
+    }
+  ]
+}

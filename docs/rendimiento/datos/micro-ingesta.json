@@ -1,0 +1,38 @@
+{
+  "asignarPaisMsPorLlamada": 1.185,
+  "asignarPaisConPais": "1182/2000",
+  "verticesPorZona": {
+    "ES-PEN": 1323,
+    "ES-CAN": 234,
+    "CO-CONT": 1762,
+    "CO-SAI": 75,
+    "PA": 859
+  },
+  "asignarPaisPorTipo": {
+    "unaZona": {
+      "puntos": 1153,
+      "msPorLlamada": 0.017
+    },
+    "variasZonasFranjaCoPa": {
+      "puntos": 29,
+      "msPorLlamada": 43.905
+    }
+  },
+  "posicionesSinteticasEnFranja": "88/3000",
+  "ingesta_dup0": {
+    "registros": 1000,
+    "sismos": 1000,
+    "totalMs": 1243,
+    "msPorRegistro": 1.243
+  },
+  "ingesta_dup0.5": {
+    "registros": 1501,
+    "sismos": 1000,
+    "totalMs": 2792,
+    "msPorRegistro": 1.86
+  },
+  "loteDe1EnTope": {
+    "tope": 1000,
+    "medianaMs": 0.29
+  }
+}

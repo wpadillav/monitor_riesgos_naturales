@@ -1,0 +1,65 @@
+{
+  "escenario": "filtros",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "periodo": "30d",
+  "cambios": 200,
+  "cada50": [
+    {
+      "cambios": 50,
+      "heapUsadoMb": 5.7,
+      "heapTotalMb": 6.1,
+      "nodos": 1178,
+      "oyentes": 275,
+      "documentos": 1
+    },
+    {
+      "cambios": 100,
+      "heapUsadoMb": 24.9,
+      "heapTotalMb": 25.3,
+      "nodos": 3594,
+      "oyentes": 275,
+      "documentos": 1
+    },
+    {
+      "cambios": 150,
+      "heapUsadoMb": 4.6,
+      "heapTotalMb": 5.3,
+      "nodos": 899,
+      "oyentes": 275,
+      "documentos": 1
+    }
+  ],
+  "antes": {
+    "heapUsadoMb": 22.5,
+    "heapTotalMb": 23.3,
+    "nodos": 6069,
+    "oyentes": 275,
+    "documentos": 1
+  },
+  "despues": {
+    "heapUsadoMb": 27.9,
+    "heapTotalMb": 28.3,
+    "nodos": 3540,
+    "oyentes": 275,
+    "documentos": 1
+  },
+  "deltaHeapMb": 5.4,
+  "deltaNodos": -2529,
+  "deltaOyentes": 0,
+  "clientesSseAntes": 1,
+  "clientesSseDespues": 1,
+  "cambioHastaEnVivoMs": {
+    "p50": 649,
+    "p95": 1289,
+    "max": 1643
+  },
+  "tareas": {
+    "tareasLargas": 310,
+    "mayorTareaMs": 420,
+    "tareasMas200ms": 31,
+    "tiempoBloqueoMs": 17907,
+    "loafMas200ms": 24,
+    "mayorLoafMs": 442
+  }
+}

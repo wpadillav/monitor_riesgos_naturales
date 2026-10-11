@@ -1,0 +1,221 @@
+{
+  "escenario": "carga",
+  "base": "http://127.0.0.1:3008",
+  "navegador": "156.0.8078.4",
+  "periodo": "30d",
+  "cpuX": 4,
+  "rondas": [
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 9,
+      "dcl": 1064,
+      "load": 1329,
+      "api": {
+        "inicio": 1016,
+        "fin": 1479,
+        "kB": 7164
+      },
+      "datosPintadosMs": 3250,
+      "utilizableMs": 3506,
+      "clicFilaAVentanaMs": 1962,
+      "tareasCarga": {
+        "tareasLargas": 7,
+        "mayorTareaMs": 747,
+        "tareasMas200ms": 4,
+        "tiempoBloqueoMs": 2096,
+        "loafMas200ms": 3,
+        "mayorLoafMs": 878
+      },
+      "tareasLargasDetalle": [
+        [
+          326,
+          108
+        ],
+        [
+          684,
+          394
+        ],
+        [
+          1504,
+          321
+        ],
+        [
+          1836,
+          747
+        ],
+        [
+          2583,
+          658
+        ],
+        [
+          3251,
+          102
+        ],
+        [
+          3390,
+          116
+        ]
+      ],
+      "fluidez": {
+        "lista": {
+          "tareasLargas": 2,
+          "mayorTareaMs": 55,
+          "tareasMas200ms": 0,
+          "tiempoBloqueoMs": 5,
+          "loafMas200ms": 0,
+          "mayorLoafMs": 64,
+          "frames": 340,
+          "frameP95Ms": 33.4,
+          "framesMas50ms": 6,
+          "scrollTopFinal": 0
+        },
+        "mapa": {
+          "tareasLargas": 5,
+          "mayorTareaMs": 156,
+          "tareasMas200ms": 0,
+          "tiempoBloqueoMs": 247,
+          "loafMas200ms": 2,
+          "mayorLoafMs": 323,
+          "frames": 301,
+          "frameP95Ms": 50,
+          "framesMas50ms": 15
+        }
+      },
+      "memoria": {
+        "heapUsadoMb": 19.3,
+        "heapTotalMb": 19.8,
+        "nodos": 940,
+        "oyentes": 317,
+        "documentos": 1
+      }
+    },
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 9,
+      "dcl": 910,
+      "load": 1105,
+      "api": {
+        "inicio": 876,
+        "fin": 1256,
+        "kB": 7164
+      },
+      "datosPintadosMs": 3006,
+      "utilizableMs": 3187,
+      "clicFilaAVentanaMs": 1757,
+      "tareasCarga": {
+        "tareasLargas": 8,
+        "mayorTareaMs": 756,
+        "tareasMas200ms": 4,
+        "tiempoBloqueoMs": 2030,
+        "loafMas200ms": 3,
+        "mayorLoafMs": 869
+      },
+      "tareasLargasDetalle": [
+        [
+          138,
+          93
+        ],
+        [
+          314,
+          107
+        ],
+        [
+          567,
+          354
+        ],
+        [
+          1278,
+          318
+        ],
+        [
+          1605,
+          756
+        ],
+        [
+          2362,
+          638
+        ],
+        [
+          3006,
+          74
+        ],
+        [
+          3097,
+          90
+        ]
+      ],
+      "fluidez": null,
+      "memoria": {
+        "heapUsadoMb": 19.1,
+        "heapTotalMb": 19.8,
+        "nodos": 1130,
+        "oyentes": 397,
+        "documentos": 1
+      }
+    },
+    {
+      "contador": "(10.000)",
+      "filasEnDom": 9,
+      "dcl": 932,
+      "load": 1114,
+      "api": {
+        "inicio": 891,
+        "fin": 1255,
+        "kB": 7164
+      },
+      "datosPintadosMs": 3038,
+      "utilizableMs": 3285,
+      "clicFilaAVentanaMs": 1915,
+      "tareasCarga": {
+        "tareasLargas": 8,
+        "mayorTareaMs": 752,
+        "tareasMas200ms": 4,
+        "tiempoBloqueoMs": 2108,
+        "loafMas200ms": 3,
+        "mayorLoafMs": 883
+      },
+      "tareasLargasDetalle": [
+        [
+          265,
+          117
+        ],
+        [
+          383,
+          63
+        ],
+        [
+          580,
+          359
+        ],
+        [
+          1277,
+          324
+        ],
+        [
+          1612,
+          752
+        ],
+        [
+          2366,
+          666
+        ],
+        [
+          3038,
+          102
+        ],
+        [
+          3160,
+          125
+        ]
+      ],
+      "fluidez": null,
+      "memoria": {
+        "heapUsadoMb": 19.1,
+        "heapTotalMb": 20,
+        "nodos": 1029,
+        "oyentes": 357,
+        "documentos": 1
+      }
+    }
+  ]
+}
