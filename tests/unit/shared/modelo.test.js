@@ -240,6 +240,32 @@ describe('parsearInstante', () => {
       expect(parsearInstante(entrada)).toBeNaN();
     },
   );
+
+  // T5.1: con la forma ISO correcta pero valores fuera de rango, Date.parse da NaN.
+  it.each(['2026-13-01T00:00:00Z', '2026-01-01T25:00:00Z', '2026-01-01T00:61:00Z'])(
+    'devuelve NaN para la fecha imposible %s',
+    (entrada) => {
+      expect(parsearInstante(entrada)).toBeNaN();
+    },
+  );
+
+  it('la fracción de más de 3 cifras se trunca, no se redondea', () => {
+    expect(parsearInstante('2026-10-10T00:00:00.9999Z')).toBe(
+      Date.parse('2026-10-10T00:00:00.999Z'),
+    );
+  });
+
+  it('NaN y -Infinity como número devuelven NaN', () => {
+    expect(parsearInstante(Number.NaN)).toBeNaN();
+    expect(parsearInstante(Number.NEGATIVE_INFINITY)).toBeNaN();
+  });
+});
+
+describe('profundidadPositiva: el cero no tiene signo (T5.1)', () => {
+  it('depth -0 y z 0 devuelven +0', () => {
+    expect(Object.is(profundidadPositiva(-0), 0)).toBe(true);
+    expect(Object.is(profundidadPositiva(undefined, 0), 0)).toBe(true);
+  });
 });
 
 describe('precedencia (ADR-0004)', () => {

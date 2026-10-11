@@ -565,3 +565,141 @@ describe('reconexión y estado de la fuente (arquitectura §5.3 y §7)', () => {
     expect(sockets).toHaveLength(2);
   });
 });
+
+describe('casos límite de entrada y del ciclo de vida (T5.1)', () => {
+  const ahora = Date.parse('2026-10-10T06:08:33.000Z');
+  const crudo = FIXTURE[2].raw;
+
+  it('acepta el frame como texto, ArrayBuffer o lista de Buffer (fragmentos)', () => {
+    const bytes = Buffer.from(crudo);
+    const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const mitad = Math.floor(bytes.length / 2);
+
+    for (const datos of [crudo, arrayBuffer, [bytes.subarray(0, mitad), bytes.subarray(mitad)]]) {
+      expect(interpretarMensaje(datos, false, ahora)).toMatchObject({
+        tipo: 'registro',
+        registro: { idFuente: '20261010_0000106' },
+      });
+    }
+  });
+
+  it.each([
+    ['un número', 42],
+    ['undefined', undefined],
+    ['una lista con algo que no es Buffer', [Buffer.from('{'), 'x']],
+  ])('descarta como «entrada» %s sin lanzar', (_caso, datos) => {
+    expect(interpretarMensaje(/** @type {any} */ (datos), false, ahora)).toEqual({
+      tipo: 'descarte',
+      motivo: 'entrada',
+    });
+  });
+
+  it('delete con un id que no cumple el patrón se descarta', () => {
+    expect(
+      interpretarMensaje('{"action":"delete","data":{"id":"../../etc"}}', false, ahora),
+    ).toEqual({ tipo: 'descarte', motivo: 'id' });
+  });
+
+  it('mide los fragmentos de un mensaje antes de encolarlo (AM-17)', () => {
+    const { ultimo, cliente } = arrancado();
+    ultimo().abrir();
+    const trozo = Buffer.alloc(MAX_FRAME_BYTES / 2 + 1, 0x20);
+
+    ultimo().recibir(/** @type {any} */ ([trozo, trozo]));
+
+    expect(cliente.estadisticas()).toMatchObject({ descartados: 1, cola: 0 });
+  });
+
+  it('un error sin código se registra como «desconocido» y no rompe la conexión', () => {
+    const { ultimo, log, cliente } = arrancado();
+    ultimo().abrir();
+
+    ultimo().emit('error', new Error('texto del servidor remoto'));
+
+    expect(log.debug).toHaveBeenCalledWith('fuente.error', {
+      fuente: 'emsc-ws',
+      codigo: 'desconocido',
+    });
+    expect(JSON.stringify(log.debug.mock.calls)).not.toContain('texto del servidor remoto');
+    expect(cliente.estadisticas().abierto).toBe(true);
+  });
+
+  it('un código de error largo se recorta a 40 caracteres (AM-29)', () => {
+    const { ultimo, log } = arrancado();
+    ultimo().emit('error', Object.assign(new Error('x'), { code: 'E'.repeat(100) }));
+
+    expect(log.debug).toHaveBeenCalledWith('fuente.error', {
+      fuente: 'emsc-ws',
+      codigo: 'E'.repeat(40),
+    });
+  });
+
+  it('un cierre sin código numérico reconecta igualmente', () => {
+    const { ultimo, sockets, log } = arrancado();
+    ultimo().abrir();
+
+    ultimo().emit('close', undefined);
+    vi.advanceTimersByTime(1000);
+
+    expect(sockets).toHaveLength(2);
+    expect(log.info).toHaveBeenCalledWith('fuente.reconexion', {
+      fuente: 'emsc-ws',
+      intento: 1,
+      esperaMs: 1000,
+      codigo: undefined,
+    });
+  });
+
+  it('el pong de un socket ya sustituido no cancela la espera del socket nuevo', () => {
+    const { ultimo, sockets } = arrancado();
+    const viejo = ultimo();
+    viejo.cortar();
+    vi.advanceTimersByTime(1000);
+    const nuevo = ultimo();
+    nuevo.autoPong = false;
+    nuevo.abrir();
+
+    vi.advanceTimersByTime(PING_MS);
+    viejo.emit('pong');
+    vi.advanceTimersByTime(PONG_TIMEOUT_MS);
+
+    expect(nuevo.terminado).toBe(true);
+    expect(sockets).toHaveLength(2);
+  });
+
+  it('si alDesbordar lanza, se registra el error y la ingesta sigue', () => {
+    const { ultimo, log, cliente } = arrancado({
+      alDesbordar: () => {
+        throw new Error('fallo al resincronizar');
+      },
+    });
+    ultimo().abrir();
+
+    for (let i = 0; i < MAX_COLA + 1; i += 1) ultimo().recibir('{}');
+
+    expect(log.error).toHaveBeenCalledWith('error', { mensaje: 'fallo al resincronizar' });
+    expect(cliente.estadisticas()).toMatchObject({ cola: MAX_COLA, perdidos: 1 });
+    drenar();
+    expect(cliente.estadisticas().cola).toBe(0);
+  });
+
+  it('arrancar dos veces no abre dos conexiones', () => {
+    const { cliente, sockets } = arrancado();
+
+    cliente.arrancar();
+
+    expect(sockets).toHaveLength(1);
+  });
+
+  it('detener() corta con terminate si close lanza', () => {
+    const { cliente, ultimo } = arrancado();
+    const ws = ultimo();
+    ws.abrir();
+    ws.close = () => {
+      throw new Error('socket roto');
+    };
+
+    expect(() => cliente.detener()).not.toThrow();
+    expect(ws.terminado).toBe(true);
+  });
+});

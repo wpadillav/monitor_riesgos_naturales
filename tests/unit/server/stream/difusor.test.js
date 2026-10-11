@@ -762,3 +762,57 @@ describe('mantenimiento, plazas y contrapresión (AM-13)', () => {
     expect(difusor.conectar({ filtro: FILTRO })).toBeNull();
   });
 });
+
+describe('casos límite (T5.1)', () => {
+  it('una baja sin motivo ni reemplazo llega como «retirado» con reemplazadoPor null', async () => {
+    const { conectar, catalogo } = crear();
+    const c = conectar();
+    const s = sismo();
+    catalogo.alta(s);
+    tras();
+    await c.leer();
+
+    catalogo.baja(s, undefined, undefined);
+    tras();
+
+    expect(eventos(await c.leer())[0].datos).toMatchObject({
+      tipo: 'sismo.eliminado',
+      datos: { id: s.id, motivo: 'retirado', reemplazadoPor: null },
+    });
+  });
+
+  it('vaciar() envía el lote en curso sin esperar los 250 ms', async () => {
+    const { conectar, catalogo, difusor } = crear();
+    const c = conectar();
+    await c.leer();
+    const s = sismo();
+
+    catalogo.alta(s);
+    difusor.vaciar();
+
+    expect(eventos(await c.leer()).map((e) => e.datos.tipo)).toEqual(['sismo.nuevo']);
+    tras();
+    expect(await c.leer()).toBe('');
+  });
+
+  it('vaciar() sin nada pendiente no envía nada', async () => {
+    const { conectar, difusor } = crear();
+    const c = conectar();
+    await c.leer();
+
+    difusor.vaciar();
+
+    expect(await c.leer()).toBe('');
+  });
+
+  it('cerrar la conexión dos veces no falla ni libera dos plazas', () => {
+    const { difusor, conectar } = crear();
+    const c = conectar();
+    expect(difusor.contarClientes()).toBe(1);
+
+    c.cerrar();
+    c.cerrar();
+
+    expect(difusor.contarClientes()).toBe(0);
+  });
+});

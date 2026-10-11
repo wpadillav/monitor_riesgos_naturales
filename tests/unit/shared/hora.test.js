@@ -97,6 +97,13 @@ describe('horaCompleta y horaCorta', () => {
   it('hora corta sin zona', () => {
     expect(horaCorta(t('2026-10-10T12:42:15Z'), 'America/Panama')).toBe('07:42');
   });
+
+  it.each([['Europe/Paris'], ['__proto__'], [null], [42]])(
+    'zona desconocida o inválida (%s): hora UTC y lo dice (T5.1)',
+    (zona) => {
+      expect(horaCompleta(t('2026-10-10T12:42:15Z'), zona)).toBe('10/10/2026 12:42:15 (UTC)');
+    },
+  );
 });
 
 describe('haceTexto (textos.md §5)', () => {

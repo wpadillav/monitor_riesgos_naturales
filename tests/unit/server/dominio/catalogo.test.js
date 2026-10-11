@@ -501,3 +501,60 @@ describe('eventos', () => {
     expect(oyente).not.toHaveBeenCalled();
   });
 });
+
+describe('casos límite (T5.1)', () => {
+  const espana = (over = {}) =>
+    reg({
+      idFuente: '20261010_0000900',
+      lat: 40.4,
+      lon: -3.7,
+      lugar: 'SPAIN',
+      autor: 'IGN',
+      ...over,
+    });
+
+  it('un oyente que lanza (aunque no sea un Error) no impide avisar a los demás', () => {
+    const { catalogo, log } = crear();
+    const segundo = vi.fn();
+    catalogo.on(EVENTOS_CATALOGO.ALTA, () => {
+      throw 'cadena lanzada';
+    });
+    catalogo.on(EVENTOS_CATALOGO.ALTA, segundo);
+
+    catalogo.ingerir(reg(), { recibidoEn: AHORA });
+
+    expect(segundo).toHaveBeenCalledTimes(1);
+    expect(log.error).toHaveBeenCalledWith('error', {
+      mensaje: 'Oyente de alta: cadena lanzada',
+    });
+  });
+
+  it('listar desempata por id cuando dos sismos tienen la misma hora', () => {
+    const { catalogo } = crear();
+    catalogo.ingerir(reg(), { recibidoEn: AHORA });
+    catalogo.ingerir(espana(), { recibidoEn: AHORA });
+
+    const ids = catalogo
+      .listar({ paises: ['ES', 'PA'], magMin: null, desde: 0 })
+      .sismos.map((s) => s.id);
+
+    expect(ids).toHaveLength(2);
+    expect([...ids].sort()).toEqual(ids);
+  });
+
+  it('listar con magMin exacto incluye la magnitud igual al mínimo (frontera)', () => {
+    const { catalogo } = crear();
+    catalogo.ingerir(reg({ magnitud: 4.5 }), { recibidoEn: AHORA });
+
+    expect(catalogo.listar({ paises: ['PA'], magMin: 4.5, desde: 0 }).total).toBe(1);
+    expect(catalogo.listar({ paises: ['PA'], magMin: 4.6, desde: 0 }).total).toBe(0);
+  });
+
+  it('listar excluye lo anterior a «desde» e incluye lo que cae justo en el límite', () => {
+    const { catalogo } = crear();
+    catalogo.ingerir(reg(), { recibidoEn: AHORA });
+
+    expect(catalogo.listar({ paises: ['PA'], magMin: null, desde: T0 }).total).toBe(1);
+    expect(catalogo.listar({ paises: ['PA'], magMin: null, desde: T0 + 1 }).total).toBe(0);
+  });
+});
