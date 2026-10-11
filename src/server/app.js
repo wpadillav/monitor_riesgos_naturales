@@ -6,7 +6,7 @@
 import { fileURLToPath } from 'node:url';
 import { Hono } from 'hono';
 import { problemResponse } from './http/errores.js';
-import { registerStatic } from './http/estaticos.js';
+import { rechazarRutasPeligrosas, registerStatic } from './http/estaticos.js';
 import {
   createRejectionLogger,
   hostAllowlist,
@@ -61,6 +61,8 @@ export function createApp(deps) {
 
   app.use('*', securityHeaders());
   app.use('*', hostAllowlist({ port: deps.port, onReject }));
+  // AM-30: antes que cualquier ruta, sobre la ruta cruda (sin normalizar).
+  app.use('*', rechazarRutasPeligrosas());
   app.use('/api/*', sameOriginOnly({ onReject }));
   app.use('*', readOnlyMethods({ onReject }));
 

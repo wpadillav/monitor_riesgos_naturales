@@ -1,5 +1,8 @@
+import { request as httpRequest } from 'node:http';
+import { serve } from '@hono/node-server';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../src/server/app.js';
+import { esRutaCrudaPeligrosa } from '../../src/server/http/estaticos.js';
 import { CSP, SECURITY_HEADERS } from '../../src/server/http/middlewares.js';
 
 const PORT = 3000;
@@ -277,6 +280,101 @@ describe('estáticos (AM-20, AM-30)', () => {
   ])('%s da 404', async (ruta) => {
     const res = await request(buildApp(), ruta);
     expect(res.status).toBe(404);
+  });
+});
+
+/**
+ * Recorridos de `/shared/` que `new URL()` normaliza antes de llegar a Hono: con `app.request`
+ * ya llegarían limpios, así que se prueban con la ruta cruda (AM-30).
+ */
+const RECORRIDOS_SHARED = [
+  '/shared/../shared/constantes.js',
+  '/shared/../server/index.js',
+  '/shared/../',
+  '/shared/..',
+  '/shared/./constantes.js',
+  '/shared/%2e%2e/shared/constantes.js',
+  '/shared/%2E%2E/shared/constantes.js',
+  '/shared/.%2e/shared/constantes.js',
+  '/shared/%2e./shared/constantes.js',
+  '/shared/%2e%2e%2fshared%2fconstantes.js',
+  '/shared/..%2fshared%2fconstantes.js',
+  '/shared/..%2Fserver%2Findex.js',
+  '/shared/%252e%252e/shared/constantes.js',
+  '/shared/..\\shared\\constantes.js',
+  '/shared/..%5cshared%5cconstantes.js',
+  '/shared/..%5Cserver%5Cindex.js',
+  '/shared/%5c..%5cpackage.json',
+  '/shared/constantes.js%00.js',
+  '/shared/%e0%a4%a.js',
+  '/shared/../../package.json',
+  '/vendor/leaflet/../../package.json',
+  '/shared/../api/salud',
+];
+
+describe('recorrido de rutas con la ruta cruda (AM-30)', () => {
+  it.each(RECORRIDOS_SHARED)('esRutaCrudaPeligrosa(%s) → true', (ruta) => {
+    expect(esRutaCrudaPeligrosa(ruta)).toBe(true);
+  });
+
+  it.each([
+    '/',
+    '/shared/constantes.js',
+    '/shared/constantes.js?v=../x',
+    '/api/sismos?paises=ES%2CPA&magMin=2.0',
+    '/vendor/leaflet/images/marker-icon.png',
+    '/js/main.js',
+    '/a%20b.js',
+    'http://localhost:3000/shared/constantes.js',
+  ])('esRutaCrudaPeligrosa(%s) → false', (ruta) => {
+    expect(esRutaCrudaPeligrosa(ruta)).toBe(false);
+  });
+
+  it('la forma absoluta tampoco esconde un recorrido', () => {
+    expect(esRutaCrudaPeligrosa('http://localhost:3000/shared/../server/index.js')).toBe(true);
+  });
+
+  it.each(RECORRIDOS_SHARED)('con la ruta cruda de @hono/node-server, %s da 404', async (ruta) => {
+    const res = await buildApp().request(
+      '/shared/constantes.js',
+      { headers: { host: HOST_OK } },
+      { incoming: { url: ruta } },
+    );
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain('NOMBRE_APLICACION');
+  });
+
+  it('servidor HTTP real: /shared/ sirve lo suyo y los recorridos dan 404 sin salir de src/shared', async () => {
+    const server = serve({ fetch: buildApp().fetch, port: 0, hostname: '127.0.0.1' });
+    await new Promise((ok) => server.once('listening', ok));
+    const { port } = /** @type {import('node:net').AddressInfo} */ (server.address());
+    /** @param {string} path @returns {Promise<{ status: number, cuerpo: string }>} */
+    const pedir = (path) =>
+      new Promise((ok, ko) => {
+        const req = httpRequest({ host: '127.0.0.1', port, path, headers: { host: HOST_OK } });
+        req.on('response', (res) => {
+          let cuerpo = '';
+          res.setEncoding('utf8');
+          res.on('data', (d) => (cuerpo += d));
+          res.on('end', () => ok({ status: res.statusCode ?? 0, cuerpo }));
+        });
+        req.on('error', ko);
+        req.end();
+      });
+    try {
+      const bien = await pedir('/shared/constantes.js');
+      expect(bien.status).toBe(200);
+      expect(bien.cuerpo).toContain('NOMBRE_APLICACION');
+      for (const ruta of RECORRIDOS_SHARED) {
+        const r = await pedir(ruta);
+        expect({ ruta, status: r.status }).toEqual({ ruta, status: 404 });
+        expect(r.cuerpo).not.toContain('NOMBRE_APLICACION');
+        expect(r.cuerpo).not.toContain('createApp');
+        expect(r.cuerpo).not.toContain('"name"');
+      }
+    } finally {
+      await new Promise((ok) => server.close(ok));
+    }
   });
 });
 
