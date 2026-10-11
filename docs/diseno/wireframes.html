@@ -349,7 +349,9 @@ legend,.etq{display:block;padding:0;font-size:var(--texto-sm);font-weight:600;ma
 <h3>1.2 Otras decisiones</h3>
 <ul>
   <li><strong>Panel de 360 px</strong> (antes 340 px) para que los tres países quepan en una fila. Se conserva todo lo demás del <code>index.html</code>: panel a la izquierda, mapa a la derecha, corte móvil en 700 px con el mapa arriba y la lista abajo.</li>
-  <li><strong>Orden del DOM</strong> igual en escritorio y móvil: cabecera → filtros y avisos → lista → pie → mapa. En móvil el mapa se coloca visualmente entre los filtros y la lista con <code>grid-template-areas</code>; el orden de tabulación sigue siendo lógico porque la lista es la vía principal con teclado.</li>
+  <li><strong>Orden del DOM</strong> igual en escritorio y móvil: cabecera → <code>main</code> (filtros y avisos → lista → mapa) → pie (revisado en T5.5: el mapa queda dentro de <code>main</code> y el <code>footer</code> es el último landmark). En móvil el mapa se coloca visualmente entre los filtros y la lista con <code>grid-template-areas</code>; el orden de tabulación sigue siendo lógico porque la lista es la vía principal con teclado.</li>
+  <li><strong>Pie a todo el ancho en escritorio</strong> (revisado en T5.5): <code>grid-template-areas: "cab mapa" "fil mapa" "lis mapa" "pie pie"</code>. Devuelve a la lista unos 75 px. Los wireframes de este documento todavía lo dibujan dentro de la columna.</li>
+  <li><strong>Panel «Filtros y avisos» plegable también en escritorio con 900 px de alto o menos</strong> (revisado en T5.5): el mismo botón y resumen que en móvil; ver <a href="revision-T5.5.md">revision-T5.5.md</a> C7.</li>
   <li><strong>Pulso limitado a 3 ciclos (≈ 4,8 s)</strong> al aparecer el sismo, y después un <strong>halo discontinuo estático</strong> mientras tenga menos de 1 h. Hoy el pulso es infinito; así se cumple 2.2.2 (nada se mueve solo más de 5 s) y se mantiene la señal de «última hora» sin movimiento. <em>Requiere el visto bueno del Director porque cambia un comportamiento actual.</em></li>
   <li><strong>El indicador «en vivo» deja de parpadear</strong> (hoy parpadea sin fin): un punto fijo con forma distinta por estado y texto siempre visible.</li>
   <li><strong>La lista es un único punto de tabulación</strong> con flechas dentro (tabindex itinerante). Con 30 días puede haber miles de sismos; con un tab por fila, llegar al pie o al mapa sería imposible.</li>
@@ -979,7 +981,7 @@ legend,.etq{display:block;padding:0;font-size:var(--texto-sm);font-weight:600;ma
   <tbody>
     <tr><td>1</td><td>Enlace «Ir a la lista de sismos»</td><td><kbd>Intro</kbd></td><td>Oculto hasta recibir el foco; lleva el foco a la lista (elemento activo).</td></tr>
     <tr><td>2</td><td>Botón de tema</td><td><kbd>Intro</kbd> / <kbd>Espacio</kbd></td><td>Cambia el tema y las teselas; el foco se queda en el botón y su texto cambia.</td></tr>
-    <tr><td>3</td><td>Móvil: «Filtros y avisos»</td><td><kbd>Intro</kbd> / <kbd>Espacio</kbd>; <kbd>Esc</kbd> dentro del panel lo pliega</td><td>Solo existe por debajo de 700 px. Si está plegado, los pasos 4 a 11 se saltan.</td></tr>
+    <tr><td>3</td><td>Móvil o ventana baja: «Filtros y avisos»</td><td><kbd>Intro</kbd> / <kbd>Espacio</kbd>; <kbd>Esc</kbd> dentro del panel lo pliega</td><td>Solo existe por debajo de 700 px de ancho o con 900 px de alto o menos (T5.5). Si está plegado, los pasos 4 a 11 se saltan.</td></tr>
     <tr><td>4–6</td><td>Casillas España, Colombia, Panamá</td><td><kbd>Espacio</kbd> marca/desmarca</td><td>Cada casilla es un punto de tabulación (casillas nativas).</td></tr>
     <tr><td>7</td><td>Magnitud mínima</td><td><kbd>↑</kbd> <kbd>↓</kbd>, <kbd>Alt</kbd>+<kbd>↓</kbd> abre</td><td><code>select</code> nativo. El cambio se aplica al momento sin mover el foco.</td></tr>
     <tr><td>8</td><td>Periodo</td><td>Igual que 7</td><td></td></tr>
@@ -987,11 +989,11 @@ legend,.etq{display:block;padding:0;font-size:var(--texto-sm);font-weight:600;ma
     <tr><td>10</td><td>Avisos: «Activar avisos» · o bien «Probar aviso», «Avisar desde», «Desactivar avisos» · o «Comprobar de nuevo»</td><td><kbd>Intro</kbd> / <kbd>Espacio</kbd></td><td>Según el estado. Al cambiar de estado el foco se queda en el control equivalente (p. ej. tras activar, en «Avisar desde»).</td></tr>
     <tr><td>11</td><td>Móvil: «Ver {n} sismos»</td><td><kbd>Intro</kbd></td><td>Pliega el panel y lleva el foco a la lista.</td></tr>
     <tr><td>12</td><td><strong>Lista de sismos</strong> (un solo punto de tabulación)</td><td><kbd>↑</kbd> <kbd>↓</kbd> elemento anterior/siguiente · <kbd>Inicio</kbd> / <kbd>Fin</kbd> primero/último · <kbd>RePág</kbd> / <kbd>AvPág</kbd> 10 elementos · <kbd>Intro</kbd> / <kbd>Espacio</kbd> ver en el mapa</td><td>Tabindex itinerante sobre <code>&lt;button&gt;</code> dentro de <code>&lt;ul&gt;</code>: solo un botón tiene <code>tabindex="0"</code>, el resto <code>-1</code>. Al volver a la lista, el foco regresa al último elemento visitado. Si ese sismo desaparece (sale del periodo), el foco pasa al siguiente. Los sismos nuevos que llegan arriba <strong>no mueven el foco</strong> ni el desplazamiento si el usuario está más abajo.</td></tr>
-    <tr><td>13</td><td>Pie: «IGN y 112 (España)», «SGC y UNGRD (Colombia)», «SINAPROC (Panamá)» (en móvil, antes el botón «Fuentes y canales oficiales»)</td><td><kbd>Intro</kbd></td><td>Abren otra pestaña; lo anuncian con texto oculto.</td></tr>
-    <tr><td>14</td><td>Contenedor del mapa</td><td>Flechas: desplazar · <kbd>+</kbd> / <kbd>-</kbd>: acercar/alejar</td><td>Teclado nativo de Leaflet. Foco visible por dentro del borde del mapa.</td></tr>
-    <tr><td>15</td><td>Ventana emergente abierta: título → «Más info en …» → «Cerrar»</td><td><kbd>Esc</kbd> cierra</td><td>No es modal: no atrapa el foco.</td></tr>
-    <tr><td>16–17</td><td>«Acercar», «Alejar», «Leyenda»</td><td><kbd>Intro</kbd></td><td>Controles de Leaflet traducidos.</td></tr>
-    <tr><td>18</td><td>Enlaces de la atribución (Leaflet, Esri)</td><td><kbd>Intro</kbd></td><td>Último elemento enfocable.</td></tr>
+    <tr><td>13</td><td>Contenedor del mapa</td><td>Flechas: desplazar · <kbd>+</kbd> / <kbd>-</kbd>: acercar/alejar</td><td>Teclado nativo de Leaflet. Foco visible por dentro del borde del mapa.</td></tr>
+    <tr><td>14</td><td>Ventana emergente abierta: título → «Más info en …» → «Cerrar»</td><td><kbd>Esc</kbd> cierra</td><td>No es modal: no atrapa el foco.</td></tr>
+    <tr><td>15–16</td><td>«Acercar», «Alejar», «Leyenda»</td><td><kbd>Intro</kbd></td><td>Controles de Leaflet traducidos.</td></tr>
+    <tr><td>17</td><td>Enlaces de la atribución (Leaflet, Esri)</td><td><kbd>Intro</kbd></td><td>Abren otra pestaña; lo anuncian con texto oculto.</td></tr>
+    <tr><td>18</td><td>Pie: «IGN», «SGC», «UNGRD», «SINAPROC» (en móvil, antes el botón «Fuentes y canales oficiales»)</td><td><kbd>Intro</kbd></td><td>Últimos elementos enfocables (orden revisado en T5.5). Abren otra pestaña; lo anuncian con texto oculto junto al nombre completo del organismo.</td></tr>
   </tbody>
 </table>
 

@@ -1,6 +1,6 @@
 # Textos de la interfaz — Monitor de Riesgos Naturales · Entrega 1
 
-**Tarea:** T3.3 · **Autor:** disenador-ux-ui · **Fecha:** 2026-10-10 · **Estado:** borrador, pendiente de aprobación del Director 🔒
+**Tarea:** T3.3, revisado en T5.5 · **Autor:** disenador-ux-ui · **Fecha:** 2026-10-10 (revisión: 2026-10-11) · **Estado:** aprobado; los textos añadidos en la Fase 4 están validados en [revision-T5.5.md](revision-T5.5.md)
 
 Fuente única del microcopy para frontend-senior (T4.5, T4.6 y T4.7) y para las pruebas E2E (T5.1). Los textos marcados **[PRD]** están fijados literalmente en `docs/00-prd.md` y no se cambian sin cambiar el PRD.
 
@@ -47,16 +47,19 @@ Formato: **`[icono] Estado · contador · hora`**. Solo el **estado** va dentro 
 |---|---|---|---|---|
 | Primera carga | círculo con trazo giratorio (estático con movimiento reducido) | `Cargando sismos…` | — | secundario |
 | Conectado | círculo relleno | `En vivo` | `· {n} sismos · actualizado a las {HH:MM:SS}` | éxito |
+| Datos cargados sin tiempo real (navegador sin `EventSource`) | círculo relleno | `Datos cargados` | `· {n} sismos · actualizado a las {HH:MM:SS}` | secundario |
 | Aplicando filtros | círculo relleno | `Actualizando…` | `· {n} sismos` (los anteriores siguen visibles) | secundario |
 | Aplicando filtros, más de 3 s | — | `Consultando las fuentes. Con 7 o 30 días puede tardar unos segundos.` | — | secundario |
 | Reconectando | flechas en círculo | `Reconectando…` | `· último dato a las {HH:MM:SS}` | aviso |
 | Sin conexión con el servidor (≤ 10 s tras el corte) | círculo vacío tachado | `Sin conexión con el servidor local. Reintentando…` **[PRD]** | `· último dato a las {HH:MM:SS}` | error |
-| Sin plazas en vivo (el stream responde 503; el servidor sí responde) | flechas en círculo | `Tiempo real no disponible: hay demasiadas pestañas abiertas. Reintentando…` **[T5.0, pendiente de validar]** | `· {n} sismos · último dato a las {HH:MM:SS}` | aviso |
+| Error del servidor (responde con 5xx) | triángulo | `El servidor local ha devuelto un error. Reintentando…` | `· último dato a las {HH:MM:SS}` | error |
+| Sin plazas en vivo (el stream responde 503; el servidor sí responde) | flechas en círculo | `Sin actualizaciones en vivo: hay demasiadas pestañas abiertas. Cierra alguna. Reintentando…` | `· {n} sismos · último dato a las {HH:MM:SS}` | aviso |
 | Sin países marcados | círculo vacío | `Sin consulta: no hay países marcados` | — | secundario |
 
 - **La hora del estado es la del equipo del usuario.** Es la única hora de la interfaz sin zona entre paréntesis (todas las de los sismos la llevan). El pie lo aclara con «Las horas de actualización son las de tu equipo.» (§9). En móvil el complemento se acorta a `· {n} sismos · {HH:MM:SS}`.
 - «Actualizado» = hora del último mensaje recibido del servidor (sismo o latido).
 - Contador: `Ningún sismo` · `1 sismo` · `{n} sismos`.
+- «Sin plazas» no empieza por «Tiempo real no disponible» para no confundirse con el aviso de fuente del mismo nombre (abajo), que trata de otra conexión: la de EMSC con el servidor.
 
 ### Avisos de fuentes (segunda línea del estado, con icono de triángulo)
 
@@ -83,11 +86,13 @@ Formato: **`[icono] Estado · contador · hora`**. Solo el **estado** va dentro 
 | Opciones de periodo **[PRD]** | `Última hora` · `Últimas 24 h` (por defecto) · `7 días` · `30 días` |
 | Botón (solo visible si algún filtro difiere del valor por defecto) | `Restablecer filtros` |
 | Anuncio tras restablecer | `Filtros restablecidos: tres países, 2.0 o más, últimas 24 h.` |
-| Botón que despliega filtros y avisos en **móvil** | `Filtros y avisos` |
+| Botón que despliega filtros y avisos en **móvil y en ventanas de 900 px de alto o menos** (revisión T5.5) | `Filtros y avisos` |
 | Botón al final del panel desplegado en móvil (pliega el panel y lleva el foco a la lista; los filtros ya están aplicados) | `Ver {n} sismos` · `Ver 1 sismo` · `Cerrar filtros` (si hay 0 resultados o ningún país) |
 | Resumen bajo ese botón en móvil (se actualiza solo) | `{países} · {magnitud} · {periodo}` — p. ej. `3 países · 2.0 o más · Últimas 24 h`, `Solo Panamá · 3.0 o más · 7 días`, `Ningún país` |
 
 Países en el resumen: `3 países` si están los tres; `España y Colombia` si son dos; `Solo Panamá` si es uno; `Ningún país` si ninguno.
+
+Opcional (C8 de la revisión T5.5): con los avisos activados se añade `· Avisos activados` al final del resumen, p. ej. `3 países · 2.0 o más · Últimas 24 h · Avisos activados`.
 
 ## 5. Lista de sismos
 
@@ -157,13 +162,16 @@ Ejemplos del PRD: `13:00 (hora de Canarias)`, `13:00 (hora peninsular)`, `07:00 
 | Fila extra de la leyenda | `Anillo discontinuo: última hora` |
 | Botón de la leyenda en móvil | `Leyenda` (con `aria-expanded`) |
 | Teselas que no cargan | `No se puede cargar el mapa de fondo. Los sismos siguen en la lista y en el mapa.` |
-| Atribución del mapa (control de Leaflet) | `Teselas © Esri — Esri, HERE, Garmin, © colaboradores de OpenStreetMap` (**confirmar el texto exacto con los términos de Esri en T4.5**) |
+| Atribución del mapa (control de Leaflet), escritorio | `Leaflet \| Powered by Esri \| Fuentes: Esri, HERE, Garmin, © colaboradores de OpenStreetMap y la comunidad de usuarios de SIG` — «Powered by» va literal, en inglés y con `lang="en"` (lo exigen los términos de Esri); «Esri» enlaza a `https://www.esri.com`. La lista de proveedores es el `copyrightText` del servicio (comprobado el 2026-10-11) con los conectores traducidos. |
+| Atribución del mapa, móvil | `Leaflet \| Powered by Esri` (la lista de proveedores va en el despliegue del pie, §9) |
+| Enlaces de la atribución | + texto oculto ` (se abre en otra pestaña)` |
 
 ### Ventana emergente del sismo
 
 ```
-M 4.2 · Golfo de Urabá                      [Cerrar]
+[4.2] M 4.2 · Golfo de Urabá                [Cerrar]
 Colombia
+Fuente: EMSC · autor: IGN
 Hora local   10/10/2026 07:42:15 (hora de Colombia)
              hace 8 min
 Profundidad  12 km
@@ -174,7 +182,8 @@ Más info en EMSC ↗   Más info en USGS ↗      ← un enlace por fuente
 
 | Elemento | Texto |
 |---|---|
-| Título (`h2` dentro de la ventana, recibe el foco) | `M {mag} · {lugar}` |
+| Título (`h2` dentro de la ventana, recibe el foco) | `M {mag} · {lugar}`, precedido de la insignia de color con `aria-hidden="true"` |
+| Fuente y autor **[PRD HU-07]** | `Fuente: {fuente} · autor: {autor}` · sin autor: `Fuente: {fuente}` · sin fuente: no se muestra la línea |
 | Etiquetas (`dt`) | `Hora local` · `Profundidad` · `Coordenadas` |
 | Revisión | `Magnitud revisada: antes {mag anterior}` |
 | Enlaces | `Más info en {fuente}` + oculto visualmente ` (se abre en otra pestaña)` |
@@ -230,8 +239,9 @@ Regla (PRD P1 y P4): sismo **nuevo** (no de la carga inicial), país **marcado**
 | Campo de `Notification` | Valor | Ejemplo |
 |---|---|---|
 | `title` **[PRD HU-11]** | `M {mag} · {lugar} · {HH:MM} ({zona})` | `M 5.2 · Golfo de Urabá · 07:42 (hora de Colombia)` |
-| `body` | `{país} · {profundidad} km de profundidad. Pulsa para verlo en el mapa.` | `Colombia · 12 km de profundidad. Pulsa para verlo en el mapa.` |
-| `body` si cruza el umbral por revisión | `{país} · {profundidad} km de profundidad · magnitud revisada (antes {mag}). Pulsa para verlo en el mapa.` | `Colombia · 12 km de profundidad · magnitud revisada (antes 4.3). Pulsa para verlo en el mapa.` |
+| `body`, línea 1 | `{país} · {profundidad} km de profundidad. Pulsa para verlo en el mapa.` | `Colombia · 12 km de profundidad. Pulsa para verlo en el mapa.` |
+| `body`, línea 1, si cruza el umbral por revisión | `{país} · {profundidad} km de profundidad · magnitud revisada (antes {mag}). Pulsa para verlo en el mapa.` | `Colombia · 12 km de profundidad · magnitud revisada (antes 4.3). Pulsa para verlo en el mapa.` |
+| `body`, línea 2 (separada con `\n`; aprobada por el Director) | `Fuente: {fuente} · autor: {autor}. Solo informativo.` · sin autor: `Fuente: {fuente}. Solo informativo.` · sin fuente: `Solo informativo.` | `Fuente: EMSC · autor: IGC. Solo informativo.` |
 | `tag` | id del sismo | — |
 | `lang` | `es` | — |
 | `icon` | icono local de la aplicación (sin URL externa) | — |
@@ -241,7 +251,7 @@ Notificación de prueba:
 - `title`: `Aviso de prueba`
 - `body`: `Así verás los avisos de sismos de magnitud {umbral} o más.`
 
-**Propuesta a confirmar por el Director (no está en el PRD):** en una secuencia de réplicas (como la de Panamá del 2026-10-09, con más de cien), si llegan **más de 3 avisos en 60 s**, los siguientes de ese minuto se agrupan en uno:
+**Agrupación de avisos (decidida en AM-22, implementada en `avisos.js`):** en una secuencia de réplicas (como la de Panamá del 2026-10-09, con más de cien), si llegan **más de 3 avisos en 60 s**, los siguientes de ese minuto se agrupan en uno:
 - `title`: `{n} sismos de magnitud {umbral} o más`
 - `body`: `El mayor: M {mag} · {lugar}. Pulsa para verlos en la lista.`
 
@@ -251,17 +261,30 @@ Se mantiene el comportamiento actual: se abre la ventana emergente del sismo nue
 
 ## 9. Pie (siempre visible, ambos temas, desde 360 px)
 
+En escritorio el pie ocupa todo el ancho, bajo el panel y el mapa (aprobado en T5.5).
+
 | Elemento | Texto |
 |---|---|
 | Aviso **[PRD, se conserva]** | `Solo informativo. No es un sistema de alerta temprana: sigue siempre los canales oficiales de tu país.` |
 | Atribución de datos | `Datos: EMSC / seismicportal.eu (CC BY 4.0) y U.S. Geological Survey (USGS). Mapa: Esri.` |
-| Canales oficiales (enlaces) | `Canales oficiales:` `IGN y 112 (España)` · `SGC y UNGRD (Colombia)` · `SINAPROC (Panamá)` |
+| Canales oficiales | `Canales oficiales: IGN y 112 (España) · SGC y UNGRD (Colombia) · SINAPROC (Panamá)` — ver los enlaces abajo |
+| Nota de Colombia (solo con Colombia marcada) **[PRD HU-07, «Nota de cobertura»]** | `En Colombia, EMSC y USGS registran pocos sismos de magnitud menor que 4.0: la lista puede tener menos sismos que la del Servicio Geológico Colombiano (SGC).` |
+| Fuentes del mapa (solo en móvil, dentro del despliegue) | `Mapa: Powered by Esri. Fuentes del mapa: Esri, HERE, Garmin, © colaboradores de OpenStreetMap y la comunidad de usuarios de SIG.` («Powered by» con `lang="en"`) |
 | Nota de hora (escritorio; en móvil dentro de «Fuentes y canales oficiales») | `Las horas de actualización son las de tu equipo.` |
 | Botón de despliegue en móvil | `Fuentes y canales oficiales` (con `aria-expanded`) |
 
-En móvil el aviso y la atribución de datos son siempre visibles; solo los enlaces a canales oficiales y la nota de hora van dentro del despliegue. La atribución de Esri está siempre en el control del mapa.
+**Enlaces de los canales.** Cada enlace es solo la sigla; el país y «112» quedan fuera. El nombre completo va en texto oculto, que empieza por el texto visible (2.5.3):
 
-URL propuestas para los canales (frontend las confirma en T4.5): `https://www.ign.es`, `https://www.sgc.gov.co`, `https://portal.gestiondelriesgo.gov.co`, `https://www.sinaproc.gob.pa`. Se abren en otra pestaña con `rel="noopener"`.
+| Texto visible del enlace | Texto oculto que le sigue | URL |
+|---|---|---|
+| `IGN` | ` (Instituto Geográfico Nacional; se abre en otra pestaña)` | `https://www.ign.es` |
+| `SGC` | ` (Servicio Geológico Colombiano; se abre en otra pestaña)` | `https://www.sgc.gov.co` |
+| `UNGRD` | ` (Unidad Nacional para la Gestión del Riesgo de Desastres; se abre en otra pestaña)` | `https://portal.gestiondelriesgo.gov.co` |
+| `SINAPROC` | ` (Sistema Nacional de Protección Civil; se abre en otra pestaña)` | `https://www.sinaproc.gob.pa` |
+
+Se abren en otra pestaña con `rel="noopener noreferrer"`.
+
+En móvil el aviso y la atribución de datos son siempre visibles; los enlaces a canales oficiales, la nota de Colombia, las fuentes del mapa y la nota de hora van dentro del despliegue. «Powered by Esri» está siempre en el control del mapa.
 
 ## 10. Catálogo de anuncios para lectores de pantalla
 
