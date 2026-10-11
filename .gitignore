@@ -56,3 +56,6 @@ pnpm-debug.log*
 ._*
 Thumbs.db
 Desktop.ini
+
+# SBOM generado localmente
+sbom.cdx.json
