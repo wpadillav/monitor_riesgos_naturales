@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   LIMITE_AVISOS,
+  MAX_RECORDADOS,
   MAX_TEXTO,
   VENTANA_LIMITE_MS,
   crearMostrador,
@@ -239,6 +240,22 @@ describe('notificador: deduplicación, límite y agrupación (AM-22)', () => {
     expect(llega({ id: 'k', magnitud: 6.2 })).toBe('ya-superaba');
     expect(llega({ id: 'j', magnitud: 4.6 })).toBe('avisar');
     expect(mostrar).toHaveBeenCalledTimes(1);
+  });
+
+  it('una carga de 10 000 sismos se recuerda entera y deprisa; la memoria está acotada', () => {
+    const { llega, n } = notificador();
+    const muchos = Array.from({ length: 10_000 }, (_, i) => sismo({ id: `c${i}`, magnitud: 5 }));
+    const inicio = performance.now();
+    n.conocer(muchos);
+    expect(performance.now() - inicio).toBeLessThan(500);
+    expect(llega({ id: 'c0', magnitud: 5.1 })).toBe('ya-superaba');
+    expect(llega({ id: 'c9999', magnitud: 5.1 })).toBe('ya-superaba');
+    // Al pasar del máximo se olvidan los más antiguos.
+    n.conocer(
+      Array.from({ length: MAX_RECORDADOS * 1.25 }, (_, i) => sismo({ id: `d${i}`, magnitud: 5 })),
+    );
+    expect(llega({ id: 'c1', magnitud: 5.1 })).toBe('avisar');
+    expect(llega({ id: `d${MAX_RECORDADOS * 1.25 - 1}`, magnitud: 5.1 })).toBe('ya-superaba');
   });
 
   it('desactivados no avisan, pero recuerdan la magnitud; desactivar vacía lo retenido', () => {

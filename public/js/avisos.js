@@ -24,8 +24,11 @@ export const LIMITE_AVISOS = 3;
 export const VENTANA_LIMITE_MS = 60_000;
 /** Longitud máxima del título y de cada línea variable (AM-23). */
 export const MAX_TEXTO = 120;
-/** Ids recordados (notificados y magnitudes conocidas); los más antiguos se olvidan. */
-export const MAX_RECORDADOS = 5000;
+/**
+ * Ids recordados (notificados y magnitudes conocidas); los más antiguos se olvidan. Cubre la
+ * carga más grande (10 000 sismos, RNF-03) con margen.
+ */
+export const MAX_RECORDADOS = 20_000;
 /** Icono propio, del mismo origen (AM-23: nunca una URL externa). */
 export const ICONO = '/favicon.svg';
 
@@ -169,7 +172,9 @@ export function textoAvisoPrueba(umbral) {
 }
 
 /**
- * `Map`/`Set` acotado: al pasar de `max`, se olvida lo más antiguo.
+ * `Map` acotado: al pasar de un 25 % por encima de `MAX_RECORDADOS`, se conservan los
+ * `MAX_RECORDADOS` más recientes. Se poda por lotes: borrar de uno en uno el más antiguo es
+ * O(n) en cada inserción con los huecos que deja `Map` (O(n²) en una carga de 10 000 sismos).
  * @template V
  * @param {Map<string, V>} mapa
  * @param {string} clave
@@ -178,7 +183,11 @@ export function textoAvisoPrueba(umbral) {
 function recordar(mapa, clave, valor) {
   mapa.delete(clave);
   mapa.set(clave, valor);
-  if (mapa.size > MAX_RECORDADOS) mapa.delete(/** @type {string} */ (mapa.keys().next().value));
+  if (mapa.size > MAX_RECORDADOS * 1.25) {
+    const recientes = [...mapa].slice(-MAX_RECORDADOS);
+    mapa.clear();
+    for (const [k, v] of recientes) mapa.set(k, v);
+  }
 }
 
 /**
