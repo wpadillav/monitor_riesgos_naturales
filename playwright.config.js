@@ -1,6 +1,6 @@
 // Pruebas E2E de la página (T4.5). Arrancan el servidor real sin fuentes (FUENTES_ACTIVAS=no) y
 // simulan `/api/*` y las teselas de Esri interceptando la red: no salen a Internet.
-// Ejecución: `npm run test:e2e` (requiere `npx playwright install chromium`).
+// Ejecución: `npm run test:e2e` (requiere `npx playwright install chromium firefox`).
 
 import { defineConfig, devices } from '@playwright/test';
 
@@ -34,6 +34,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], channel: 'chromium' },
       testMatch: '**/avisos.spec.js',
       dependencies: ['chromium'],
+    },
+    {
+      // Firefox (T5.0L): `npx playwright install firefox`, sin sudo ni `install-deps` (Firefox 157
+      // trae sus propias NSS). Mint 22.3 usa la build de Ubuntu 24.04 (STACK.lock, A6). Ejecución
+      // aislada: `npx playwright test --project=firefox`.
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
     },
   ],
   webServer: {
