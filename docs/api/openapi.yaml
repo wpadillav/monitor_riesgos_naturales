@@ -104,6 +104,7 @@ paths:
         | `sismo.eliminado` | El cliente debe quitar un sismo | `DatosSismoEliminado` |
         | `estado.fuente` | Cambia el estado de una fuente; al conectar se envía uno por fuente | `EstadoFuente` |
         | `flujo.reiniciar` | El servidor no puede reanudar desde el id pedido | `DatosFlujoReiniciar` |
+        | `latido` | Cada 20 s, para que la página sepa que la conexión sigue viva | `DatosLatido` (`{}`) |
 
         **Filtrado por cliente.** El servidor solo envía un sismo si su `pais` está en `paises` y
         además cumple (`magnitud ≥ magMin` y `tiempo ≥ ahora − periodo`) **o**, si viene
@@ -118,15 +119,20 @@ paths:
         historial (los últimos 2 000 eventos o 15 min), envía `flujo.reiniciar` y la página
         recarga con `GET /api/sismos`. Un id mal formado se trata igual (nunca da error).
 
-        **Mantenimiento.** Primera línea `retry: 3000`. Un comentario `: ping` cada 20 s. Si la
-        página no recibe nada en 45 s, cierra y reabre la conexión. Los cambios se agrupan en
-        lotes cada 250 ms (AM-17). Un cliente con más de 1 MiB pendiente se desconecta (AM-13).
+        **Mantenimiento.** Primera línea `retry: 3000`. Un evento `latido` cada 20 s (un
+        comentario SSE no lo ve `EventSource`). El `latido` **no consume secuencia**: lleva el id
+        del último evento emitido, igual que los `estado.fuente` del inicio, así que reanudar
+        desde él no pierde nada. La hora del latido va en `ocurridoEn`. Si la página no recibe
+        nada en 45 s, ni un latido, cierra y reabre la conexión. Los cambios se agrupan en lotes
+        cada 250 ms (AM-17). Un cliente con más de 1 MiB pendiente se desconecta (AM-13).
 
         **Seguridad del formato.** `id` y `event` nunca proceden de datos externos; `data` es
         siempre `JSON.stringify` de una sola línea (AM-15).
 
         **Plazas.** Como máximo 8 conexiones simultáneas (`SSE_MAX_CLIENTES`); la novena recibe
-        `503` con `Retry-After: 10`.
+        `503` con `Retry-After: 10`. `EventSource` no expone el código HTTP: la página lo
+        comprueba con `HEAD /api/stream` (operación `comprobarStream`), que responde lo mismo sin
+        abrir flujo ni ocupar plaza.
 
         **Notificable.** `datos.notificable` es `true` si la hora de origen es de hace
         ≤ 1 h (configurable, `AVISO_VENTANA_MIN`) en el momento de emitir. Los eventos reenviados
@@ -174,7 +180,9 @@ paths:
             event: sismo.nuevo
             data: {"tipo":"sismo.nuevo","version":1,"ocurridoEn":"2026-10-10T06:08:33.120Z","datos":{"sismo":{...},"notificable":true,"cambios":[]}}
 
-            : ping
+            id: lx3k9a-41
+            event: latido
+            data: {"tipo":"latido","version":1,"ocurridoEn":"2026-10-10T06:08:53.120Z","datos":{}}
             ```
           headers:
             Cache-Control:
@@ -199,6 +207,47 @@ paths:
                     id: lx3k9a-41
                     event: sismo.nuevo
                     data: {"tipo":"sismo.nuevo","version":1,"ocurridoEn":"2026-10-10T06:08:33.120Z","datos":{"notificable":true,"cambios":[],"sismo":{"id":"emsc:20261010_0000106","tiempo":"2026-10-10T06:04:20.000Z","lat":7.8117,"lon":-81.056,"profundidadKm":5,"magnitud":4.4,"magnitudTipo":"m","lugar":"PANAMA","pais":"PA","zona":"PA","zonaHoraria":"America/Panama","autor":"IGC","fuentePreferida":"emsc","url":"https://www.seismicportal.eu/eventdetails.html?unid=20261010_0000106","fuentes":[{"fuente":"emsc","idFuente":"20261010_0000106","autor":"IGC","magnitud":4.4,"magnitudTipo":"m","url":"https://www.seismicportal.eu/eventdetails.html?unid=20261010_0000106","actualizadoEn":"2026-10-10T06:08:30.760Z"}],"actualizadoEn":"2026-10-10T06:08:30.760Z","recibidoEn":"2026-10-10T06:08:33.101Z","revision":1}}}
+        '400':
+          $ref: '#/components/responses/ParametroInvalido'
+        '403':
+          $ref: '#/components/responses/OrigenNoPermitido'
+        '421':
+          $ref: '#/components/responses/HostNoPermitido'
+        '503':
+          $ref: '#/components/responses/DemasiadasConexiones'
+    head:
+      tags: [sismos]
+      operationId: comprobarStream
+      summary: Comprueba si se puede abrir el stream, sin abrirlo.
+      description: |
+        Valida los mismos parámetros que `GET /api/stream` y responde como lo haría, pero sin
+        cuerpo, sin abrir el flujo y sin ocupar plaza. La página lo usa cuando `EventSource` se
+        rinde, para distinguir la falta de plazas (`503` con `Retry-After`) de otros fallos.
+      parameters:
+        - $ref: '#/components/parameters/Paises'
+        - $ref: '#/components/parameters/MagMin'
+        - $ref: '#/components/parameters/Periodo'
+        - name: avisoMin
+          in: query
+          required: false
+          description: Igual que en `GET /api/stream`.
+          schema:
+            type: string
+            enum: ['4.0', '4.5', '5.0', '5.5', '6.0']
+        - name: ultimoId
+          in: query
+          required: false
+          description: Se admite por simetría con `GET`; no se usa.
+          schema:
+            $ref: '#/components/schemas/IdEvento'
+      responses:
+        '200':
+          description: Hay plaza. Mismas cabeceras que el flujo, sin cuerpo.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
         '400':
           $ref: '#/components/responses/ParametroInvalido'
         '403':
@@ -648,6 +697,11 @@ components:
         motivo:
           type: string
           enum: [arranque-distinto, historial-insuficiente]
+    DatosLatido:
+      type: object
+      description: Vacío. La hora del latido es `ocurridoEn` del sobre.
+      additionalProperties: false
+      maxProperties: 0
     Evento:
       type: object
       description: Sobre común del `data` de cada mensaje SSE. `tipo` coincide con el campo `event`.
@@ -655,7 +709,8 @@ components:
       properties:
         tipo:
           type: string
-          enum: [sismo.nuevo, sismo.actualizado, sismo.eliminado, estado.fuente, flujo.reiniciar]
+          enum:
+            [sismo.nuevo, sismo.actualizado, sismo.eliminado, estado.fuente, flujo.reiniciar, latido]
         version:
           type: integer
           const: 1
@@ -667,6 +722,7 @@ components:
             - $ref: '#/components/schemas/DatosSismoEliminado'
             - $ref: '#/components/schemas/EstadoFuente'
             - $ref: '#/components/schemas/DatosFlujoReiniciar'
+            - $ref: '#/components/schemas/DatosLatido'
     Problema:
       type: object
       description: RFC 9457 Problem Details.

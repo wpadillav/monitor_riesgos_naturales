@@ -3,14 +3,21 @@ import { crearEstado } from '../../../public/js/estado.js';
 import { filtrosPorDefecto } from '../../../public/js/filtros.js';
 import {
   ESPERAS_S,
+  RETRY_AFTER_MAX_S,
+  RETRY_AFTER_POR_DEFECTO_S,
   SIN_CONEXION_MS,
   SIN_DATOS_MS,
   aplicarEvento,
+  comprobarPlazas,
   crearAnunciadorNuevos,
   crearConexionVivo,
+  leerRetryAfter,
   parsearEvento,
   urlStream,
 } from '../../../public/js/stream.js';
+
+/** Deja correr las promesas pendientes (diagnóstico asíncrono del 503). */
+const vaciarPromesas = () => new Promise((ok) => setTimeout(ok, 0));
 
 const T0 = Date.parse('2026-10-10T12:00:00Z');
 
@@ -281,7 +288,15 @@ class FuenteFalsa {
   }
 }
 
-function montar({ avisoMin = /** @type {string | null} */ (null) } = {}) {
+/**
+ * @param {{ avisoMin?: string | null,
+ *   diagnosticar?: (url: string) => Promise<import('../../../public/js/stream.js').Diagnostico> }}
+ *   [opciones] `diagnosticar` por defecto: no es falta de plazas
+ */
+function montar({
+  avisoMin = /** @type {string | null} */ (null),
+  diagnosticar = vi.fn(async () => ({ sinPlazas: /** @type {const} */ (false) })),
+} = {}) {
   FuenteFalsa.creadas = [];
   const r = reloj();
   const estado = crearEstado({ ahora: r.ahora });
@@ -310,12 +325,24 @@ function montar({ avisoMin = /** @type {string | null} */ (null) } = {}) {
     ponerFuentes,
     alEvento,
     EventSourceImpl: /** @type {any} */ (FuenteFalsa),
+    diagnosticar,
     ahora: r.ahora,
     programar: r.programar,
     cancelar: r.cancelar,
   });
   const ultima = () => /** @type {FuenteFalsa} */ (FuenteFalsa.creadas.at(-1));
-  return { r, estado, barra, estados, recargar, ponerFuentes, alEvento, vivo, ultima };
+  return {
+    r,
+    estado,
+    barra,
+    estados,
+    recargar,
+    ponerFuentes,
+    alEvento,
+    vivo,
+    ultima,
+    diagnosticar,
+  };
 }
 
 describe('crearConexionVivo', () => {
@@ -361,21 +388,133 @@ describe('crearConexionVivo', () => {
     expect(FuenteFalsa.creadas).toHaveLength(1);
   });
 
-  it('si EventSource se rinde (CLOSED), reintenta a los 5 s con el último id', () => {
+  it('si EventSource se rinde (CLOSED) sin ser por plazas, reintenta a los 5 s con el último id', async () => {
     const m = montar();
     m.vivo.abrir();
     m.ultima().abrir();
     m.ultima().emitir('estado.fuente', { fuente: 'usgs', estado: 'ok' }, 'abc-9');
     m.ultima().fallar(2);
     expect(m.ultima().cerrada).toBe(true);
+    await vaciarPromesas();
+    expect(m.diagnosticar).toHaveBeenCalledWith(expect.stringContaining('/api/stream?'));
+    expect(m.barra.estado).toBe('reconectando');
     m.r.avanzar(ESPERAS_S[0] * 1000 - 1);
     expect(FuenteFalsa.creadas).toHaveLength(1);
     m.r.avanzar(1);
     expect(FuenteFalsa.creadas).toHaveLength(2);
     expect(m.ultima().url).toContain('ultimoId=abc-9');
     m.ultima().fallar(2);
+    await vaciarPromesas();
     m.r.avanzar(ESPERAS_S[1] * 1000);
     expect(FuenteFalsa.creadas).toHaveLength(3);
+  });
+
+  it('503 sin plazas: «sin plazas» (no «Sin conexión…»), reintento con Retry-After y vuelta a «En vivo»', async () => {
+    const diagnosticar = vi.fn(async () => ({
+      sinPlazas: /** @type {const} */ (true),
+      reintentarS: 10,
+    }));
+    const m = montar({ diagnosticar });
+    m.estado.reemplazar([sismo()]);
+    m.vivo.abrir();
+    // El navegador recibe 503 y se rinde sin llegar a abrir.
+    m.ultima().fallar(2);
+    await vaciarPromesas();
+    expect(m.barra.poner).toHaveBeenLastCalledWith('sin-plazas', { n: 1, hora: null });
+    expect(m.estados).not.toContain('reconectando');
+
+    // Pasado el plazo de «Sin conexión…» (10 s), sigue en «sin plazas»: el servidor responde.
+    m.r.avanzar(10_000 - 1);
+    expect(FuenteFalsa.creadas).toHaveLength(1);
+    expect(m.barra.estado).toBe('sin-plazas');
+    m.r.avanzar(1);
+    expect(FuenteFalsa.creadas).toHaveLength(2);
+    expect(m.ultima().url).toContain('ultimoId=abc-1');
+
+    // Sigue sin plazas: otra espera igual (sin espera creciente) y sin «Sin conexión…».
+    m.ultima().fallar(2);
+    await vaciarPromesas();
+    m.r.avanzar(SIN_CONEXION_MS * 3);
+    expect(m.estados).not.toContain('sin-conexion');
+    expect(FuenteFalsa.creadas).toHaveLength(3);
+
+    // Queda una plaza libre: abre y vuelve a «En vivo».
+    m.ultima().abrir();
+    expect(m.barra.estado).toBe('en-vivo');
+    expect(diagnosticar).toHaveBeenCalledTimes(2);
+  });
+
+  it('respeta el Retry-After que devuelve el diagnóstico', async () => {
+    const m = montar({
+      diagnosticar: async () => ({ sinPlazas: /** @type {const} */ (true), reintentarS: 30 }),
+    });
+    m.vivo.abrir();
+    m.ultima().fallar(2);
+    await vaciarPromesas();
+    m.r.avanzar(30_000 - 1);
+    expect(FuenteFalsa.creadas).toHaveLength(1);
+    m.r.avanzar(1);
+    expect(FuenteFalsa.creadas).toHaveLength(2);
+  });
+
+  it('un diagnóstico que llega después de cerrar() se ignora', async () => {
+    /** @type {(d: any) => void} */
+    let responder = () => {};
+    const m = montar({ diagnosticar: () => new Promise((ok) => (responder = ok)) });
+    m.vivo.abrir();
+    m.ultima().fallar(2);
+    m.vivo.cerrar();
+    responder({ sinPlazas: true, reintentarS: 10 });
+    await vaciarPromesas();
+    expect(m.estados).not.toContain('sin-plazas');
+    m.r.avanzar(60_000);
+    expect(FuenteFalsa.creadas).toHaveLength(1);
+  });
+
+  it('si el diagnóstico falla, se trata como un corte normal', async () => {
+    const m = montar({
+      diagnosticar: async () => {
+        throw new Error('red');
+      },
+    });
+    m.vivo.abrir();
+    m.ultima().fallar(2);
+    await vaciarPromesas();
+    expect(m.barra.estado).toBe('reconectando');
+    m.r.avanzar(ESPERAS_S[0] * 1000);
+    expect(FuenteFalsa.creadas).toHaveLength(2);
+  });
+
+  it('con latidos cada 20 s no reconecta en reposo (3 min) y renueva «actualizado a las…»', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.ultima().emitir('estado.fuente', { fuente: 'usgs', estado: 'ok' }, 'abc-1');
+    for (let i = 0; i < 9; i += 1) {
+      m.r.avanzar(20_000);
+      m.ultima().emitir('latido', {}, 'abc-1');
+    }
+    expect(FuenteFalsa.creadas).toHaveLength(1);
+    expect(FuenteFalsa.creadas[0].cerrada).toBe(false);
+    expect(m.barra.estado).toBe('en-vivo');
+    expect(m.barra.poner).toHaveBeenLastCalledWith('en-vivo', { n: 0, hora: T0 + 180_000 });
+    expect(m.vivo.ultimoId).toBe('abc-1');
+    // Si dejan de llegar, a los 45 s del último reabre.
+    m.r.avanzar(SIN_DATOS_MS - 1);
+    expect(FuenteFalsa.creadas).toHaveLength(1);
+    m.r.avanzar(1);
+    expect(FuenteFalsa.creadas).toHaveLength(2);
+  });
+
+  it('un latido fuera de «En vivo» no cambia el indicador', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.ultima().fallar(0);
+    expect(m.barra.estado).toBe('reconectando');
+    const llamadas = m.barra.poner.mock.calls.length;
+    m.ultima().emitir('latido', {});
+    expect(m.barra.poner.mock.calls.length).toBe(llamadas);
   });
 
   it('sin mensajes en 45 s reabre sin tocar el indicador', () => {
@@ -442,5 +581,70 @@ describe('crearConexionVivo', () => {
     m.vivo.reabrir();
     expect(FuenteFalsa.creadas).toHaveLength(2);
     expect(m.ultima().url).toContain('ultimoId=abc-5');
+  });
+});
+
+describe('latido (contrato GET /api/stream, «Mantenimiento»)', () => {
+  it('parsearEvento acepta el latido con datos vacíos', () => {
+    expect(parsearEvento('latido', data('latido', {}))).toEqual({ tipo: 'latido' });
+  });
+
+  it.each([
+    ['datos no es objeto', data('latido', null)],
+    ['tipo distinto del event', data('estado.fuente', {})],
+    ['versión desconocida', data('latido', {}, { version: 2 })],
+    ['JSON inválido', '{'],
+  ])('parsearEvento descarta un latido mal formado: %s', (_, texto) => {
+    expect(parsearEvento('latido', texto)).toBeNull();
+  });
+});
+
+describe('leerRetryAfter', () => {
+  it.each([
+    ['10', 10],
+    [' 25 ', 25],
+    ['0', 1],
+    ['999999', RETRY_AFTER_MAX_S],
+    [null, RETRY_AFTER_POR_DEFECTO_S],
+    ['', RETRY_AFTER_POR_DEFECTO_S],
+    ['-5', RETRY_AFTER_POR_DEFECTO_S],
+    ['1.5', RETRY_AFTER_POR_DEFECTO_S],
+    ['Wed, 21 Oct 2026 07:28:00 GMT', RETRY_AFTER_POR_DEFECTO_S],
+  ])('%j → %i s', (valor, esperado) => {
+    expect(leerRetryAfter(valor)).toBe(esperado);
+  });
+});
+
+describe('comprobarPlazas (HEAD /api/stream)', () => {
+  /** @param {number} status @param {Record<string, string>} [cabeceras] */
+  const respuesta = (status, cabeceras = {}) => new Response(null, { status, headers: cabeceras });
+
+  it('503 con Retry-After → sin plazas, con la espera pedida', async () => {
+    const fetchImpl = vi.fn(async () => respuesta(503, { 'Retry-After': '10' }));
+    const url = '/api/stream?paises=PA';
+    expect(await comprobarPlazas(url, /** @type {any} */ (fetchImpl))).toEqual({
+      sinPlazas: true,
+      reintentarS: 10,
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      url,
+      expect.objectContaining({ method: 'HEAD', cache: 'no-store' }),
+    );
+  });
+
+  it.each([200, 400, 403, 500])('%i → no es falta de plazas', async (status) => {
+    const fetchImpl = async () => respuesta(status);
+    expect(await comprobarPlazas('/api/stream?paises=PA', /** @type {any} */ (fetchImpl))).toEqual({
+      sinPlazas: false,
+    });
+  });
+
+  it('un error de red no lanza: no es falta de plazas', async () => {
+    const fetchImpl = async () => {
+      throw new TypeError('Failed to fetch');
+    };
+    expect(await comprobarPlazas('/api/stream?paises=PA', /** @type {any} */ (fetchImpl))).toEqual({
+      sinPlazas: false,
+    });
   });
 });

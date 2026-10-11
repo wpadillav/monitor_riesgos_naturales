@@ -4,8 +4,9 @@
  * una forma por estado y no parpadea.
  *
  * Estados de T4.5: `cargando`, `cargado` (neutro, sin tiempo real), `actualizando`,
- * `sin-paises`, `sin-conexion` y `error-servidor`. T4.6b usará además `en-vivo` y
- * `reconectando`, ya definidos.
+ * `sin-paises`, `sin-conexion` y `error-servidor`. T4.6b usa además `en-vivo` y
+ * `reconectando`; T5.0 añade `sin-plazas` (el stream da 503 por falta de plazas, pero el
+ * servidor responde y los datos cargados siguen visibles).
  */
 
 import { cambiarIcono } from './dom.js';
@@ -14,7 +15,7 @@ import { horaEquipo, textoContador } from './formato.js';
 
 /**
  * @typedef {'cargando' | 'cargado' | 'actualizando' | 'sin-paises' | 'sin-conexion' |
- *   'error-servidor' | 'en-vivo' | 'reconectando'} EstadoVista
+ *   'error-servidor' | 'en-vivo' | 'reconectando' | 'sin-plazas'} EstadoVista
  */
 
 /** @type {Record<EstadoVista, { texto: string, icono: string, clase: string }>} */
@@ -39,6 +40,12 @@ const ESTADOS = {
   },
   'en-vivo': { texto: 'En vivo', icono: 'ok', clase: 'e-ok' },
   reconectando: { texto: 'Reconectando…', icono: 'reconectando', clase: 'e-aviso' },
+  // Texto nuevo (T5.0), pendiente de validar en textos.md §3.
+  'sin-plazas': {
+    texto: 'Tiempo real no disponible: hay demasiadas pestañas abiertas. Reintentando…',
+    icono: 'reconectando',
+    clase: 'e-aviso',
+  },
 };
 
 export function crearBarraEstado() {
@@ -69,6 +76,10 @@ export function crearBarraEstado() {
         if (hora !== null) partes.push(`actualizado a las ${horaEquipo(hora)}`);
       } else if (estado === 'actualizando') {
         if (n !== undefined) partes.push(textoContador(n));
+      } else if (estado === 'sin-plazas') {
+        // Los sismos cargados siguen visibles; la hora es la del último dato recibido.
+        if (n !== undefined) partes.push(textoContador(n));
+        if (hora !== null) partes.push(`último dato a las ${horaEquipo(hora)}`);
       } else if (
         estado === 'sin-conexion' ||
         estado === 'error-servidor' ||

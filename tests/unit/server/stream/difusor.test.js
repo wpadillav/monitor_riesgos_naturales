@@ -611,7 +611,7 @@ describe('reanudación con Last-Event-ID', () => {
 });
 
 describe('mantenimiento, plazas y contrapresión (AM-13)', () => {
-  it('envía «: ping» cada 20 s', async () => {
+  it('envía un evento «latido» cada 20 s, visible para EventSource (no un comentario)', async () => {
     const { conectar } = crear();
     const c = conectar();
     await c.leer();
@@ -619,7 +619,85 @@ describe('mantenimiento, plazas y contrapresión (AM-13)', () => {
     vi.advanceTimersByTime(HEARTBEAT_MS - 1);
     expect(await c.leer()).toBe('');
     vi.advanceTimersByTime(1);
-    expect(parsearSse(await c.leer())).toEqual([{ comentarios: ['ping'] }]);
+    const texto = await c.leer();
+
+    expect(texto).toBe(
+      `id: ${PREFIJO}-0\nevent: latido\ndata: ` +
+        `{"tipo":"latido","version":1,"ocurridoEn":"${new Date(INICIO + HEARTBEAT_MS).toISOString()}","datos":{}}\n\n`,
+    );
+    expect(parsearSse(texto)).toEqual([
+      {
+        comentarios: [],
+        id: `${PREFIJO}-0`,
+        event: 'latido',
+        data: expect.any(String),
+        datos: {
+          tipo: 'latido',
+          version: 1,
+          ocurridoEn: new Date(INICIO + HEARTBEAT_MS).toISOString(),
+          datos: {},
+        },
+      },
+    ]);
+    vi.advanceTimersByTime(HEARTBEAT_MS * 8);
+    expect(eventos(await c.leer()).map((m) => m.event)).toEqual(Array(8).fill('latido'));
+  });
+
+  it('el latido no consume secuencia: lleva el id del último evento emitido', async () => {
+    const { conectar, catalogo, difusor } = crear();
+    const c = conectar();
+    await c.leer();
+    catalogo.alta(sismo());
+    tras();
+    expect(eventos(await c.leer())[0].id).toBe(`${PREFIJO}-1`);
+
+    vi.advanceTimersByTime(HEARTBEAT_MS);
+    const [latido] = eventos(await c.leer());
+    expect(latido).toMatchObject({ event: 'latido', id: `${PREFIJO}-1` });
+    expect(difusor.ultimoId()).toBe(`${PREFIJO}-1`);
+
+    catalogo.alta(sismo());
+    tras();
+    expect(eventos(await c.leer())[0].id).toBe(`${PREFIJO}-2`);
+  });
+
+  it('reanudar desde el id de un latido no reenvía ni reinicia nada', async () => {
+    const { conectar, catalogo } = crear();
+    const c = conectar();
+    await c.leer();
+    catalogo.alta(sismo());
+    tras();
+    vi.advanceTimersByTime(HEARTBEAT_MS);
+    const latido = eventos(await c.leer()).find((m) => m.event === 'latido');
+    c.cerrar();
+
+    const otra = conectar(FILTRO, latido.id);
+    const tipos = eventos(await otra.leer()).map((m) => m.event);
+    expect(tipos.every((t) => t === 'estado.fuente')).toBe(true);
+  });
+
+  it('el latido no lleva datos del cliente ni de las fuentes (AM-15)', async () => {
+    const { conectar } = crear();
+    const a = conectar({ ...FILTRO, paises: ['ES'] });
+    const b = conectar({ ...FILTRO, paises: ['PA'], avisoMin: 4.5 });
+    await a.leer();
+    await b.leer();
+    vi.advanceTimersByTime(HEARTBEAT_MS);
+    const ta = await a.leer();
+    expect(ta).toBe(await b.leer());
+    expect(ta.split('\n').filter((l) => l.startsWith('data:'))).toHaveLength(1);
+  });
+
+  it('hayPlaza() refleja las plazas libres sin ocupar ninguna', () => {
+    const { conectar, difusor } = crear({ maxClientes: 1 });
+    expect(difusor.hayPlaza()).toBe(true);
+    expect(difusor.contarClientes()).toBe(0);
+    const c = conectar();
+    expect(difusor.hayPlaza()).toBe(false);
+    c.cerrar();
+    expect(difusor.hayPlaza()).toBe(true);
+    difusor.cerrar();
+    expect(difusor.hayPlaza()).toBe(false);
   });
 
   it('admite 8 clientes; el noveno no tiene plaza; al cerrar uno, entra otro; sin fugas', async () => {

@@ -14,8 +14,11 @@
  * - **Reanudación:** con `Last-Event-ID` (o `ultimoId`) se reenvía lo posterior que cumpla el
  *   filtro; si el id es de otro arranque, está mal formado o ya no está en el historial, se
  *   envía `flujo.reiniciar`.
- * - **Mantenimiento:** `retry: 3000` al conectar, `: ping` cada 20 s, como máximo 8 clientes y
- *   desconexión del cliente que acumula más de 1 MiB sin leer.
+ * - **Mantenimiento:** `retry: 3000` al conectar, un evento `latido` cada 20 s (visible para
+ *   `EventSource`, a diferencia de un comentario: así la página sabe que la conexión sigue viva
+ *   y no la reabre en reposo), como máximo 8 clientes y desconexión del cliente que acumula más
+ *   de 1 MiB sin leer. El `latido` no consume secuencia: lleva el id del último evento emitido,
+ *   como el `estado.fuente` inicial.
  * - **Formato seguro (AM-15):** `id` y `event` son internos; `data` es `JSON.stringify` en una
  *   sola línea.
  */
@@ -42,6 +45,7 @@ export const TIPOS_EVENTO = Object.freeze({
   ELIMINADO: 'sismo.eliminado',
   ESTADO: 'estado.fuente',
   REINICIAR: 'flujo.reiniciar',
+  LATIDO: 'latido',
 });
 
 /**
@@ -403,8 +407,16 @@ export function createDifusor({
   }
 
   const heartbeat = setInterval(() => {
-    recortarHistorial(reloj.ahora());
-    for (const cliente of [...clientes]) enviar(cliente, ': ping\n\n');
+    const ahora = reloj.ahora();
+    recortarHistorial(ahora);
+    if (clientes.size === 0) return;
+    // Mismo texto para todos: sin datos del cliente ni de las fuentes (AM-15).
+    const latido = formatearMensaje(
+      idDe(seq),
+      TIPOS_EVENTO.LATIDO,
+      sobre(TIPOS_EVENTO.LATIDO, ahora, {}),
+    );
+    for (const cliente of [...clientes]) enviar(cliente, latido);
   }, HEARTBEAT_MS);
   heartbeat.unref?.();
 
@@ -476,6 +488,11 @@ export function createDifusor({
 
     contarClientes() {
       return clientes.size;
+    },
+
+    /** ¿Admitiría ahora una conexión más? (`HEAD /api/stream`, sin ocupar plaza). */
+    hayPlaza() {
+      return !cerrado && clientes.size < maxClientes;
     },
 
     /** Vacía el lote en curso ya (pruebas y apagado). */

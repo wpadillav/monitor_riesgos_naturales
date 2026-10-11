@@ -51,6 +51,7 @@ Formato: **`[icono] Estado · contador · hora`**. Solo el **estado** va dentro 
 | Aplicando filtros, más de 3 s | — | `Consultando las fuentes. Con 7 o 30 días puede tardar unos segundos.` | — | secundario |
 | Reconectando | flechas en círculo | `Reconectando…` | `· último dato a las {HH:MM:SS}` | aviso |
 | Sin conexión con el servidor (≤ 10 s tras el corte) | círculo vacío tachado | `Sin conexión con el servidor local. Reintentando…` **[PRD]** | `· último dato a las {HH:MM:SS}` | error |
+| Sin plazas en vivo (el stream responde 503; el servidor sí responde) | flechas en círculo | `Tiempo real no disponible: hay demasiadas pestañas abiertas. Reintentando…` **[T5.0, pendiente de validar]** | `· {n} sismos · último dato a las {HH:MM:SS}` | aviso |
 | Sin países marcados | círculo vacío | `Sin consulta: no hay países marcados` | — | secundario |
 
 - **La hora del estado es la del equipo del usuario.** Es la única hora de la interfaz sin zona entre paréntesis (todas las de los sismos la llevan). El pie lo aclara con «Las horas de actualización son las de tu equipo.» (§9). En móvil el complemento se acorta a `· {n} sismos · {HH:MM:SS}`.

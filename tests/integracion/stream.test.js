@@ -292,6 +292,48 @@ describe('Origin y plazas (AM-11, AM-13)', () => {
     for (const a of abiertos.slice(1)) await a.lector.cancelar();
     expect(difusor.contarClientes()).toBe(1);
   });
+
+  it('HEAD da 503 con Retry-After cuando no hay plazas, sin ocupar ninguna', async () => {
+    const { app, difusor } = montar({ maxClientes: 2 });
+    const a = await abrir(app, '/api/stream?paises=PA');
+    expect((await abrir(app, '/api/stream?paises=PA', {}, 'HEAD')).res.status).toBe(200);
+    await abrir(app, '/api/stream?paises=PA');
+    expect(difusor.contarClientes()).toBe(2);
+
+    const { res } = await abrir(app, '/api/stream?paises=PA', {}, 'HEAD');
+    expect(res.status).toBe(503);
+    expect(res.headers.get('retry-after')).toBe('10');
+    expect(res.headers.get('content-type')).toMatch(/^application\/problem\+json/);
+    expect(await res.text()).toBe('');
+    expect(difusor.contarClientes()).toBe(2);
+
+    await a.lector.cancelar();
+    expect((await abrir(app, '/api/stream?paises=PA', {}, 'HEAD')).res.status).toBe(200);
+    expect(difusor.contarClientes()).toBe(1);
+  });
+
+  it('HEAD valida los parámetros como GET (400)', async () => {
+    const { app } = montar();
+    const { res } = await abrir(app, '/api/stream?paises=FR', {}, 'HEAD');
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('latido de punta a punta', () => {
+  it('llega como evento «latido» con el id del último evento y la hora del servidor', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { app } = montar();
+    const { lector } = await abrir(app, '/api/stream?paises=PA');
+    await lector.leer();
+    vi.advanceTimersByTime(20_000);
+    const [latido] = eventos(await lector.leer());
+    expect(latido).toMatchObject({
+      id: `${PREFIJO}-0`,
+      event: 'latido',
+      datos: { tipo: 'latido', version: 1, datos: {} },
+    });
+    expect(Number.isNaN(Date.parse(latido.datos.ocurridoEn))).toBe(false);
+  });
 });
 
 describe('servidor HTTP real', () => {

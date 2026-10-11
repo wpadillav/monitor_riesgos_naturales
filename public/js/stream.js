@@ -9,8 +9,14 @@
  *   envía `flujo.reiniciar`: se recarga con `GET /api/sismos` y se reabre.
  * - Indicador: «En vivo» al abrir; «Reconectando…» al cortarse; «Sin conexión con el servidor
  *   local. Reintentando…» si a los 10 s sigue sin conexión (HU-02).
- * - Si no llega nada en 45 s (el `: ping` del servidor no es visible para `EventSource`), se
- *   cierra y se reabre sin cambiar el indicador, con el último id recibido (contrato).
+ * - El servidor envía un evento `latido` cada 20 s: reinicia la vigilancia y renueva el
+ *   «actualizado a las…» (textos.md §3). Si no llega nada en 45 s (ni un latido), se cierra y se
+ *   reabre sin cambiar el indicador, con el último id recibido (contrato).
+ * - Si el navegador se rinde (`EventSource` en CLOSED: respuesta HTTP no válida), se pregunta
+ *   con `HEAD /api/stream` si es por falta de plazas (503): `EventSource` no expone el código
+ *   HTTP y `HEAD` no abre flujo ni ocupa plaza. Con 503 se muestra «sin plazas» (los datos de
+ *   `/api/sismos` siguen ahí) y se reintenta al cabo de `Retry-After`; en otro caso, espera
+ *   creciente y «Reconectando…».
  *
  * La lógica pura (URL, validación de eventos y aplicación al estado) se exporta aparte para las
  * pruebas unitarias.
@@ -31,6 +37,7 @@ export const TIPOS_EVENTO = Object.freeze([
   'sismo.eliminado',
   'estado.fuente',
   'flujo.reiniciar',
+  'latido',
 ]);
 
 /** Umbrales de aviso que admite `/api/stream` (contrato `avisoMin`). */
@@ -48,6 +55,13 @@ export const MAX_REINICIOS_MINUTO = 3;
 export const MAX_DATA = 256 * 1024;
 /** Margen para agrupar los `estado.fuente` que llegan juntos al conectar. */
 const AGRUPAR_FUENTES_MS = 100;
+/** `Retry-After` del 503 si no viene o no es válido (contrato: 10 s). */
+export const RETRY_AFTER_POR_DEFECTO_S = 10;
+/** Límites del `Retry-After` que se acepta (no se confía en el valor recibido). */
+export const RETRY_AFTER_MIN_S = 1;
+export const RETRY_AFTER_MAX_S = 300;
+/** Tiempo máximo de la comprobación `HEAD /api/stream`. */
+export const COMPROBAR_PLAZAS_MS = 5000;
 
 /**
  * @typedef {import('./estado.js').Sismo} Sismo
@@ -60,7 +74,10 @@ const AGRUPAR_FUENTES_MS = 100;
  * @typedef {{ tipo: 'estado.fuente', fuente: { fuente: string, estado: string,
  *   cambiadoEn?: string } }} EventoFuente
  * @typedef {{ tipo: 'flujo.reiniciar', motivo: string }} EventoReiniciar
- * @typedef {EventoSismo | EventoEliminado | EventoFuente | EventoReiniciar} Evento
+ * @typedef {{ tipo: 'latido' }} EventoLatido
+ * @typedef {EventoSismo | EventoEliminado | EventoFuente | EventoReiniciar | EventoLatido} Evento
+ *
+ * @typedef {{ sinPlazas: true, reintentarS: number } | { sinPlazas: false }} Diagnostico
  *
  * @typedef {{ tipo: 'sismo.nuevo' | 'sismo.actualizado', sismo: Sismo, notificable: boolean,
  *   cambios: string[], enLista: boolean, alta: boolean }} ResultadoSismo
@@ -142,11 +159,46 @@ export function parsearEvento(tipo, data) {
         },
       };
     }
+    case 'latido':
+      return { tipo };
     default:
       return {
         tipo: 'flujo.reiniciar',
         motivo: typeof datos.motivo === 'string' ? datos.motivo : '',
       };
+  }
+}
+
+/**
+ * Segundos de un `Retry-After` en segundos (la forma de fecha no se usa en esta API), acotados
+ * a [{@link RETRY_AFTER_MIN_S}, {@link RETRY_AFTER_MAX_S}]. Sin valor válido, el del contrato.
+ * @param {string | null} valor
+ * @returns {number}
+ */
+export function leerRetryAfter(valor) {
+  if (valor === null || !/^\s*\d{1,6}\s*$/.test(valor)) return RETRY_AFTER_POR_DEFECTO_S;
+  return Math.min(RETRY_AFTER_MAX_S, Math.max(RETRY_AFTER_MIN_S, Number(valor)));
+}
+
+/**
+ * Pregunta con `HEAD` a la misma URL del stream si hay plazas. Nunca lanza: si la comprobación
+ * falla (red, tiempo agotado) se trata como un corte normal.
+ * @param {string} url de `/api/stream` con sus filtros (los valida el servidor igual)
+ * @param {typeof fetch} [fetchImpl]
+ * @returns {Promise<Diagnostico>}
+ */
+export async function comprobarPlazas(url, fetchImpl = globalThis.fetch) {
+  try {
+    const res = await fetchImpl(url, {
+      method: 'HEAD',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      signal: AbortSignal.timeout(COMPROBAR_PLAZAS_MS),
+    });
+    if (res.status !== 503) return { sinPlazas: false };
+    return { sinPlazas: true, reintentarS: leerRetryAfter(res.headers.get('retry-after')) };
+  } catch {
+    return { sinPlazas: false };
   }
 }
 
@@ -250,6 +302,8 @@ export function crearAnunciadorNuevos({
  * @param {(fuentes: unknown[]) => void} deps.ponerFuentes
  * @param {(resultado: Resultado) => void} [deps.alEvento]
  * @param {new (url: string) => EventSourceMinimo} [deps.EventSourceImpl]
+ * @param {(url: string) => Promise<Diagnostico>} [deps.diagnosticar] por qué se rindió
+ *   `EventSource` (por defecto, {@link comprobarPlazas})
  * @param {() => number} [deps.ahora]
  * @param {(fn: () => void, ms: number) => unknown} [deps.programar]
  * @param {(t: unknown) => void} [deps.cancelar]
@@ -264,6 +318,7 @@ export function crearConexionVivo({
   ponerFuentes,
   alEvento = () => {},
   EventSourceImpl = /** @type {any} */ (globalThis.EventSource),
+  diagnosticar = (url) => comprobarPlazas(url),
   ahora = () => Date.now(),
   programar = (fn, ms) => setTimeout(fn, ms),
   cancelar = (t) => clearTimeout(/** @type {any} */ (t)),
@@ -279,6 +334,8 @@ export function crearConexionVivo({
   let intentos = 0;
   /** @type {number[]} */
   let reinicios = [];
+  /** Sube con cada conexión y cierre: descarta diagnósticos que llegan tarde. */
+  let generacion = 0;
   /** @type {Map<string, EventoFuente['fuente']>} */
   const fuentes = new Map();
   /** @type {Record<string, unknown>} */
@@ -309,7 +366,8 @@ export function crearConexionVivo({
     parar('vigilancia');
     t.vigilancia = programar(() => {
       t.vigilancia = null;
-      // Nada en 45 s: se reabre sin tocar el indicador (si falla, `onerror` lo cambia).
+      // Nada en 45 s, ni un latido: se reabre sin tocar el indicador (si falla, `onerror` lo
+      // cambia).
       cerrarFuente();
       conectar();
     }, SIN_DATOS_MS);
@@ -333,12 +391,50 @@ export function crearConexionVivo({
     }
   }
 
+  /** @param {number} ms */
+  function programarReintento(ms) {
+    parar('reintento');
+    t.reintento = programar(() => {
+      t.reintento = null;
+      if (activa) conectar();
+    }, ms);
+  }
+
+  /**
+   * El navegador se rindió (CLOSED): ¿falta de plazas (503) u otro fallo?
+   * @param {string} url
+   * @param {number} gen
+   */
+  async function diagnosticarRechazo(url, gen) {
+    /** @type {Diagnostico} */
+    let d = { sinPlazas: false };
+    try {
+      d = await diagnosticar(url);
+    } catch {
+      // Se trata como un corte normal.
+    }
+    if (gen !== generacion || !activa) return;
+    if (d.sinPlazas) {
+      // El servidor responde (no es «Sin conexión…»): se espera lo que pide y se reintenta.
+      parar('sinConexion');
+      barra.poner('sin-plazas', { n: estado.tamano, hora: ultimoDato });
+      programarReintento(d.reintentarS * 1000);
+      return;
+    }
+    entrarEnReconexion();
+    const espera = ESPERAS_S[Math.min(intentos, ESPERAS_S.length - 1)];
+    intentos += 1;
+    programarReintento(espera * 1000);
+  }
+
   function conectar() {
+    generacion += 1;
     const url = urlStream(obtenerFiltros(), { avisoMin: obtenerAvisoMin(), ultimoId });
     if (url === null || !EventSourceImpl) {
       activa = false;
       return;
     }
+    const gen = generacion;
     const fuente = new EventSourceImpl(url);
     es = fuente;
     fuente.onopen = () => {
@@ -353,18 +449,15 @@ export function crearConexionVivo({
       if (es !== fuente) return;
       abierta = false;
       parar('vigilancia');
-      entrarEnReconexion();
-      // CLOSED (2): el navegador no volverá a intentarlo (p. ej. 503 por falta de plazas).
-      if (fuente.readyState === 2) {
-        cerrarFuente();
-        const espera = ESPERAS_S[Math.min(intentos, ESPERAS_S.length - 1)];
-        intentos += 1;
-        parar('reintento');
-        t.reintento = programar(() => {
-          t.reintento = null;
-          if (activa) conectar();
-        }, espera * 1000);
+      // CONNECTING (0): el navegador reconecta solo (corte de red).
+      if (fuente.readyState !== 2) {
+        entrarEnReconexion();
+        return;
       }
+      // CLOSED (2): el navegador no volverá a intentarlo (respuesta HTTP no válida, p. ej. 503
+      // por falta de plazas). Se averigua el motivo antes de cambiar el indicador.
+      cerrarFuente();
+      diagnosticarRechazo(url, gen);
     };
     for (const tipo of TIPOS_EVENTO) {
       fuente.addEventListener(tipo, (e) => {
@@ -384,6 +477,12 @@ export function crearConexionVivo({
     }
     const evento = parsearEvento(tipo, e.data);
     if (evento === null) return;
+
+    if (evento.tipo === 'latido') {
+      // «Actualizado» = último mensaje del servidor, sismo o latido (textos.md §3).
+      if (barra.estado === 'en-vivo') ponerEnVivo();
+      return;
+    }
 
     if (evento.tipo === 'flujo.reiniciar') {
       reiniciar();
@@ -427,6 +526,7 @@ export function crearConexionVivo({
   }
 
   function cerrar() {
+    generacion += 1;
     activa = false;
     cerrarFuente();
     parar('sinConexion');

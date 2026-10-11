@@ -59,10 +59,18 @@ export function parsearConsultaStream(search) {
   };
 }
 
+/** Problema 503 por falta de plazas, con `Retry-After` (contrato). */
+const sinPlazas = () =>
+  problemResponse(
+    'demasiadas-conexiones',
+    { 'Retry-After': String(RETRY_AFTER_S) },
+    { instance: '/api/stream' },
+  );
+
 /**
  * @param {import('hono').Hono} app
  * @param {{ difusor: Pick<ReturnType<typeof import('../stream/difusor.js').createDifusor>,
- *   'conectar'> }} deps
+ *   'conectar' | 'hayPlaza'> }} deps
  */
 export function registerStreamRoutes(app, { difusor }) {
   app.get('/api/stream', (c) => {
@@ -74,19 +82,17 @@ export function registerStreamRoutes(app, { difusor }) {
         { instance: '/api/stream', errors: resultado.errors },
       );
     }
-    // HEAD no abre flujo ni ocupa plaza.
-    if (c.req.method === 'HEAD') return new Response(null, { status: 200, headers: CABECERAS_SSE });
+    // HEAD no abre flujo ni ocupa plaza, pero dice si la habría: `EventSource` no expone el
+    // código HTTP, así que la página lo consulta así cuando el navegador se rinde (503).
+    if (c.req.method === 'HEAD') {
+      if (!difusor.hayPlaza()) return sinPlazas();
+      return new Response(null, { status: 200, headers: CABECERAS_SSE });
+    }
 
     // Gana la cabecera que envía EventSource al reconectar (contrato).
     const ultimoId = c.req.header('last-event-id') ?? resultado.ultimoId;
     const conexion = difusor.conectar({ filtro: resultado.filtro, ultimoId });
-    if (!conexion) {
-      return problemResponse(
-        'demasiadas-conexiones',
-        { 'Retry-After': String(RETRY_AFTER_S) },
-        { instance: '/api/stream' },
-      );
-    }
+    if (!conexion) return sinPlazas();
     c.req.raw.signal?.addEventListener('abort', conexion.cerrar, { once: true });
     return new Response(conexion.cuerpo, { status: 200, headers: CABECERAS_SSE });
   });

@@ -179,7 +179,7 @@ flowchart LR
 | Cobertura | `dominio/cobertura.js` | Recuerda la magnitud mínima cargada por zona; decide si `GET /api/sismos` necesita consultar las fuentes (§5.6) | T4.3 |
 | Retención | `dominio/retencion.js` | Purga cada 60 s; tope de 50 000 (AM-16) | T4.3 |
 | Asignar país | `geo/asignar-pais.js`, `geo/zonas.json` (generado) | ADR-0005 | T4.2 |
-| Difusor SSE | `stream/difusor.js` | Ids `<arranque>-<secuencia>`, historial de 2 000 eventos o 15 min, plazas (8), filtro por cliente, lotes cada 250 ms, contrapresión de 1 MiB, `: ping` cada 20 s | **T4.6** |
+| Difusor SSE | `stream/difusor.js` | Ids `<arranque>-<secuencia>`, historial de 2 000 eventos o 15 min, plazas (8), filtro por cliente, lotes cada 250 ms, contrapresión de 1 MiB, evento `latido` cada 20 s (T5.0; antes, un comentario `: ping` invisible para `EventSource`) | **T4.6** |
 | Log y métricas | `infra/log.js`, `infra/metricas-latencia.js` | Líneas estructuradas, latencias por fuente y resúmenes horarios (§8.3) | T4.1, T4.3 |
 | Reloj | `infra/reloj.js` | `ahora()` inyectable (pruebas con tiempo simulado) | T4.1 |
 | Script de zonas | `scripts/generar-zonas.js` | ADR-0005 (solo en desarrollo) | T4.2 |
@@ -361,7 +361,9 @@ Ver [ADR-0002](adr/0002-tiempo-real-websocket-emsc-y-sse.md) y el contrato.
 2. El difusor reenvía lo posterior que cumpla los filtros.
 3. Si no puede (otro arranque o un id demasiado antiguo), envía `flujo.reiniciar` y la página repite la secuencia.
 
-**Supervisión:** si en 45 s no llega nada (ni siquiera el `: ping` de cada 20 s), la página cierra y reabre la conexión.
+**Supervisión:** el difusor envía un evento `latido` cada 20 s (con el id del último evento, sin consumir secuencia). Cada latido reinicia la vigilancia de la página y renueva el «actualizado a las…». Si en 45 s no llega nada, ni un latido, la página cierra y reabre la conexión. En reposo no hay reconexiones (T5.0: el comentario `: ping` anterior no lo ve `EventSource`, y la página reabría el stream cada 45 s).
+
+**Sin plazas (503):** `EventSource` no expone el código HTTP. Cuando el navegador se rinde (estado CLOSED), la página pide `HEAD /api/stream` con los mismos parámetros: no abre flujo ni ocupa plaza, y responde `503` + `Retry-After` si no quedan plazas. Con 503 el indicador pasa a «sin plazas» (textos.md §3), los sismos cargados siguen visibles y se reintenta al cabo de `Retry-After`. En otro caso, «Reconectando…» y espera creciente.
 
 **Cambio de filtros:** la página cierra el stream y repite la secuencia.
 
