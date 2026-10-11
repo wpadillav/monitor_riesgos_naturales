@@ -113,13 +113,15 @@ Si la consola muestra `El puerto 3000 está ocupado…`, hay otro programa en es
 npm test             # pruebas unitarias y de integración (Vitest), sin red
 npm run lint         # ESLint y Prettier
 npm run check        # lint + pruebas + contrato de la API + auditoría de dependencias de producción
+npx vitest run --coverage   # pruebas con informe de cobertura en coverage/ (abre coverage/index.html)
 ```
 
-Las pruebas E2E usan Playwright con Chromium. La primera vez hay que descargar el navegador (se guarda en tu carpeta de usuario, sin `sudo`):
+Las pruebas E2E usan Playwright con Chromium y Firefox. La primera vez hay que descargar los navegadores (se guardan en tu carpeta de usuario, sin `sudo` y sin `--with-deps`):
 
 ```bash
-npx playwright install chromium
-npm run test:e2e
+npx playwright install chromium firefox
+npm run test:e2e                            # todos los proyectos
+npx playwright test --project=firefox       # solo Firefox
 ```
 
 Las E2E arrancan el servidor en el puerto 3013 sin consultar las fuentes y simulan la red.
