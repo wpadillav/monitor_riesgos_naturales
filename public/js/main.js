@@ -14,7 +14,7 @@
 import { alcanzaAviso } from '/shared/reglas.js';
 import { crearAgrupador } from './agrupador.js';
 import { consultarFuentes, consultarSismos } from './api.js';
-import { crearMostrador, crearNotificador } from './avisos.js';
+import { abrirVentanaPendiente, crearMostrador, crearNotificador } from './avisos.js';
 import { crearAvisosUI } from './avisos-ui.js';
 import { crearBarraEstado } from './barra-estado.js';
 import { crearCargador } from './cargador.js';
@@ -219,8 +219,16 @@ notaColombia.hidden = !filtrosUI.filtros.paises.includes('CO');
 tituloLista.setAttribute('tabindex', '-1');
 
 /* ---------- Pintado de los datos ---------- */
-/** @type {string | null} sismo nuevo cuya ventana se abre sola tras el próximo pintado (§8.4) */
+/**
+ * Sismo nuevo cuya ventana se abre sola tras el próximo pintado (§8.4), con el instante en que
+ * llegó. Se descarta si al pintar ya no procede (N-05, {@link abrirVentanaPendiente}).
+ * @type {{ id: string, pedidaEn: number } | null}
+ */
 let ventanaPendiente = null;
+// Al ocultar la pestaña, la ventana pendiente se descarta: no se abre al volver (N-05).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') ventanaPendiente = null;
+});
 
 /**
  * Un pintado por frame como mucho (P-01).
@@ -237,7 +245,18 @@ function pintarDatos(lote) {
   // En una ráfaga solo se abre la ventana del último sismo que la pedía, no una por evento.
   const pendiente = ventanaPendiente;
   ventanaPendiente = null;
-  if (pendiente !== null) abrirSinFoco(pendiente);
+  if (
+    pendiente !== null &&
+    abrirVentanaPendiente({
+      pedidaEn: pendiente.pedidaEn,
+      ahora: Date.now(),
+      visibilidad: document.visibilityState,
+      magnitud: estado.obtener(pendiente.id)?.sismo.magnitud ?? null,
+      umbral: avisosUI.umbral,
+    })
+  ) {
+    abrirSinFoco(pendiente.id);
+  }
 }
 
 const agrupador = crearAgrupador({ pintar: pintarDatos });
@@ -433,7 +452,7 @@ function alEventoVivo(r) {
     alcanzaAviso(r.sismo.magnitud, avisosUI.umbral) &&
     document.visibilityState === 'visible'
   ) {
-    ventanaPendiente = r.sismo.id;
+    ventanaPendiente = { id: r.sismo.id, pedidaEn: Date.now() };
   }
 }
 

@@ -3,7 +3,9 @@ import {
   LIMITE_AVISOS,
   MAX_RECORDADOS,
   MAX_TEXTO,
+  PLAZO_VENTANA_PENDIENTE_MS,
   VENTANA_LIMITE_MS,
+  abrirVentanaPendiente,
   crearMostrador,
   crearNotificador,
   decidirAviso,
@@ -442,5 +444,35 @@ describe('preferencia de avisos (HU-10, AM-27)', () => {
     };
     expect(guardarAvisos(bloqueado, { activos: true, umbral: '4.5' })).toBe(false);
     expect(leerAvisos(null)).toEqual({ activos: null, umbral: '4.5' });
+  });
+});
+
+describe('ventana emergente pendiente de un sismo nuevo (N-05)', () => {
+  const base = { pedidaEn: T0, ahora: T0 + 200, visibilidad: 'visible', magnitud: 5, umbral: 4.5 };
+
+  it('se abre con la pestaña visible, recién llegado y por encima del umbral', () => {
+    expect(abrirVentanaPendiente(base)).toBe(true);
+    expect(
+      abrirVentanaPendiente({ ...base, ahora: T0 + PLAZO_VENTANA_PENDIENTE_MS, magnitud: 4.45 }),
+    ).toBe(true);
+  });
+
+  it('con la pestaña oculta se descarta', () => {
+    expect(abrirVentanaPendiente({ ...base, visibilidad: 'hidden' })).toBe(false);
+  });
+
+  it('si el frame llega tarde (volver a la pestaña minutos después) se descarta', () => {
+    expect(abrirVentanaPendiente({ ...base, ahora: T0 + PLAZO_VENTANA_PENDIENTE_MS + 1 })).toBe(
+      false,
+    );
+    expect(abrirVentanaPendiente({ ...base, ahora: T0 + 5 * 60_000 })).toBe(false);
+    // Reloj hacia atrás: no se sabe cuánto ha pasado.
+    expect(abrirVentanaPendiente({ ...base, ahora: T0 - 1 })).toBe(false);
+  });
+
+  it('si el sismo ya no está o una revisión lo deja bajo el umbral, se descarta', () => {
+    expect(abrirVentanaPendiente({ ...base, magnitud: null })).toBe(false);
+    expect(abrirVentanaPendiente({ ...base, magnitud: 4.2 })).toBe(false);
+    expect(abrirVentanaPendiente({ ...base, umbral: null })).toBe(false);
   });
 });

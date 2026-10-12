@@ -16,7 +16,7 @@
  */
 
 import { etiquetaZona, horaCorta } from '/shared/hora.js';
-import { algunPaisMarcado, cumpleFiltroAviso, redondear1 } from '/shared/reglas.js';
+import { alcanzaAviso, algunPaisMarcado, cumpleFiltroAviso, redondear1 } from '/shared/reglas.js';
 import { sanear } from '/shared/texto.js';
 import { NOMBRE_FUENTE, formatearLugar, lineaPaisProfundidad } from './formato.js';
 import { formatearMagnitud } from './magnitud.js';
@@ -33,6 +33,11 @@ export const MAX_TEXTO = 120;
 export const MAX_RECORDADOS = 20_000;
 /** Icono propio, del mismo origen (AM-23: nunca una URL externa). */
 export const ICONO = '/favicon.svg';
+/**
+ * Plazo para abrir sola la ventana emergente de un sismo nuevo (textos.md §8.4, N-05). Pasado
+ * este tiempo (p. ej., el frame no llegó porque la pestaña quedó oculta) ya no es «nuevo».
+ */
+export const PLAZO_VENTANA_PENDIENTE_MS = 60_000;
 
 /**
  * @typedef {import('./estado.js').Sismo} Sismo
@@ -47,6 +52,25 @@ export const ICONO = '/favicon.svg';
  * @typedef {'avisar' | 'inactivo' | 'ya-notificado' | 'no-notificable' | 'pais-no-marcado' |
  *   'bajo-umbral' | 'ya-superaba'} MotivoAviso
  */
+
+/**
+ * ¿Se abre ya la ventana emergente pendiente de un sismo nuevo? (N-05). Solo con la pestaña a la
+ * vista, si se pidió hace poco ({@link PLAZO_VENTANA_PENDIENTE_MS}) y si el sismo, quizá ya
+ * revisado, sigue en el estado y alcanza el umbral de aviso. Si no, se descarta.
+ * @param {object} p
+ * @param {number} p.pedidaEn instante en que llegó el sismo
+ * @param {number} p.ahora
+ * @param {DocumentVisibilityState | string} p.visibilidad `document.visibilityState`
+ * @param {number | null} p.magnitud magnitud vigente; `null` si el sismo ya no está
+ * @param {number | null} p.umbral umbral de aviso actual (`null`: avisos sin umbral)
+ * @returns {boolean}
+ */
+export function abrirVentanaPendiente({ pedidaEn, ahora, visibilidad, magnitud, umbral }) {
+  if (visibilidad !== 'visible' || magnitud === null) return false;
+  const edad = ahora - pedidaEn;
+  if (edad < 0 || edad > PLAZO_VENTANA_PENDIENTE_MS) return false;
+  return alcanzaAviso(magnitud, umbral);
+}
 
 /**
  * Umbral con un decimal: «4.5».
