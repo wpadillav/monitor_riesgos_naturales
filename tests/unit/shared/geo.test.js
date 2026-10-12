@@ -1,6 +1,8 @@
 import distance from '@turf/distance';
+import pointToPolygonDistance from '@turf/point-to-polygon-distance';
 import { describe, expect, it } from 'vitest';
-import { distanciaKm, normalizarLongitud } from '../../../src/shared/geo.js';
+import { distanciaABordeKm, distanciaKm, normalizarLongitud } from '../../../src/shared/geo.js';
+import { ZONAS } from '../../../src/shared/zonas.js';
 
 describe('distanciaKm (haversine)', () => {
   it('vale 0 para el mismo punto', () => {
@@ -40,4 +42,52 @@ describe('normalizarLongitud', () => {
   ])('%s → %s', (entrada, esperado) => {
     expect(normalizarLongitud(entrada)).toBeCloseTo(esperado, 9);
   });
+});
+
+describe('distanciaABordeKm (P-02)', () => {
+  const cuadrado = [
+    [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [0, 0],
+      ],
+    ],
+  ];
+
+  it('vale 0 sobre el borde y mide hasta el vértice o el lado más cercano', () => {
+    expect(distanciaABordeKm(0, 0.5, cuadrado)).toBeCloseTo(0, 9);
+    expect(distanciaABordeKm(-1, 0.5, cuadrado)).toBeCloseTo(111.195, 2);
+    expect(distanciaABordeKm(0.5, 0.5, cuadrado)).toBeCloseTo(55.6, 1);
+  });
+
+  it('admite segmentos degenerados (dos vértices iguales)', () => {
+    const punto = [
+      [
+        [
+          [2, 2],
+          [2, 2],
+        ],
+      ],
+    ];
+    expect(distanciaABordeKm(2, 3, punto)).toBeCloseTo(111.127, 2);
+  });
+
+  it('se aparta menos del 1 % de Turf (geodésica) en la franja CO-PA', () => {
+    const tierras = ZONAS.filter((z) => z.id === 'CO-CONT' || z.id === 'PA').map((z) => z.tierra);
+    for (const [lat, lon] of [
+      [9.0, -77.6],
+      [7.1, -77.9],
+      [9.5, -77.1],
+      [8.3, -78.2],
+    ]) {
+      for (const tierra of tierras) {
+        const turf = Math.abs(pointToPolygonDistance([lon, lat], tierra, { units: 'kilometers' }));
+        const propia = distanciaABordeKm(lat, lon, tierra.coordinates);
+        expect(Math.abs(propia - turf)).toBeLessThanOrEqual(Math.max(0.5, turf * 0.01));
+      }
+    }
+  }, 30_000);
 });

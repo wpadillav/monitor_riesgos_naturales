@@ -47,6 +47,16 @@
  */
 
 /**
+ * @callback DistanciaAproximada
+ * @param {[number, number]} punto [lon, lat]
+ * @param {GeometriaMultiPoligono} poligono
+ * @returns {number} km hasta el borde, ≥ 0 (barata, sin signo).
+ */
+
+/** Margen de empate de la distancia aproximada: 1 km más un 2 % (P-02). */
+export const MARGEN_EMPATE = Object.freeze({ km: 1, fraccion: 0.02 });
+
+/**
  * ¿Está el punto dentro del rectángulo (bordes incluidos)?
  * @param {ZonaPais['rectangulo']} r
  * @param {number} lat
@@ -67,13 +77,66 @@ export function enRectangulo(r, lat, lon) {
  * 4. varias (frontera CO-PA en el mar) → la de `tierra` más cercana; `paisesCandidatos` lleva
  *    todos los países, porque el sismo se muestra si cualquiera está marcado.
  *
+ * **Coste (P-02).** La distancia exacta de Turf cuesta decenas de ms por llamada en la franja
+ * CO-PA. Si se inyecta `distanciaAproximada`, el desempate la usa primero (con signo: negativa
+ * dentro de la `tierra`) y solo recurre a `distanciaAPoligono` cuando las dos mejores quedan a
+ * menos de `MARGEN_EMPATE`: así el resultado es el mismo que con Turf, pero Turf solo se llama
+ * cerca de la línea equidistante.
+ *
+ * El resultado está congelado: se puede compartir entre llamadas (caché del servidor).
+ *
  * @param {object} deps
  * @param {ReadonlyArray<ZonaPais>} deps.zonas
  * @param {PuntoEnPoligono} deps.puntoEnPoligono
- * @param {DistanciaAPoligono} deps.distanciaAPoligono
- * @returns {(lat: number, lon: number) => UbicacionPais | null}
+ * @param {DistanciaAPoligono} deps.distanciaAPoligono exacta, con signo
+ * @param {DistanciaAproximada} [deps.distanciaAproximada] barata, sin signo
+ * @returns {(lat: number, lon: number) => Readonly<UbicacionPais> | null}
  */
-export function crearAsignadorPais({ zonas, puntoEnPoligono, distanciaAPoligono }) {
+export function crearAsignadorPais({
+  zonas,
+  puntoEnPoligono,
+  distanciaAPoligono,
+  distanciaAproximada,
+}) {
+  /**
+   * @param {[number, number]} punto
+   * @param {ReadonlyArray<ZonaPais>} candidatas
+   * @param {(punto: [number, number], zona: ZonaPais) => number} distancia
+   * @returns {{ elegida: ZonaPais, mejor: number, segunda: number }}
+   */
+  function masCercana(punto, candidatas, distancia) {
+    let elegida = candidatas[0];
+    let mejor = distancia(punto, elegida);
+    let segunda = Number.POSITIVE_INFINITY;
+    for (const zona of candidatas.slice(1)) {
+      const d = distancia(punto, zona);
+      if (d < mejor) {
+        segunda = mejor;
+        mejor = d;
+        elegida = zona;
+      } else if (d < segunda) {
+        segunda = d;
+      }
+    }
+    return { elegida, mejor, segunda };
+  }
+
+  const exacta = (punto, zona) => distanciaAPoligono(punto, zona.tierra);
+  const aproximada = (punto, zona) => {
+    const d = /** @type {DistanciaAproximada} */ (distanciaAproximada)(punto, zona.tierra);
+    return puntoEnPoligono(punto, zona.tierra) ? -d : d;
+  };
+
+  /** @param {[number, number]} punto @param {ReadonlyArray<ZonaPais>} candidatas */
+  function desempatar(punto, candidatas) {
+    if (distanciaAproximada) {
+      const r = masCercana(punto, candidatas, aproximada);
+      const margen = MARGEN_EMPATE.km + MARGEN_EMPATE.fraccion * Math.abs(r.segunda);
+      if (r.segunda - r.mejor > margen) return r.elegida;
+    }
+    return masCercana(punto, candidatas, exacta).elegida;
+  }
+
   return function asignarPais(lat, lon) {
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
     /** @type {[number, number]} */
@@ -83,23 +146,13 @@ export function crearAsignadorPais({ zonas, puntoEnPoligono, distanciaAPoligono 
     );
     if (candidatas.length === 0) return null;
 
-    let elegida = candidatas[0];
-    if (candidatas.length > 1) {
-      let mejor = distanciaAPoligono(punto, elegida.tierra);
-      for (const zona of candidatas.slice(1)) {
-        const d = distanciaAPoligono(punto, zona.tierra);
-        if (d < mejor) {
-          mejor = d;
-          elegida = zona;
-        }
-      }
-    }
+    const elegida = candidatas.length > 1 ? desempatar(punto, candidatas) : candidatas[0];
     const paisesCandidatos = [...new Set(candidatas.map((z) => z.pais))];
-    return {
+    return Object.freeze({
       pais: elegida.pais,
       zona: elegida.id,
       zonaHoraria: elegida.zonaHoraria,
       paisesCandidatos: Object.freeze(paisesCandidatos),
-    };
+    });
   };
 }

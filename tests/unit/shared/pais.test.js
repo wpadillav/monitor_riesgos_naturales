@@ -3,7 +3,7 @@ import pointToPolygonDistance from '@turf/point-to-polygon-distance';
 import { describe, expect, it } from 'vitest';
 import { crearAsignadorPais, enRectangulo } from '../../../src/shared/pais.js';
 import { ZONAS } from '../../../src/shared/zonas.js';
-import { asignarPais as asignarPaisServidor } from '../../../src/server/geo/asignar-pais.js';
+import { asignarPaisSinCache as asignarPaisServidor } from '../../../src/server/geo/asignar-pais.js';
 
 /** Las mismas primitivas que inyecta el servidor (ADR-0005). */
 const asignarPais = crearAsignadorPais({
@@ -220,4 +220,97 @@ describe('crearAsignadorPais: lógica de decisión con geometría simulada', () 
     expect(enRectangulo(r, 0, 1)).toBe(true);
     expect(enRectangulo(r, 1.0001, 0.5)).toBe(false);
   });
+});
+
+describe('desempate con distancia aproximada (P-02)', () => {
+  const vacio = { type: 'MultiPolygon', coordinates: [] };
+  const zona = (id, pais) => ({
+    id,
+    pais,
+    zonaHoraria: `TZ/${id}`,
+    rectangulo: { minLat: 0, maxLat: 10, minLon: 0, maxLon: 10 },
+    zona: vacio,
+    tierra: { ...vacio, id },
+  });
+  const zonas = [zona('CO-CONT', 'CO'), zona('PA', 'PA')];
+
+  it('si la aproximada separa claramente, no llama a la exacta', () => {
+    const aprox = { 'CO-CONT': 50, PA: 10 };
+    const asignar = crearAsignadorPais({
+      zonas,
+      puntoEnPoligono: (_p, g) => g === vacio,
+      distanciaAPoligono: () => {
+        throw new Error('no debería llamarse');
+      },
+      distanciaAproximada: (_p, tierra) => aprox[tierra.id],
+    });
+    expect(asignar(5, 5)?.pais).toBe('PA');
+  });
+
+  it('dentro de una tierra la aproximada cuenta como negativa', () => {
+    const asignar = crearAsignadorPais({
+      zonas,
+      puntoEnPoligono: (_p, g) => g === vacio || g.id === 'CO-CONT',
+      distanciaAPoligono: () => {
+        throw new Error('no debería llamarse');
+      },
+      distanciaAproximada: (_p, tierra) => (tierra.id === 'CO-CONT' ? 20 : 5),
+    });
+    expect(asignar(5, 5)?.pais).toBe('CO');
+  });
+
+  it.each([
+    [10, 10.5],
+    [100, 101.5],
+  ])('cerca del empate (%s y %s km) decide la exacta', (dPa, dCo) => {
+    let exactas = 0;
+    const asignar = crearAsignadorPais({
+      zonas,
+      puntoEnPoligono: (_p, g) => g === vacio,
+      distanciaAPoligono: (_p, tierra) => {
+        exactas += 1;
+        return tierra.id === 'PA' ? 40 : 30;
+      },
+      distanciaAproximada: (_p, tierra) => (tierra.id === 'PA' ? dPa : dCo),
+    });
+    // La aproximada daría PA; la exacta dice CO.
+    expect(asignar(5, 5)?.pais).toBe('CO');
+    expect(exactas).toBe(2);
+  });
+
+  it('con tres candidatas guarda la segunda mejor para el margen', () => {
+    const tres = [...zonas, zona('CO-SAI', 'CO')];
+    const aprox = { 'CO-CONT': 30, PA: 10, 'CO-SAI': 10.2 };
+    let exactas = 0;
+    const asignar = crearAsignadorPais({
+      zonas: tres,
+      puntoEnPoligono: (_p, g) => g === vacio,
+      distanciaAPoligono: (_p, tierra) => {
+        exactas += 1;
+        return aprox[tierra.id];
+      },
+      distanciaAproximada: (_p, tierra) => aprox[tierra.id],
+    });
+    expect(asignar(5, 5)?.zona).toBe('PA');
+    expect(exactas).toBe(3);
+  });
+
+  it('el resultado está congelado (se comparte en la caché del servidor)', () => {
+    expect(Object.isFrozen(asignarPais(7.0, -80.5))).toBe(true);
+  });
+
+  it('en la malla de 0,1° de la franja CO-PA da el mismo resultado que Turf en todos los puntos', () => {
+    let enFranja = 0;
+    for (let i = 0; i <= 35; i += 1) {
+      for (let j = 0; j <= 25; j += 1) {
+        const lat = 6.5 + i / 10;
+        const lon = -79.0 + j / 10;
+        const turf = asignarPais(lat, lon);
+        if (!turf || turf.paisesCandidatos.length < 2) continue;
+        enFranja += 1;
+        expect(asignarPaisServidor(lat, lon)).toEqual(turf);
+      }
+    }
+    expect(enFranja).toBeGreaterThan(200);
+  }, 120_000);
 });
