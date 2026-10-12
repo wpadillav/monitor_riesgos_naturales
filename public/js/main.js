@@ -3,10 +3,9 @@
  * datos en vivo por `/api/stream` (T4.6b, `stream.js`) y avisos del navegador (T4.7,
  * `avisos.js` y `avisos-ui.js`).
  *
- * Ciclo de una carga: al empezar se cierra el stream; al terminar bien, los sismos cargados se
- * dan por conocidos (no se notifican) y el stream se abre con el `ultimoEventoId` de la carga, de
- * modo que no se pierde ni se duplica nada. Con `flujo.reiniciar`, recarga silenciosa y reapertura.
- * El indicador pasa a «En vivo» cuando el stream se abre (wireframes §6).
+ * Este módulo solo cablea: la lógica de la carga y los reintentos está en `cargador.js` (R-09),
+ * la del stream en `stream.js` y las reglas de filtro y aviso, compartidas con el servidor, en
+ * `src/shared/reglas.js` (R-01, R-02 y R-06).
  *
  * Pintado (P-01): los cambios del estado se agrupan por frame (`agrupador.js`). Una carga repinta
  * la lista y sincroniza todo el mapa; los eventos del stream solo tocan los marcadores afectados.
@@ -14,10 +13,11 @@
 
 import { alcanzaAviso } from '/shared/reglas.js';
 import { crearAgrupador } from './agrupador.js';
-import { ErrorApi, consultarFuentes, consultarSismos } from './api.js';
+import { consultarFuentes, consultarSismos } from './api.js';
 import { crearMostrador, crearNotificador } from './avisos.js';
 import { crearAvisosUI } from './avisos-ui.js';
 import { crearBarraEstado } from './barra-estado.js';
+import { crearCargador } from './cargador.js';
 import { crear, esMovil, icono } from './dom.js';
 import { crearEstado } from './estado.js';
 import { difiereDeDefecto, duracionPeriodo, textosPeriodo } from './filtros.js';
@@ -38,10 +38,6 @@ import { crearAnunciadorNuevos, crearConexionVivo } from './stream.js';
 
 const SALUD_MS = 30_000;
 const REFRESCO_MS = 30_000;
-const LENTO_MS = 3_000;
-const MUY_LENTO_MS = 10_000;
-/** Reintentos con espera creciente: primero a los 5 s y como máximo cada 60 s (RNF-06). */
-const ESPERAS_S = Object.freeze([5, 10, 20, 40, 60]);
 
 const almacen = almacenNavegador();
 
@@ -213,7 +209,7 @@ const filtrosUI = crearFiltrosUI({
     guardarFiltros(almacen, filtros);
     notaColombia.hidden = !filtros.paises.includes('CO');
     if (paisesCambiados && filtros.paises.length > 0) mapa?.encuadrar(filtros.paises);
-    cargar('filtros');
+    cargador.cargar('filtros');
   },
   alVer() {
     if (!lista.enfocar()) tituloLista.focus();
@@ -223,10 +219,6 @@ notaColombia.hidden = !filtrosUI.filtros.paises.includes('CO');
 tituloLista.setAttribute('tabindex', '-1');
 
 /* ---------- Pintado de los datos ---------- */
-let cargaHecha = false;
-let consultando = false;
-/** @type {ErrorApi | null} */
-let errorActual = null;
 /** @type {string | null} sismo nuevo cuya ventana se abre sola tras el próximo pintado (§8.4) */
 let ventanaPendiente = null;
 
@@ -239,7 +231,7 @@ function pintarDatos(lote) {
   lista.actualizar(entradas);
   if (lote.completo) mapa?.sincronizar(entradas);
   else mapa?.aplicarCambios(lote.ids, (id) => estado.obtener(id));
-  const texto = cargaHecha ? `(${formatearNumero(entradas.length)})` : '';
+  const texto = cargador.cargaHecha ? `(${formatearNumero(entradas.length)})` : '';
   if (contador.textContent !== texto) contador.textContent = texto;
   pintarVacio();
   // En una ráfaga solo se abre la ventana del último sismo que la pedía, no una por evento.
@@ -255,6 +247,7 @@ estado.suscribir((cambio) => agrupador.anotar(cambio));
 function pintarVacio() {
   const filtros = filtrosUI.filtros;
   const n = estado.tamano;
+  const { consultando, error: errorActual, cargaHecha } = cargador;
   skeleton.hidden = !(consultando && n === 0 && !errorActual);
   /** @type {Node[] | null} */
   let contenido = null;
@@ -282,7 +275,7 @@ function pintarVacio() {
       texto: 'Reintentar ahora',
       atributos: { type: 'button' },
     });
-    reintentar.addEventListener('click', () => cargar(motivoPendiente));
+    reintentar.addEventListener('click', () => cargador.reintentar());
     const texto =
       errorActual.tipo === 'red'
         ? 'El servidor local no responde. Comprueba que sigue en marcha (npm start). '
@@ -327,44 +320,17 @@ function ponerCaja(tipo, hijos = []) {
   if (tipo !== null) caja.replaceChildren(...hijos);
 }
 
-/* ---------- Carga con reintentos ---------- */
-/** @type {AbortController | null} */
-let controlador = null;
-let temporizadorLento = 0;
-let temporizadorMuyLento = 0;
-let intentos = 0;
-let temporizadorReintento = 0;
-let segundosRestantes = 0;
-/** @type {'inicial' | 'filtros' | 'reanudacion'} */
-let motivoPendiente = 'inicial';
-/** @type {HTMLElement[]} */
+/* ---------- Carga con reintentos (cargador.js) ---------- */
+/** @type {HTMLElement[]} números de las cuentas atrás pintadas */
 let cuentas = [];
-/** @type {number | null} */
-let ultimaCarga = null;
-/** @type {string | null} */
-let ultimoEventoId = null;
 /** @type {string | null} */
 let ultimoTextoFuentes = null;
 
 /** @returns {(Node | string)[]} «Volveremos a intentarlo en {n} s.» con el número actualizable */
 function textoCuentaAtras() {
-  const n = crear('span', { texto: String(segundosRestantes) });
+  const n = crear('span', { texto: String(cargador.segundosRestantes) });
   cuentas.push(n);
   return ['Volveremos a intentarlo en ', n, ' s.'];
-}
-
-function cancelarReintento() {
-  clearInterval(temporizadorReintento);
-  temporizadorReintento = 0;
-  cuentas = [];
-}
-
-function terminarConsulta() {
-  consultando = false;
-  clearTimeout(temporizadorLento);
-  clearTimeout(temporizadorMuyLento);
-  progreso.hidden = true;
-  lista.ponerOcupada(false);
 }
 
 /** @param {unknown} fuentes */
@@ -379,117 +345,27 @@ function ponerFuentes(fuentes) {
 }
 
 /**
- * @param {number} n
- * @param {'inicial' | 'filtros' | 'reanudacion'} motivo
+ * Caja sobre la lista según el estado de la carga.
+ * @param {import('./cargador.js').TipoAvisoCarga | null} tipo
+ * @param {{ filtros: import('./filtros.js').Filtros }} [datos]
  */
-function anunciarResultado(n, motivo) {
-  if (motivo === 'reanudacion') return;
-  if (n === 0) anunciar('No hay sismos con estos filtros.');
-  else if (motivo === 'inicial') {
-    anunciar(n === 1 ? '1 sismo cargado.' : `${formatearNumero(n)} sismos cargados.`);
-  } else anunciar(n === 1 ? 'Mostrando 1 sismo.' : `Mostrando ${formatearNumero(n)} sismos.`);
-}
-
-/**
- * Consulta `GET /api/sismos` con los filtros actuales. Cancela la anterior (AbortController).
- * @param {'inicial' | 'filtros' | 'reanudacion'} motivo
- */
-async function cargar(motivo) {
-  const filtros = filtrosUI.filtros;
-  controlador?.abort();
-  controlador = null;
-  cancelarReintento();
-  terminarConsulta();
-  // El stream se reabre al terminar la carga, con su `ultimoEventoId`.
-  vivo.cerrar();
-
-  if (filtros.paises.length === 0) {
-    errorActual = null;
+function avisoCarga(tipo, datos) {
+  if (tipo === null) {
     ponerCaja(null);
-    cargaHecha = true;
-    estado.reemplazar([]);
-    barra.poner('sin-paises');
-    filtrosUI.ponerResultado(0);
-    anunciar('Selecciona al menos un país.');
-    return;
-  }
-
-  const ctrl = new AbortController();
-  controlador = ctrl;
-  const silenciosa = motivo === 'reanudacion';
-  if (!silenciosa) {
-    consultando = true;
-    if (estado.tamano === 0) barra.poner('cargando');
-    else {
-      barra.poner('actualizando', { n: estado.tamano });
-      progreso.hidden = false;
-    }
-    lista.ponerOcupada(true);
-    pintarVacio();
-    temporizadorLento = window.setTimeout(() => {
-      ponerCaja('neutro', ['Consultando las fuentes. Con 7 o 30 días puede tardar unos segundos.']);
-    }, LENTO_MS);
-    temporizadorMuyLento = window.setTimeout(() => {
-      const periodo = textosPeriodo(filtros.periodo).enFrase;
-      ponerCaja('neutro', [
-        `La consulta de ${periodo} está tardando más de lo normal. Seguimos intentándolo.`,
-      ]);
-    }, MUY_LENTO_MS);
-  }
-
-  try {
-    const respuesta = await consultarSismos(filtros, { signal: ctrl.signal });
-    if (ctrl !== controlador || respuesta === null) return;
-    controlador = null;
-    terminarConsulta();
-    intentos = 0;
-    errorActual = null;
-    ponerCaja(null);
-    const primera = !cargaHecha;
-    cargaHecha = true;
-    ultimaCarga = Date.now();
-    ultimoEventoId = respuesta.ultimoEventoId;
-    // Lo que llega en una carga nunca se notifica (HU-11; AM-22, también tras `flujo.reiniciar`).
-    notificador.conocer(respuesta.sismos);
-    estado.reemplazar(respuesta.sismos, { marcarNuevos: silenciosa });
-    ponerFuentes(respuesta.fuentes);
-    // El indicador pasa a «En vivo» al abrirse el stream; sin `EventSource`, «Datos cargados».
-    if (globalThis.EventSource) vivo.abrir();
-    else barra.poner('cargado', { n: estado.tamano, hora: ultimaCarga });
-    filtrosUI.ponerResultado(estado.tamano);
-    anunciarResultado(estado.tamano, primera ? 'inicial' : motivo);
-    pintarVacio();
-  } catch (err) {
-    if (ctrl !== controlador || ctrl.signal.aborted) return;
-    controlador = null;
-    terminarConsulta();
-    programarReintento(err instanceof ErrorApi ? err : new ErrorApi('red'), motivo);
-  }
-}
-
-/**
- * Error: reintento automático con espera creciente y cuenta atrás que no se anuncia.
- * @param {ErrorApi} error
- * @param {'inicial' | 'filtros' | 'reanudacion'} motivo
- */
-function programarReintento(error, motivo) {
-  const espera = ESPERAS_S[Math.min(intentos, ESPERAS_S.length - 1)];
-  intentos += 1;
-  segundosRestantes = espera;
-  motivoPendiente = motivo;
-  const primerError = errorActual === null;
-  errorActual = error;
-  cuentas = [];
-
-  barra.poner(error.tipo === 'red' ? 'sin-conexion' : 'error-servidor', { hora: ultimaCarga });
-
-  if (estado.tamano > 0 && motivo !== 'reanudacion') {
+  } else if (tipo === 'lento') {
+    ponerCaja('neutro', ['Consultando las fuentes. Con 7 o 30 días puede tardar unos segundos.']);
+  } else if (tipo === 'muy-lento') {
+    const periodo = textosPeriodo((datos?.filtros ?? filtrosUI.filtros).periodo).enFrase;
+    ponerCaja('neutro', [
+      `La consulta de ${periodo} está tardando más de lo normal. Seguimos intentándolo.`,
+    ]);
+  } else {
     const reintentar = crear('button', {
       clase: 'btn-texto',
       texto: 'Reintentar ahora',
       atributos: { type: 'button' },
     });
-    reintentar.addEventListener('click', () => cargar(motivoPendiente));
+    reintentar.addEventListener('click', () => cargador.reintentar());
     ponerCaja('error', [
       icono('triangulo', 'ico ico-s'),
       crear('span', {}, [
@@ -498,21 +374,7 @@ function programarReintento(error, motivo) {
       ]),
       reintentar,
     ]);
-  } else if (estado.tamano === 0) {
-    ponerCaja(null);
   }
-  pintarVacio();
-  if (primerError && estado.tamano === 0) anunciar('No se han podido cargar los sismos.');
-
-  temporizadorReintento = window.setInterval(() => {
-    segundosRestantes -= 1;
-    if (segundosRestantes <= 0) {
-      cancelarReintento();
-      cargar(motivoPendiente);
-      return;
-    }
-    for (const n of cuentas) n.textContent = String(segundosRestantes);
-  }, 1000);
 }
 
 /* ---------- Avisos (T4.7) ---------- */
@@ -579,11 +441,35 @@ const vivo = crearConexionVivo({
   estado,
   barra,
   obtenerFiltros: () => filtrosUI.filtros,
-  obtenerUltimoEventoId: () => ultimoEventoId,
+  obtenerUltimoEventoId: () => cargador.ultimoEventoId,
   obtenerAvisoMin: () => avisosUI.avisoMin,
-  recargar: () => cargar('reanudacion'),
+  recargar: () => cargador.cargar('reanudacion'),
   ponerFuentes,
   alEvento: alEventoVivo,
+});
+
+const cargador = crearCargador({
+  api: { consultarSismos },
+  estado,
+  vivo,
+  barra,
+  notificador,
+  obtenerFiltros: () => filtrosUI.filtros,
+  vista: {
+    aviso: avisoCarga,
+    progreso(visible) {
+      progreso.hidden = !visible;
+    },
+    ocupada: (ocupada) => lista.ponerOcupada(ocupada),
+    pintarVacio,
+    ponerResultado: (n) => filtrosUI.ponerResultado(n),
+    anunciar,
+    ponerFuentes,
+    cuenta(segundos) {
+      if (segundos === null) cuentas = [];
+      else for (const n of cuentas) n.textContent = String(segundos);
+    },
+  },
 });
 
 /* ---------- Tareas periódicas ---------- */
@@ -620,4 +506,4 @@ botonFuentes.addEventListener('click', () => {
 
 /* ---------- Arranque ---------- */
 mapa.encuadrar(filtrosUI.filtros.paises, { animar: false });
-cargar('inicial');
+cargador.cargar('inicial');
