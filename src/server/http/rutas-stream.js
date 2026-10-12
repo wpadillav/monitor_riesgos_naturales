@@ -5,7 +5,7 @@
  * ocupa plaza después de pasarlos.
  */
 
-import { OPCIONES_AVISO_MIN } from '../dominio/aviso.js';
+import { OPCIONES_AVISO_MIN } from '../../shared/reglas.js';
 import { problemResponse } from './errores.js';
 import { leerFiltro, validarConsulta } from './rutas-sismos.js';
 

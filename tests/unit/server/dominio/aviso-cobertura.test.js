@@ -1,6 +1,9 @@
 // Reglas de aviso (notificable con la ventana de 1 h y avisoMin con redondeo D1) y cobertura.
+// `alcanzaAviso` y `redondear1` viven en `src/shared/reglas.js` (R-06); el resto de casos de
+// ese módulo está en `tests/unit/shared/reglas.test.js`.
 import { describe, expect, it } from 'vitest';
-import { alcanzaAviso, esNotificable, redondear1 } from '../../../../src/server/dominio/aviso.js';
+import { esNotificable } from '../../../../src/server/dominio/aviso.js';
+import { alcanzaAviso, redondear1 } from '../../../../src/shared/reglas.js';
 import {
   createCobertura,
   cubre,

@@ -4,6 +4,7 @@
  */
 
 import { validarUmbrales } from '../shared/duplicados.js';
+import { MAG_MIN_POR_DEFECTO, MAG_MIN_TODAS, OPCIONES_MAG_MIN } from '../shared/reglas.js';
 
 /** Interfaces de bucle local admitidas en `HOST` (RNF-09, AM-09). */
 export const HOSTS_LOOPBACK = Object.freeze(['127.0.0.1', '::1']);
@@ -12,16 +13,7 @@ const NIVELES_LOG = Object.freeze(['error', 'warn', 'info', 'debug']);
 const FORMATOS_LOG = Object.freeze(['texto', 'json']);
 
 /** Opciones de `INGESTA_MAG_MIN`: las de magnitud de la página (D5); `todas` = sin mínimo. */
-export const OPCIONES_INGESTA_MAG_MIN = Object.freeze([
-  'todas',
-  '1.0',
-  '2.0',
-  '2.5',
-  '3.0',
-  '4.0',
-  '4.5',
-  '5.0',
-]);
+export const OPCIONES_INGESTA_MAG_MIN = Object.freeze([MAG_MIN_TODAS, ...OPCIONES_MAG_MIN]);
 
 const NUMERO_DECIMAL = /^\d{1,6}(?:\.\d{1,6})?$/;
 const ENTERO = /^\d{1,7}$/;
@@ -95,13 +87,13 @@ export function loadConfig(env) {
   };
   errores.push(...validarUmbrales(umbralesDedup));
 
-  const ingestaTexto = valor(env.INGESTA_MAG_MIN, '2.0');
+  const ingestaTexto = valor(env.INGESTA_MAG_MIN, MAG_MIN_POR_DEFECTO);
   if (!OPCIONES_INGESTA_MAG_MIN.includes(ingestaTexto)) {
     errores.push(
       `INGESTA_MAG_MIN debe ser una de ${OPCIONES_INGESTA_MAG_MIN.join(', ')} (recibido: «${ingestaTexto}»).`,
     );
   }
-  const ingestaMagMin = ingestaTexto === 'todas' ? null : Number(ingestaTexto);
+  const ingestaMagMin = ingestaTexto === MAG_MIN_TODAS ? null : Number(ingestaTexto);
 
   const emscIntervaloS = entero(env.EMSC_FDSN_INTERVALO_S, '30');
   if (!(emscIntervaloS >= 30 && emscIntervaloS <= 3600)) {

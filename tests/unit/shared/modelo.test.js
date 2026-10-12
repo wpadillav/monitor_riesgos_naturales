@@ -365,6 +365,7 @@ describe('componerSismo (contrato Sismo)', () => {
       magnitudTipo: 'ml',
       lugar: 'PANAMA',
       pais: 'PA',
+      paisesCandidatos: ['PA'],
       zona: 'PA',
       zonaHoraria: 'America/Panama',
       autor: 'IGC',

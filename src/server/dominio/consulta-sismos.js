@@ -6,18 +6,10 @@
  * en `completo` y `fuentes` (arquitectura §8.2).
  */
 
-/** Periodos del contrato y su duración. */
-export const PERIODOS_MS = Object.freeze({
-  '1h': 3_600_000,
-  '24h': 86_400_000,
-  '7d': 7 * 86_400_000,
-  '30d': 30 * 86_400_000,
-});
-
-export const PERIODO_POR_DEFECTO = '24h';
+import { PERIODOS_MS } from '../../shared/reglas.js';
 
 /**
- * @typedef {keyof typeof PERIODOS_MS} Periodo
+ * @typedef {import('../../shared/reglas.js').Periodo} Periodo
  *
  * @typedef {object} FiltroSismos ya validado en la frontera (`http/rutas-sismos.js`)
  * @property {import('../../shared/modelo.js').CodigoPais[]} paises

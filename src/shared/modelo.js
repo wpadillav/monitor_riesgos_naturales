@@ -49,6 +49,9 @@ import { sanear } from './texto.js';
  * @property {string} magnitudTipo
  * @property {string} lugar
  * @property {CodigoPais} pais
+ * @property {ReadonlyArray<CodigoPais>} paisesCandidatos países de la franja en la que cae
+ *   (incluye siempre `pais`; dos en la frontera marina CO-PA). La lista y los avisos cuentan
+ *   el sismo si **cualquiera** está marcado (HU-03, ADR-0005, `src/shared/reglas.js`).
  * @property {Zona} zona
  * @property {string} zonaHoraria
  * @property {string} autor
@@ -299,6 +302,7 @@ export function componerSismo({ id, registros, recibidoEn, revision }, asignarPa
     magnitudTipo: preferido.magnitudTipo,
     lugar: preferido.lugar,
     pais: ubicacion.pais,
+    paisesCandidatos: [...ubicacion.paisesCandidatos],
     zona: ubicacion.zona,
     zonaHoraria: ubicacion.zonaHoraria,
     autor: preferido.autor,
