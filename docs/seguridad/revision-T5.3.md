@@ -4,6 +4,8 @@
 
 **Alcance:** todas las amenazas de la tabla §6 (35 identificadores: AM-01 a AM-36, sin AM-33, que se fusionó con AM-22), revisión estática de `src/`, `public/`, `package.json`, `.npmrc` y `package-lock.json`, y pruebas dinámicas contra el servidor real (`PORT=3007 npm start`, con `--permission` y las fuentes activas).
 
+**Actualización T6.3 (2026-10-12):** el estado vigente de los hallazgos, de las amenazas y el veredicto están en la [sección 6](#6-actualización-t63). Las secciones 1 a 5 se conservan como registro de la revisión del commit `9a0e7cd`.
+
 **No se ha hecho:** ningún cambio de código ni de git. Las E2E (Playwright) no se han reejecutado porque las está corriendo T5.1 en paralelo con su propio servidor. Donde una mitigación depende de una E2E, se indica la prueba y se completa con verificación estática o dinámica. La prueba de RNF-09 desde **otro equipo** de la LAN la tiene que hacer el Director: aquí se probó la IP LAN desde el propio equipo.
 
 ---
@@ -165,3 +167,84 @@ El código de la entrega 1 (`9a0e7cd`) implementa y prueba las mitigaciones del 
 1. **Bloqueante para el release (no es del código): AM-32.** Antes de declarar la entrega como publicada, el Director traslada el proyecto fuera de `/var/www/html`, tal como tiene decidido. Verificación tras el traslado: `curl -s -o /dev/null -w '%{http_code}' http://localhost/terremotos/.git/HEAD` ≠ 200, y `pwd` del repositorio fuera de `/var/www/html`. Si en ese momento se quiere limpiar la exposición pasada, hay que tener en cuenta que el historial ya pudo copiarse desde la LAN: contiene el nombre y el correo del Director y ningún secreto.
 2. **Con plan (Fase 6, no bloquean):** S-01 (escapado de C1 en el log y su prueba), S-02 (`npm ci` en `main` y `sbom.cdx.json` en `.gitignore`), S-03 (los tres huecos de prueba) y S-04 (`--permission` en `dev` o documentarlo).
 3. **Opcionales:** S-05 y S-06.
+
+---
+
+## 6. Actualización T6.3
+
+**Autor:** arquitecto-seguridad · **Fecha:** 2026-10-12 · **Código revisado:** `main`, commit `04bb0c8` (rama `docs/T6.3-seguridad`) · **Alcance:** las correcciones posteriores a esta revisión (C-A, D-2 y F), el estado de S-01 a S-06, las amenazas que cambian de estado y el veredicto. Las pruebas por amenaza están en [plan-pruebas.md §2.1](../pruebas/plan-pruebas.md). Los cambios documentales del modelo van marcados «(T6.3)» en [amenazas.md](amenazas.md).
+
+### 6.1 Evidencia global (T6.3)
+
+Ejecutada en un *worktree* limpio de `04bb0c8` con Node 24.21.0.
+
+| Comprobación | Comando | Resultado |
+|---|---|---|
+| Instalación limpia | `npm ci` | exit 0, «found 0 vulnerabilities» |
+| Árbol de dependencias | `npm ls --depth=0` | exit 0 (en T5.3 fallaba en `main`: S-02) |
+| Pruebas | `npm test` | **42 archivos, 1 335 pruebas, todas en verde** (27,4 s) |
+| Pruebas de los cambios | `npx vitest run` sobre `infra/log-controles.test.js`, `log.test.js`, `infra/apagado.test.js`, `dominio/catalogo.test.js`, `integracion/loopback.test.js`, `integracion/excepcion.test.js` e `integracion/permisos.test.js` | **7 archivos, 201 pruebas en verde** |
+| E2E de seguridad | `npx playwright test tests/e2e/seguridad*.spec.js` (servidor en el puerto 3012, con una configuración temporal fuera del repositorio que solo cambia el puerto) | **22 pruebas en verde**: 11 en Chromium y 11 en Firefox (1,1 min) |
+| Linter | `npm run lint` | exit 0 |
+| Auditoría de producción (bloqueante) | `npm audit --omit=dev --audit-level=high` | 0 vulnerabilidades |
+| Firmas del registro | `npm audit signatures` | 170 firmas verificadas y 73 *attestations*; ninguna inválida |
+| SBOM | `npm sbom --sbom-format cyclonedx --omit=dev` (salida a un directorio temporal, no al proyecto) | CycloneDX 1.5 generado, exit 0 |
+| AM-32 | `curl -s -o /dev/null -w '%{http_code}' http://localhost/terremotos/.git/HEAD` | **200** (sigue abierta) |
+| `index.html` antiguo | `curl -s -o /dev/null -w '%{http_code}' http://localhost/terremotos/index.html` | **404** |
+
+### 6.2 Estado de los hallazgos
+
+| ID | Sev. | Estado T6.3 | Qué se hizo | Evidencia |
+|---|---|---|---|---|
+| **S-01** C1 en el log | Baja | **Corregido** | `src/server/infra/log.js`: `escaparNoImprimibles` escapa DEL, C1 (U+007F–U+009F, incluido U+009B) y U+2028/U+2029 como `\uXXXX` sobre la línea ya serializada, en los dos formatos (commit `6220268`, C-A) | `tests/unit/server/infra/log-controles.test.js` (commit `f855443`, D-2): 67 caracteres por formato (C0, DEL, C1, U+2028/9), el caso del modelo `\x1b[2J` + `\n`, comprobación de los bytes UTF-8 y de que no se pueden falsificar campos. Reproducción de T5.3 repetida con `/a\u009b31m\x1b[2J\n X`: **0 controles** en la línea y un solo salto final, en `texto` y en `json` |
+| **S-02** `node_modules` desalineado y SBOM | Baja | **Cerrado** | `sbom.cdx.json` en `.gitignore` (commit `0dbd595`); `npm ci` ejecutado en `main` | `npm ci` y `npm ls --depth=0` → exit 0; en el *checkout* de `main` ya están `@axe-core/playwright` y `@vitest/coverage-v8` (`ls node_modules/...`); SBOM generado sin error |
+| **S-03** Huecos de prueba | Baja | **Cerrado** | (1) `tests/fixtures/maliciosos/xss.json` con los tres *payloads* de `lugar`, el autor y 10 URL hostiles, y `tests/e2e/seguridad.spec.js` (commit `57321b0`); (2) `tests/e2e/seguridad-origen.spec.js` (commit `71d4975`); (3) `log-controles.test.js` (commit `f855443`). Además, `tests/integracion/loopback.test.js` (commit `d8c105c`) | E2E de seguridad: 22/22 en Chromium y Firefox; unitarias e integración en verde (6.1) |
+| **S-04** Límites del *sandbox* | Baja | **Aceptado con riesgo residual documentado** | (a) No se puede corregir en Node 24: `--watch` lanza el servidor como proceso hijo. Se documenta en el README («`npm run dev` no tiene ese aislamiento», commit `99453d4`). (b) Sin `--allow-net` en Node 24: se revisa con Node 26 (ADR-0003) | `node --watch --permission --allow-fs-read=… src/server/index.js` → exit 1, «Access to this API has been restricted. Use --allow-child-process» (comprobado hoy con 24.21.0). `npm start` sigue con `--permission`: `tests/integracion/permisos.test.js` en verde. Riesgo residual en [amenazas.md](amenazas.md) §8 «AM-31 / S-04 (T6.3)» |
+| **S-05** Ids formados solo por puntos | Informativo | **Abierto (deuda opcional)** | Sin cambios: `PATRON_ID_FUENTE` sigue siendo `/^[A-Za-z0-9_.-]{1,64}$/` (`src/shared/enlaces.js:8`) | No hay XSS ni cambio de host; solo un enlace roto con datos manipulados. Queda para la entrega 2 |
+| **S-06** Robustez del saneado | Informativo | **Parcial (deuda opcional)** | Las marcas bidi de `PROHIBIDOS` ya van como escapes `\u…` (commit `6220268`, R-20): cerrado el punto «Trojan Source». Los caracteres de anchura cero (U+200B–U+200D, U+2060) siguen sin quitarse. La forma absoluta no requería acción | `src/shared/texto.js:10-12` |
+
+### 6.3 Amenazas que cambian de estado
+
+Solo se listan las que cambian respecto a la sección 2. Las demás siguen como allí, en **Cumple**, y la suite completa sigue en verde (6.1).
+
+| ID | Estado T5.3 | Estado T6.3 | Prueba que lo verifica (ejecutada en T6.3) |
+|---|---|---|---|
+| **AM-01** XSS almacenado | Cumple (deuda S-03) | **Cumple** | `tests/e2e/seguridad.spec.js` con `tests/fixtures/maliciosos/xss.json`: los tres *payloads* de `lugar` por la carga inicial y por el stream (`sismo.nuevo`) salen **literales** en la lista, la ventana y los anuncios, sin `dialog`, sin violaciones de CSP y sin enlace. Chromium y Firefox. El `index.html` antiguo, que tenía el defecto, ya no existe (404) |
+| **AM-02** Enlace «Más info» | Cumple | Cumple (más cobertura) | `seguridad.spec.js` › «ficha con una URL válida y otra con javascript:: solo queda el enlace válido»; las 10 URL hostiles del fixture |
+| **AM-03** JSON malformado y errores | Cumple | Cumple (más robusto) | `tests/integracion/excepcion.test.js`: una `uncaughtException` registra `proceso.excepcion`, **sale con código 1** y libera el puerto; un SIGTERM durante ese apagado mantiene el código 1 (`src/server/infra/apagado.js`, commit `694093f`). `tests/unit/server/infra/apagado.test.js` |
+| **AM-09** Solo loopback | Cumple (falta otro equipo) | Cumple (falta otro equipo) | `tests/integracion/loopback.test.js`: proceso real, una sola escucha en `127.0.0.1` (o `::1` con `HOST=::1`), conexión rechazada por las IP de red del equipo y por 127.0.0.2. La prueba desde **otro equipo** sigue siendo del Director ([traslado-AM-32.md](traslado-AM-32.md), C13) |
+| **AM-11** Abuso cross-site | Cumple (deuda S-03) | **Cumple** | `tests/e2e/seguridad-origen.spec.js`: una página de **otro puerto de `localhost`** (*same-site*, el caso de Apache) y otra de `127.0.0.1` (*cross-site*) intentan `fetch('/api/sismos')` y `new EventSource('/api/stream')`. El navegador envía `Origin` y `Sec-Fetch-Site` reales, el servidor responde **403** sin `Access-Control-*`, la página no lee nada y el SSE no ocupa plaza; el control del mismo origen sí funciona. Chromium y Firefox |
+| **AM-16** Memoria del almacén | Cumple (tope 50 000) | **Cumple (tope 15 000)** | `TOPE_SISMOS` = **15 000** con histéresis al 95 % (`src/server/dominio/catalogo.js:48,54`, commit `942bce8`, C-A). `catalogo.test.js` › «al insertar 60 000 sismos sintéticos quedan los más recientes (95 % del tope) y se avisa» (quedan **14 250**, aviso `memoria.tope`) y «con un tope inyectado pequeño, recorta al 95 % de una vez». `/api/sismos` sigue acotado a `MAX_RESPUESTA` = 10 000. La memoria (RNF-05) la midió C-A: pico de 269 MB con 10 000 sismos y 30 días ([01-arquitectura.md](../01-arquitectura.md) §5.5) |
+| **AM-25** Dependencias | Cumple (S-02) | **Cumple** | S-02 cerrado: `npm ci` y `npm ls` exit 0, auditoría 0, firmas verificadas, SBOM generado (6.1) |
+| **AM-29** Inyección en el terminal o en los logs | **Parcial** (S-01) | **Cumple** | `tests/unit/server/infra/log-controles.test.js` y `log.test.js` › «secuencias de control en el log (S-01, AM-29)»; reproducción de S-01 → 0 controles (6.2) |
+| **AM-31** Permisos de más | Cumple (residual S-04) | Cumple (residual S-04 **documentado y aceptado**) | `tests/integracion/permisos.test.js` (sin escritura, procesos hijo ni *workers*; la app funciona). `npm run dev` sin *sandbox*: imposible en Node 24, documentado en el README |
+| **AM-32** Apache sirve el proyecto | **Abierta** | **Abierta** | `curl … /terremotos/.git/HEAD` → **200**; `.git/config`, `.git/logs/HEAD`, `package.json`, `node_modules/…` y los *worktrees* de `.claude/worktrees/` → 200. Se cierra con [traslado-AM-32.md](traslado-AM-32.md) |
+
+**Resumen T6.3:** **34 cumplen** (AM-09 con la prueba desde otro equipo pendiente del Director) y **1 abierta** (AM-32). Ya no hay ninguna parcial.
+
+### 6.4 Riesgo residual (cambios frente a la sección 4)
+
+| Amenaza | Residual T6.3 | Aceptación |
+|---|---|---|
+| AM-29 | **Baja**: C0, DEL, C1 y U+2028/9 escapados en el log | Se acepta (antes «corregir en la Fase 6») |
+| AM-31 / S-04 | **Baja**: `npm run dev` sin *sandbox* en Node 24 y sin límite de red en ningún modo | Se acepta; documentado en el README y en [amenazas.md](amenazas.md) §8. Revisión en la migración a Node 26 (ADR-0003) |
+| AM-25 | **Media-baja** (*día cero*) | = Revisión trimestral del STACK.lock |
+| AM-32 | **Alta** mientras siga en `/var/www/html` (confirmado el 2026-10-12); **ninguno** tras el traslado verificado | **Condición del release** |
+
+El resto, como en la sección 4. Datos personales: sin cambios. El único dato personal expuesto sigue siendo la identidad de git del Director, por AM-32.
+
+### 6.5 Veredicto (T6.3)
+
+### **APROBADO CON UNA CONDICIÓN: AM-32**
+
+El código de la entrega 1 (`04bb0c8`) cumple el modelo de amenazas. Las condiciones de la sección 5 se han resuelto así:
+
+- **S-01, S-02 y S-03:** corregidos y con pruebas automáticas ejecutadas en esta actualización.
+- **S-04:** aceptado con riesgo residual bajo y documentado.
+- **S-05 y S-06 (resto):** quedan como deuda opcional. No bloquean.
+
+No hay hallazgos críticos, altos ni medios abiertos en el código.
+
+**Única condición del release: AM-32** (no es del código). El Director traslada el proyecto fuera de `/var/www/html` y se ejecuta la lista [traslado-AM-32.md](traslado-AM-32.md). Si los pasos C1 a C12 dan el resultado esperado, AM-32 pasa a **Cumple** y el veredicto pasa a **APROBADO**, sin más revisión de seguridad. C13 (RNF-09 desde otro equipo) se recomienda hacerlo en ese mismo momento, pero no bloquea: la integración ya demuestra que el servidor solo escucha en loopback.
+
+**Deuda registrada (baja o informativa, no bloquea):** S-05; S-06 (anchura cero); AM-31 sin límite de red hasta Node 26; `gitleaks` no instalado (sección 1).
