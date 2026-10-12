@@ -84,8 +84,13 @@ function registro({ pais = 'PA', magnitud = 3.0, haceMin = 5, lugar } = {}) {
   return r.registro;
 }
 
-/** Espera al siguiente lote de 250 ms. */
-const lote = () => new Promise((ok) => setTimeout(ok, 300));
+/**
+ * Envía ya el lote en curso, sin esperar a su temporizador de 250 ms (N-06: antes se esperaban
+ * 300 ms fijos, un margen de 50 ms que una máquina cargada puede no cumplir). El temporizador del
+ * lote lo prueban las unitarias del difusor.
+ * @param {{ vaciar: () => void }} difusor
+ */
+const lote = (difusor) => difusor.vaciar();
 
 beforeEach(() => {
   n = 0;
@@ -116,7 +121,7 @@ describe('GET /api/stream', () => {
   });
 
   it('de punta a punta: una alta del catálogo llega filtrada por país y magnitud', async () => {
-    const { app, catalogo } = montar();
+    const { app, catalogo, difusor } = montar();
     const pa = (await abrir(app, '/api/stream?paises=PA&magMin=2.0&avisoMin=4.5')).lector;
     const es = (await abrir(app, '/api/stream?paises=ES&magMin=4.0')).lector;
     await pa.leer();
@@ -126,7 +131,7 @@ describe('GET /api/stream', () => {
       [registro({ pais: 'PA', magnitud: 4.5 }), registro({ pais: 'ES', magnitud: 3.1 })],
       { recibidoEn: Date.now() },
     );
-    await lote();
+    lote(difusor);
 
     const recibidos = eventos(await pa.leer());
     expect(recibidos.map((m) => [m.event, m.datos.datos.sismo.pais])).toEqual([
@@ -138,9 +143,9 @@ describe('GET /api/stream', () => {
   });
 
   it('ultimoEventoId de /api/sismos encadena con el stream sin huecos', async () => {
-    const { app, catalogo } = montar();
+    const { app, catalogo, difusor } = montar();
     catalogo.ingerirLote([registro()], { recibidoEn: Date.now() });
-    await lote();
+    lote(difusor);
     const carga = await (
       await app.request('/api/sismos?paises=PA&magMin=2.0', { headers: { host: HOST } })
     ).json();
@@ -148,7 +153,7 @@ describe('GET /api/stream', () => {
 
     // Llega otro sismo entre la carga y la suscripción.
     catalogo.ingerirLote([registro()], { recibidoEn: Date.now() });
-    await lote();
+    lote(difusor);
     const { lector } = await abrir(
       app,
       `/api/stream?paises=PA&magMin=2.0&ultimoId=${carga.ultimoEventoId}`,
@@ -159,9 +164,9 @@ describe('GET /api/stream', () => {
   });
 
   it('Last-Event-ID gana a ultimoId; un id ajeno produce flujo.reiniciar', async () => {
-    const { app, catalogo } = montar();
+    const { app, catalogo, difusor } = montar();
     catalogo.ingerirLote([registro(), registro()], { recibidoEn: Date.now() });
-    await lote();
+    lote(difusor);
 
     const reanuda = (
       await abrir(app, `/api/stream?paises=PA&ultimoId=lx3k9a-1`, {
@@ -184,14 +189,14 @@ describe('GET /api/stream', () => {
   });
 
   it('un lugar malicioso llega como un solo evento con el texto literal (AM-15)', async () => {
-    const { app, catalogo } = montar();
+    const { app, catalogo, difusor } = montar();
     const { lector } = await abrir(app, '/api/stream?paises=PA');
     await lector.leer();
 
     catalogo.ingerirLote([registro({ lugar: 'X event: hack data: {}' })], {
       recibidoEn: Date.now(),
     });
-    await lote();
+    lote(difusor);
     const mensajes = parsearSse(await lector.leer());
     expect(mensajes).toHaveLength(1);
     expect(mensajes[0].datos.datos.sismo.lugar).toBe('X event: hack data: {}');
