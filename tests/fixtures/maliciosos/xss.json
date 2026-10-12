@@ -1,0 +1,17 @@
+{
+  "descripcion": "Payloads del modelo de amenazas (AM-01 y AM-02, RNF-07) para tests/e2e/seguridad.spec.js. Datos sintéticos: no proceden de ninguna fuente real.",
+  "lugar": ["<img src=x onerror=alert(1)>", "\"><svg onload=alert(1)>", "<script>alert(1)</script>"],
+  "autor": "<b onmouseover=alert(1)>IGN</b>",
+  "url": [
+    "javascript:alert(1)",
+    "JaVaScRiPt:alert(1)",
+    " javascript:alert(1)",
+    "java\tscript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "vbscript:msgbox(1)",
+    "//evil.example/eventdetails.html?unid=x",
+    "https://evil.example/eventdetails.html?unid=x",
+    "https://www.seismicportal.eu.evil.example/eventdetails.html?unid=x",
+    "https://earthquake.usgs.gov/earthquakes/eventpage/x\"><script>alert(1)</script>"
+  ]
+}
