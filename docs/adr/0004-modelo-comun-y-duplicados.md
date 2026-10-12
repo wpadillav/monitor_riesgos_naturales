@@ -104,8 +104,8 @@ Se aceptan `ke` (sismo conocido) y `se` (sismo sospechado). Los demás tipos (vo
    | `DEDUP_DD_KM` | 100 km | 2,8 veces el máximo observado (35,3 km) |
    | `DEDUP_DM` | 1.0 | **Ajustado: el máximo observado es 0,9** |
 
-   La búsqueda usa un índice por minuto de `tiempo`: se consultan el minuto anterior, el actual y el siguiente, así que el coste es O(1). Para la distancia se usa la fórmula de haversine con `@turf/distance`.
-3. **Elección:** si hay varios candidatos, gana el de menor puntuación `Δt/DEDUP_DT_S + Δd/DEDUP_DD_KM + ΔM/DEDUP_DM`. En caso de empate, gana el de `recibidoEn` más antiguo. Si no hay ninguno, R crea un sismo nuevo.
+   La búsqueda usa un índice por minuto de `tiempo`: se consultan el minuto anterior, el actual y el siguiente, así que el coste es O(1). Para la distancia se usa la fórmula de haversine **propia** (`distanciaKm` en `src/shared/geo.js`, sin dependencias, con el mismo radio que Turf: 6 371,0088 km), contrastada con `@turf/distance` 7.4.0 en las pruebas (`tests/unit/shared/geo.test.js`, diferencia < 10⁻⁹ km). *Actualización C-A (2026-10-11, R-10):* `@turf/distance` ya no se usa en ejecución y pasa a `devDependencies`, como referencia de las pruebas.
+3. **Elección:** si hay varios candidatos, gana el de menor puntuación `Δt/DEDUP_DT_S + Δd/DEDUP_DD_KM + ΔM/DEDUP_DM`. En caso de empate (con una tolerancia de 10⁻⁹ para la coma flotante), gana el de `recibidoEn` más antiguo y después el id menor. La fusión tardía (paso 4) usa el mismo desempate (`mejorCandidato` en `src/shared/duplicados.js`, R-14). Si no hay ninguno, R crea un sismo nuevo.
 4. **Fusión tardía:** después de cada alta o actualización, se repite la búsqueda del paso 2 para el sismo afectado frente a sismos cuyas fuentes no se solapen con las suyas.
    - Si aparece un par, se fusionan en el de `recibidoEn` más antiguo.
    - Se emite `sismo.eliminado` (`motivo: fusionado`, `reemplazadoPor`) para el absorbido y `sismo.actualizado` para el superviviente.

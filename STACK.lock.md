@@ -15,6 +15,12 @@
 >
 > **Actualización T5.0L (2026-10-11), investigador-stack:** se añaden `@axe-core/playwright` 4.13.0 (con `axe-core` 4.13.0) y `@vitest/coverage-v8` 5.0.3, y Firefox de Playwright. Consultas en vivo del **2026-10-11**. **Las filas marcadas con «T5.0L» están pendientes de revisión del arquitecto.**
 
+## Cambio de C-A (2026-10-11): `@turf/distance` pasa a desarrollo (R-10)
+
+- **Movimiento, no cambio de versión:** `@turf/distance` **7.4.0** pasa de `dependencies` a `devDependencies`. El servidor calcula la distancia con su haversine propio (`src/shared/geo.js`, ADR-0004), y Turf queda como referencia de las pruebas (`tests/unit/shared/geo.test.js`).
+- Quedan **6 dependencias de producción**. `@turf/distance` sigue en el árbol de producción como transitiva de `@turf/point-to-polygon-distance` (misma versión 7.4.0), así que `package-lock.json` solo cambia la lista de dependencias directas.
+- No se añade ninguna dependencia.
+
 ## Cambios de T5.0L (2026-10-11) — pendiente de revisión del arquitecto para estas filas
 
 1. **Se añaden como `devDependencies`** (versión exacta):
@@ -60,10 +66,9 @@
 | `ws` | **8.22.0** | Cliente WebSocket de EMSC con *ping*/*pong* y `maxPayload` (ADR-0002) | MIT | 2026-09-26 (GH websockets/ws). Sin dependencias. Mínimo por seguridad **≥ 8.21.0** (GHSA-96hv-2xvq-fx4p, alto; GHSA-58qx-3vcg-4xpx, medio) | `WebSocket` nativo de Node (undici): no puede enviar *ping* ni limitar los frames (verificado el 2026-10-10) |
 | `leaflet` | 1.9.4 | Mapa en la página. **Lo sirve el propio servidor** desde `node_modules/leaflet/dist` con rutas explícitas, sin CDN (amenazas §7.3) | BSD-2-Clause | 2023-05-18 (npm); commits activos en 2026-09 (GH) | 2.0.0-alpha.1 (prerelease, A4); MapLibre GL (WebGL, más peso) |
 | `@turf/boolean-point-in-polygon` | 7.4.0 | País por contorno (ADR-0005) | MIT | 2026-08-03 | `@turf/turf` completo: demasiado grande |
-| `@turf/point-to-polygon-distance` | 7.4.0 | Desempate en la frontera CO-PA (ADR-0005) | MIT | 2026-08-03 | Distancia propia a segmentos: más código que probar |
-| `@turf/distance` | 7.4.0 | Haversine para duplicados (ADR-0004); en la entrega 2, filtro de radio | MIT | 2026-08-03 | Haversine propio (~10 líneas): válido, pero se elige Turf por coherencia |
+| `@turf/point-to-polygon-distance` | 7.4.0 | Desempate exacto en la frontera CO-PA (ADR-0005). Desde C-A solo se llama cerca de la línea equidistante: antes decide una distancia aproximada propia (P-02) | MIT | 2026-08-03 | Distancia propia a segmentos: se usa como filtro previo, Turf sigue siendo el árbitro |
 
-Son **7 dependencias de producción**. Todos los módulos de Turf van a la **misma versión exacta (7.4.0)**, porque comparten `@turf/helpers`, `@turf/meta` e `@turf/invariant`.
+Son **6 dependencias de producción** (C-A, 2026-10-11: `@turf/distance` pasa a desarrollo, R-10). Todos los módulos de Turf van a la **misma versión exacta (7.4.0)**, porque comparten `@turf/helpers`, `@turf/meta` e `@turf/invariant`.
 
 ## Librerías y herramientas de desarrollo (`devDependencies`)
 
@@ -73,6 +78,7 @@ Son **7 dependencias de producción**. Todos los módulos de Turf van a la **mis
 | `@turf/difference` | 7.4.0 | Restar la tierra de los países vecinos (ADR-0005) | MIT; `polyclip-ts` 0.16.8 (MIT) |
 | `@turf/simplify` | 7.4.0 | Simplificar los polígonos generados | MIT |
 | `@turf/bbox` | 7.4.0 | Rectángulos de consulta derivados | MIT |
+| `@turf/distance` | 7.4.0 | Referencia de las pruebas del haversine propio (ADR-0004). Antes en `dependencies` (movida en C-A, R-10) | MIT; también llega a producción como transitiva de `@turf/point-to-polygon-distance` |
 | `eslint` | **10.12.0** (2026-10-02) | Lint del servidor, `src/shared` y la página | engines `^20.19.0 \|\| ^22.13.0 \|\| >=24` |
 | `@eslint/js` | 10.0.1 | Reglas recomendadas | peer `eslint ^10` |
 | `globals` | 17.13.0 | Globales de Node y del navegador por directorio | engines `>=18` |
@@ -112,7 +118,7 @@ Son **7 dependencias de producción**. Todos los módulos de Turf van a la **mis
 - [x] **WebSocket nativo de Node 24:** existe, pero no expone `ping()` (comprobado con `node -e`). Por eso se usa `ws`.
 - [x] **Seguridad:** `hono` ≥ 4.13.11, `@hono/node-server` ≥ 2.1.3 y `ws` ≥ 8.21.0 incluyen las correcciones de todos los GHSA publicados hasta el 2026-10-10 (GH security-advisories). Leaflet no tiene avisos.
 - [x] **Contrato:** `npx @redocly/cli@2.62.1 lint --config docs/api/redocly.yaml docs/api/openapi.yaml` → válido (2026-10-10).
-- [ ] **Pendiente (T4.1):** `npm ci`, `npm audit --omit=dev --audit-level=high` y `npm audit signatures` con el `package-lock.json` real; `npm ls --omit=dev` debe listar solo las 7 dependencias de producción.
+- [ ] **Pendiente (T4.1):** `npm ci`, `npm audit --omit=dev --audit-level=high` y `npm audit signatures` con el `package-lock.json` real; `npm ls --omit=dev` debe listar solo las 6 dependencias de producción (7 hasta C-A).
 - [ ] **Pendiente (ADR-0003, ventana del 2026-10-28 al 2026-11-15):** `npm ci && npm run check && npm test` y la E2E en el último parche de 26 LTS, incluido el modelo de permisos (`--permission`).
 
 ## Entorno local (Linux Mint 22.3)
@@ -153,6 +159,6 @@ Son **7 dependencias de producción**. Todos los módulos de Turf van a la **mis
 ## Próxima revisión
 
 - **Trimestral:** 2027-01-10.
-- **Última actualización:** 2026-10-11 (T5.0L, herramientas de calidad; pendiente de revisión del arquitecto para esas filas).
+- **Última actualización:** 2026-10-11 (C-A: `@turf/distance` a desarrollo, R-10; antes, T5.0L, herramientas de calidad, pendiente de revisión del arquitecto para esas filas).
 - **Punto de control anticipado:** 2026-10-28 (Node 26 LTS, ADR-0003).
 - **Responsable de la revisión:** investigador-stack. **Firma:** arquitecto-software.
