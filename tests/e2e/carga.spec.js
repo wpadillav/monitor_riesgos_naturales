@@ -1,5 +1,10 @@
 import { AHORA, abrirFiltros, expect, filas, muchosSismos, simular, sismo, test } from './apoyo.js';
 
+/** Regresión grosera de la carga de 10 000 (respuesta → lista): libre ~1 s, cargada ~3,2 s. */
+const CARGA_10000_MAX_MS = 8_000;
+/** Cifra de RNF-03; aquí solo se anota. La verifica `scripts/rendimiento/pagina.js carga`. */
+const RNF03_ESTRICTO_MS = 3_000;
+
 test.describe('carga inicial con datos simulados', () => {
   test('pide los filtros por defecto y muestra lista, estado, mapa y pie', async ({ page }) => {
     const { peticiones } = await simular(page);
@@ -135,8 +140,16 @@ test.describe('carga inicial con datos simulados', () => {
     // que la lista muestra los 10 000 (T5.1). Antes se medía el reloj de pared de la prueba, que
     // incluye pasar ~7 MB por el protocolo de Playwright (`route.fulfill`) y la carga de la
     // máquina con varios workers: fallaba a veces sin que la aplicación fuese más lenta. El
-    // tiempo de respuesta del servidor es RNF-04, y la medición formal de RNF-03 (panel
-    // Rendimiento, tareas > 200 ms) es T5.4.
+    // tiempo de respuesta del servidor es RNF-04.
+    //
+    // El umbral es un **detector de regresiones groseras**, no la cifra de RNF-03: con la máquina
+    // libre son ~1 s; con la máquina cargada se han visto 3,2 s en Firefox con el mismo código.
+    // Un fallo aquí (> 8 s) indica algo roto, como volver a pintar las 10 000 filas o un coste
+    // por sismo en el pintado (P-01 costaba ~27 ms por sismo: 10 000 serían minutos). La
+    // virtualización la comprueban además las filas pintadas (< 80). **La cifra estricta de
+    // RNF-03 (≤ 3 s hasta lista y mapa utilizables, ninguna tarea > 200 ms) la mide
+    // `scripts/rendimiento/pagina.js carga`** (`npm run perf:pagina -- carga`) con la máquina
+    // descargada. Si se superan los 3 s, la prueba lo anota (tipo `RNF-03 estricto`) sin fallar.
     await page.addInitScript(() => {
       const w = /** @type {any} */ (window);
       const original = w.fetch.bind(w);
@@ -166,8 +179,16 @@ test.describe('carga inicial con datos simulados', () => {
       type: 'RNF-03',
       description: `respuesta → lista: ${Math.round(enPagina)} ms; reloj de pared: ${pared} ms`,
     });
+    if (enPagina >= RNF03_ESTRICTO_MS) {
+      test.info().annotations.push({
+        type: 'RNF-03 estricto',
+        description:
+          `${Math.round(enPagina)} ms (≥ ${RNF03_ESTRICTO_MS} ms). No falla aquí: si se repite ` +
+          'con la máquina descargada, medir con `npm run perf:pagina -- carga`.',
+      });
+    }
     expect(enPagina).toBeGreaterThan(0);
-    expect(enPagina).toBeLessThan(3_000);
+    expect(enPagina).toBeLessThan(CARGA_10000_MAX_MS);
     const pintadas = await page.locator('#lista-sismos > li').count();
     expect(pintadas).toBeGreaterThan(3);
     expect(pintadas).toBeLessThan(80);
