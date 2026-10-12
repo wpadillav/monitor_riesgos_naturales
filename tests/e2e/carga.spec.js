@@ -1,4 +1,4 @@
-import { AHORA, expect, filas, muchosSismos, simular, sismo, test } from './apoyo.js';
+import { AHORA, abrirFiltros, expect, filas, muchosSismos, simular, sismo, test } from './apoyo.js';
 
 test.describe('carga inicial con datos simulados', () => {
   test('pide los filtros por defecto y muestra lista, estado, mapa y pie', async ({ page }) => {
@@ -24,7 +24,14 @@ test.describe('carga inicial con datos simulados', () => {
     await expect(page.locator('.atribucion')).toContainText(
       'Datos: EMSC / seismicportal.eu (CC BY 4.0) y U.S. Geological Survey (USGS). Mapa: Esri.',
     );
-    await expect(page.locator('.leaflet-control-attribution')).toContainText('Teselas © Esri');
+    // C4: «Powered by Esri» (términos de Esri) y los proveedores del `copyrightText`.
+    const atribucionMapa = page.locator('.leaflet-control-attribution');
+    await expect(atribucionMapa).toContainText('Powered by Esri');
+    await expect(atribucionMapa).toContainText('colaboradores de OpenStreetMap');
+    await expect(atribucionMapa.getByRole('link', { name: /^Esri/ })).toHaveAttribute(
+      'href',
+      'https://www.esri.com',
+    );
     await expect(page.locator('.leaflet-control-zoom-in')).toHaveAttribute('aria-label', 'Acercar');
     await expect(page.locator('.leaflet-control-zoom-out')).toHaveAttribute('aria-label', 'Alejar');
     await expect(page.locator('#mapa')).toHaveAttribute(
@@ -41,6 +48,7 @@ test.describe('carga inicial con datos simulados', () => {
     await expect(lista).toContainText('hace 2 h 30 min · 12:00 (hora peninsular)');
     await expect(lista).toContainText('Lugar sin nombre');
     await expect(lista).toContainText('Colombia · profundidad desconocida');
+    await abrirFiltros(page);
     await page.locator('#periodo').selectOption('7d');
     await expect(lista).toContainText('hace 1 día · 14/07 05:00 (hora de Panamá)');
   });
@@ -187,6 +195,29 @@ test.describe('carga inicial con datos simulados', () => {
     });
     await page.goto('/');
     await expect(filas(page)).toHaveCount(2);
-    await expect(page.locator('path.marcador-halo')).toHaveCount(1);
+    // Los halos van en canvas (P-06): el mapa publica el recuento en `data-halos`. El reciente
+    // pulsa una vez (un anillo HTML animado).
+    await expect(page.locator('#mapa')).toHaveAttribute('data-halos', '1');
+    await expect(page.locator('#mapa .pulso')).toHaveCount(1);
+  });
+
+  test('P-06: como mucho 10 pulsos a la vez aunque haya cientos de sismos recientes', async ({
+    page,
+  }) => {
+    const recientes = Array.from({ length: 300 }, (_, i) =>
+      sismo({
+        unid: `r${i}`,
+        tiempo: new Date(AHORA - (i + 1) * 10_000).toISOString(),
+        lat: 37 + (i % 20) / 10,
+        lon: -5 + (i % 30) / 10,
+        magnitud: 2.5,
+      }),
+    );
+    await simular(page, { sismos: recientes });
+    await page.goto('/');
+    await expect(page.locator('#h-sismos')).toHaveText('Sismos (300)');
+    await expect(page.locator('#mapa')).toHaveAttribute('data-halos', '300');
+    await expect(page.locator('#mapa')).toHaveAttribute('data-pulsos', /^([1-9]|10)$/);
+    expect(await page.locator('#mapa .pulso').count()).toBeLessThanOrEqual(10);
   });
 });

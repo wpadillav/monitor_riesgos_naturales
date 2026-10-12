@@ -220,7 +220,7 @@ a {
   height: 100vh;
   height: 100dvh;
   grid-template-columns: min(var(--ancho-panel), 40%) minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(8rem, 1fr) auto;
+  grid-template-rows: auto auto 1fr auto;
   /* El pie ocupa todo el ancho: en la columna de 360 px le quitaba a la lista unos 75 px. */
   grid-template-areas:
     'cab mapa'
@@ -608,7 +608,19 @@ legend,
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  min-height: 8rem;
+}
+
+/* DEF-02: el mensaje de lista vacía nunca desborda. Mientras se ve, `#lista-scroll` deja de ser
+   un contenedor desplazable y la lista crece hasta mostrarlo entero (`.app` se desplaza si hace
+   falta), en vez de recortarlo en una caja de 88 px sin nada enfocable. */
+.lis:has(.vacio:not([hidden])) {
+  min-height: auto;
+}
+
+.lista-scroll:has(> .vacio:not([hidden])) {
+  flex: none;
+  overflow: visible;
 }
 
 .lista-cab {
@@ -927,6 +939,11 @@ legend,
   font-size: inherit;
 }
 
+/* En escritorio la lista de proveedores del mapa ya está en el control del mapa (C5). */
+.pie-mapa {
+  display: none;
+}
+
 /* ---------- Mapa y Leaflet ---------- */
 .mapa {
   position: relative;
@@ -999,15 +1016,35 @@ legend,
   pointer-events: none;
 }
 
-.panel-halos path {
+.panel-halos .pulso-icono {
   pointer-events: none;
 }
 
-.marcador-pulso {
-  transform-box: fill-box;
-  transform-origin: center;
+/* Pulso de un sismo nuevo (tokens.md §3): anillo HTML que anima `transform` y `opacity`, así lo
+   mueve el compositor sin repintar el mapa (P-06). El tamaño lo pone mapa.js por CSSOM. */
+.pulso {
+  display: block;
+  box-sizing: border-box;
+  border: 2px solid var(--mag-1);
+  border-radius: 50%;
   opacity: 0;
   animation: pulso 1.6s ease-out 3;
+}
+
+.pulso-b2 {
+  border-color: var(--mag-2);
+}
+
+.pulso-b3 {
+  border-color: var(--mag-3);
+}
+
+.pulso-b4 {
+  border-color: var(--mag-4);
+}
+
+.pulso-b5 {
+  border-color: var(--mag-5);
 }
 
 @keyframes pulso {
@@ -1219,39 +1256,10 @@ legend,
   min-height: 24px;
 }
 
-/* ---------- Móvil (< 700 px) ---------- */
-@media (max-width: 699.98px) {
-  .app {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto max(240px, 40dvh) minmax(18rem, 1fr) auto;
-    grid-template-areas:
-      'cab'
-      'fil'
-      'mapa'
-      'lis'
-      'pie';
-    overflow-y: auto;
-    scroll-padding-bottom: 8rem;
-  }
-
-  .cab,
-  .fil,
-  .lis,
-  .pie {
-    border-right: 0;
-  }
-
-  .tema-opcion,
-  .casilla,
-  .btn,
-  .btn-texto {
-    min-height: 44px;
-  }
-
-  .sel {
-    font-size: var(--texto-md);
-  }
-
+/* ---------- Panel plegable: móvil o ventana baja (C7, T5.5) ---------- */
+/* Por debajo de 900 px de alto el panel «Filtros y avisos» entero dejaba 2 o 3 filas a la lista
+   (DEF-03). Plegado ocupa unos 52 px. Abierto, la lista baja a su mínimo y `.app` se desplaza. */
+@media (max-width: 699.98px), (max-height: 900px) {
   .btn-filtros {
     display: flex;
     align-items: center;
@@ -1305,6 +1313,48 @@ legend,
   .solo-movil {
     display: inline-flex;
   }
+}
+
+/* ---------- Móvil (< 700 px) ---------- */
+@media (max-width: 699.98px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto max(240px, 40dvh) 1fr auto;
+    grid-template-areas:
+      'cab'
+      'fil'
+      'mapa'
+      'lis'
+      'pie';
+    overflow-y: auto;
+    scroll-padding-bottom: 8rem;
+  }
+
+  .cab,
+  .fil,
+  .lis,
+  .pie {
+    border-right: 0;
+  }
+
+  .lis {
+    min-height: 18rem;
+  }
+
+  .lis:has(.vacio:not([hidden])) {
+    min-height: auto;
+  }
+
+  .tema-opcion,
+  .casilla,
+  .btn,
+  .btn-texto {
+    min-height: 44px;
+  }
+
+  .sel {
+    font-size: var(--texto-md);
+  }
 
   .item {
     min-height: 64px;
@@ -1335,6 +1385,16 @@ legend,
     display: block;
   }
 
+  /* C5: el control del mapa muestra una línea («Leaflet | Powered by Esri») y los proveedores
+     pasan al despliegue «Fuentes y canales oficiales» del pie (términos de Esri). */
+  .leaflet-control-attribution .atrib-fuentes {
+    display: none;
+  }
+
+  .pie .pie-mapa {
+    display: block;
+  }
+
   .leaflet-bar a,
   .leaflet-touch .leaflet-bar a {
     width: 44px;
@@ -1357,7 +1417,7 @@ legend,
 
 /* ---------- Movimiento reducido ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .marcador-pulso,
+  .pulso,
   .progreso::before,
   .skeleton .skel i {
     animation: none;

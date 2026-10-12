@@ -3,10 +3,10 @@
  * `role="status"`; el contador y la hora van fuera para no anunciarse cada vez. El icono tiene
  * una forma por estado y no parpadea.
  *
- * Estados de T4.5: `cargando`, `cargado` (neutro, sin tiempo real), `actualizando`,
- * `sin-paises`, `sin-conexion` y `error-servidor`. T4.6b usa además `en-vivo` y
- * `reconectando`; T5.0 añade `sin-plazas` (el stream da 503 por falta de plazas, pero el
- * servidor responde y los datos cargados siguen visibles).
+ * Estados: `cargando`, `cargado` («Datos cargados»: navegador sin `EventSource`),
+ * `actualizando`, `sin-paises`, `sin-conexion`, `error-servidor`, `en-vivo`, `reconectando` y
+ * `sin-plazas` (el stream da 503 por falta de plazas, pero el servidor responde y los datos
+ * cargados siguen visibles). Textos validados en textos.md §3.
  */
 
 import { cambiarIcono } from './dom.js';
@@ -35,14 +35,15 @@ const ESTADOS = {
   },
   'error-servidor': {
     texto: 'El servidor local ha devuelto un error. Reintentando…',
-    icono: 'sin-conexion',
+    // El servidor responde, pero con un error: triángulo, no «sin conexión» (C2, T5.5).
+    icono: 'triangulo',
     clase: 'e-error',
   },
   'en-vivo': { texto: 'En vivo', icono: 'ok', clase: 'e-ok' },
   reconectando: { texto: 'Reconectando…', icono: 'reconectando', clase: 'e-aviso' },
-  // Texto nuevo (T5.0), pendiente de validar en textos.md §3.
   'sin-plazas': {
-    texto: 'Tiempo real no disponible: hay demasiadas pestañas abiertas. Reintentando…',
+    texto:
+      'Sin actualizaciones en vivo: hay demasiadas pestañas abiertas. Cierra alguna. Reintentando…',
     icono: 'reconectando',
     clase: 'e-aviso',
   },

@@ -7,7 +7,15 @@
 // ahora. Si hiciera falta, se añaden con su justificación junto al selector.
 
 import AxeBuilder from '@axe-core/playwright';
-import { espiarNotificaciones, expect, filas, simular, test } from './apoyo.js';
+import {
+  ESCRITORIO_ALTO,
+  abrirFiltros,
+  espiarNotificaciones,
+  expect,
+  filas,
+  simular,
+  test,
+} from './apoyo.js';
 
 const ETIQUETAS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'];
 
@@ -26,6 +34,10 @@ async function analizar(page) {
 }
 
 test.describe('axe: WCAG 2.2 AA en los estados principales (RNF-11)', () => {
+  // Escritorio con el panel de filtros siempre abierto; la ventana baja (1280 × 720, panel
+  // plegable) tiene su propio bloque más abajo.
+  test.use({ viewport: ESCRITORIO_ALTO });
+
   test('carga con datos (tema del sistema: claro)', async ({ page }) => {
     await simular(page);
     await page.goto('/');
@@ -63,12 +75,8 @@ test.describe('axe: WCAG 2.2 AA en los estados principales (RNF-11)', () => {
   });
 
   test('estado vacío: ningún país marcado', async ({ page }) => {
-    test.fixme(
-      true,
-      'DEF-02 (T5.1): axe «scrollable-region-focusable» (serious) en #lista-scroll: el mensaje ' +
-        'de estado vacío desborda el contenedor (88 px de alto a 1280 × 720) y no hay nada ' +
-        'enfocable dentro en escritorio.',
-    );
+    // DEF-02: el mensaje de estado vacío desbordaba `#lista-scroll` y axe marcaba
+    // «scrollable-region-focusable». Ahora la lista crece hasta mostrar el mensaje entero.
     await simular(page);
     await page.goto('/');
     await expect(filas(page)).toHaveCount(5);
@@ -107,6 +115,41 @@ test.describe('axe: WCAG 2.2 AA en los estados principales (RNF-11)', () => {
     await page.getByRole('button', { name: 'Activar avisos' }).click();
     await expect(page.locator('.avisos')).toContainText('Avisos activados');
     expect(await analizar(page)).toEqual([]);
+  });
+
+  test.describe('escritorio de poca altura (1280 × 720, C7)', () => {
+    test.use({ viewport: { width: 1280, height: 720 } });
+
+    test('panel plegado', async ({ page }) => {
+      await simular(page);
+      await page.goto('/');
+      await expect(filas(page)).toHaveCount(5);
+      await expect(page.locator('#btn-filtros')).toHaveAttribute('aria-expanded', 'false');
+      expect(await analizar(page)).toEqual([]);
+    });
+
+    test('panel desplegado en tema oscuro', async ({ page }) => {
+      await simular(page);
+      await page.goto('/');
+      await page.getByRole('radio', { name: 'Oscuro' }).check();
+      await expect(page.locator('html')).toHaveAttribute('data-tema', 'oscuro');
+      await expect(filas(page)).toHaveCount(5);
+      await abrirFiltros(page);
+      await expect(page.locator('#magnitud')).toBeVisible();
+      expect(await analizar(page)).toEqual([]);
+    });
+
+    test('estado vacío: ningún país marcado (DEF-02)', async ({ page }) => {
+      await simular(page);
+      await page.goto('/');
+      await expect(filas(page)).toHaveCount(5);
+      await abrirFiltros(page);
+      for (const pais of ['España', 'Colombia', 'Panamá']) {
+        await page.getByRole('checkbox', { name: pais }).uncheck();
+      }
+      await expect(page.locator('#lista-vacio')).toContainText('Selecciona al menos un país');
+      expect(await analizar(page)).toEqual([]);
+    });
   });
 
   test.describe('móvil (360 × 740)', () => {

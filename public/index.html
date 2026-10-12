@@ -211,7 +211,8 @@
             Usa las flechas arriba y abajo para recorrer la lista. Pulsa Intro para ver el sismo en
             el mapa.
           </p>
-          <div class="lista-scroll" id="lista-scroll">
+          <!-- tabindex="-1": Firefox no lo convierte en un punto de tabulación más (DEF-01). -->
+          <div class="lista-scroll" id="lista-scroll" tabindex="-1">
             <div class="skeleton" id="skeleton" aria-hidden="true">
               <div class="skel">
                 <i class="si"></i><span class="sl"><i></i><i></i><i></i></span>
@@ -277,27 +278,41 @@
           <p>
             Canales oficiales:
             <a href="https://www.ign.es" target="_blank" rel="noopener noreferrer"
-              >IGN y 112 (España)<span class="vh"> (se abre en otra pestaña)</span></a
+              >IGN<span class="vh">
+                (Instituto Geográfico Nacional; se abre en otra pestaña)</span
+              ></a
             >
-            ·
+            y 112 (España) ·
             <a href="https://www.sgc.gov.co" target="_blank" rel="noopener noreferrer"
-              >SGC<span class="vh"> (se abre en otra pestaña)</span></a
+              >SGC<span class="vh">
+                (Servicio Geológico Colombiano; se abre en otra pestaña)</span
+              ></a
             >
             y
             <a
               href="https://portal.gestiondelriesgo.gov.co"
               target="_blank"
               rel="noopener noreferrer"
-              >UNGRD (Colombia)<span class="vh"> (se abre en otra pestaña)</span></a
+              >UNGRD<span class="vh">
+                (Unidad Nacional para la Gestión del Riesgo de Desastres; se abre en otra
+                pestaña)</span
+              ></a
             >
-            ·
+            (Colombia) ·
             <a href="https://www.sinaproc.gob.pa" target="_blank" rel="noopener noreferrer"
-              >SINAPROC (Panamá)<span class="vh"> (se abre en otra pestaña)</span></a
+              >SINAPROC<span class="vh">
+                (Sistema Nacional de Protección Civil; se abre en otra pestaña)</span
+              ></a
             >
+            (Panamá)
           </p>
           <p id="nota-colombia">
-            En Colombia, EMSC y USGS registran pocos sismos de magnitud inferior a 4.0: la lista
-            puede mostrar menos sismos que el Servicio Geológico Colombiano.
+            En Colombia, EMSC y USGS registran pocos sismos de magnitud menor que 4.0: la lista
+            puede tener menos sismos que la del Servicio Geológico Colombiano (SGC).
+          </p>
+          <p class="pie-mapa">
+            Mapa: <span lang="en">Powered by</span> Esri. Fuentes del mapa: Esri, HERE, Garmin, ©
+            colaboradores de OpenStreetMap y la comunidad de usuarios de SIG.
           </p>
           <p>Las horas de actualización son las de tu equipo.</p>
         </div>

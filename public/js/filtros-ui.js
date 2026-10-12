@@ -1,8 +1,8 @@
 /**
  * Panel de filtros (HU-03 a HU-06; wireframes §1.1). Los cambios se aplican al momento: tras
  * 400 ms sin más cambios se avisa a `alCambiar`, que cancela la consulta anterior. Sin países
- * marcados se avisa enseguida (no hay nada que consultar). En móvil, el panel se pliega tras
- * «Filtros y avisos».
+ * marcados se avisa enseguida (no hay nada que consultar). En móvil y en ventanas de 900 px de
+ * alto o menos (C7, T5.5), el panel se pliega tras «Filtros y avisos»; lo decide el CSS.
  */
 
 import { crear } from './dom.js';
@@ -28,7 +28,7 @@ export const ESPERA_MS = 400;
  * @param {(filtros: Filtros, info: { paisesCambiados: boolean, inmediato: boolean }) => void}
  *   opciones.alCambiar
  * @param {(texto: string) => void} opciones.anunciar
- * @param {() => void} opciones.alVer pulsado «Ver n sismos» en móvil
+ * @param {() => void} opciones.alVer pulsado «Ver n sismos» (panel plegable)
  */
 export function crearFiltrosUI({ inicial, alCambiar, anunciar, alVer }) {
   const seccion = /** @type {HTMLElement} */ (document.querySelector('.fil'));
@@ -56,6 +56,7 @@ export function crearFiltrosUI({ inicial, alCambiar, anunciar, alVer }) {
   let actuales = inicial;
   let paisesEnviados = inicial.paises.join(',');
   let temporizador = 0;
+  let avisosActivos = false;
 
   /** @param {Filtros} f */
   function pintar(f) {
@@ -74,7 +75,7 @@ export function crearFiltrosUI({ inicial, alCambiar, anunciar, alVer }) {
       ninguno ? 'ayuda-paises error-paises' : 'ayuda-paises',
     );
     filaRestablecer.hidden = !difiereDeDefecto(f);
-    resumen.textContent = resumenFiltros(f);
+    resumen.textContent = resumenFiltros(f, { avisos: avisosActivos });
   }
 
   /** @returns {Filtros} */
@@ -147,7 +148,17 @@ export function crearFiltrosUI({ inicial, alCambiar, anunciar, alVer }) {
     },
 
     /**
-     * Texto del botón final del panel en móvil: «Ver 12 sismos», «Ver 1 sismo» o «Cerrar
+     * Resumen con «· Avisos activados» (C8): con el panel plegado no se ve el bloque «Avisos».
+     * @param {boolean} activos
+     */
+    ponerAvisos(activos) {
+      if (activos === avisosActivos) return;
+      avisosActivos = activos;
+      actualizarAyudas(actuales);
+    },
+
+    /**
+     * Texto del botón final del panel plegable: «Ver 12 sismos», «Ver 1 sismo» o «Cerrar
      * filtros» si no hay resultados ni países.
      * @param {number | null} n
      */
@@ -157,7 +168,7 @@ export function crearFiltrosUI({ inicial, alCambiar, anunciar, alVer }) {
       else ver.textContent = `Ver ${new Intl.NumberFormat('es').format(n)} sismos`;
     },
 
-    /** Despliega el panel (móvil) y lleva el foco a «España» («Abrir filtros»). */
+    /** Despliega el panel plegable y lleva el foco a «España» («Abrir filtros»). */
     abrirYEnfocar() {
       desplegar(true);
       casillas[0]?.focus();

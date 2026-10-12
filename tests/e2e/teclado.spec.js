@@ -1,6 +1,10 @@
-import { espiarNotificaciones, expect, filas, simular, test } from './apoyo.js';
+import { ESCRITORIO_ALTO, espiarNotificaciones, expect, filas, simular, test } from './apoyo.js';
 
 test.describe('navegación con teclado (wireframes §9)', () => {
+  // Panel de filtros siempre abierto (más de 900 px de alto): el orden de tabulación es el del
+  // diseño de escritorio, sin el botón «Filtros y avisos» ni «Ver n sismos».
+  test.use({ viewport: ESCRITORIO_ALTO });
+
   test('el primer Tab es «Ir a la lista de sismos» y lleva el foco a la lista', async ({
     page,
   }) => {
@@ -15,15 +19,9 @@ test.describe('navegación con teclado (wireframes §9)', () => {
     await expect(filas(page).first()).toBeFocused();
   });
 
-  test('la lista es un único punto de tabulación con flechas, Inicio y Fin', async ({
-    page,
-    browserName,
-  }) => {
-    test.fixme(
-      browserName === 'firefox',
-      'DEF-01 (T5.1): en Firefox el contenedor desplazable #lista-scroll es un punto de ' +
-        'tabulación más, sin nombre, entre «Activar avisos» y la lista (wireframes §9.1).',
-    );
+  test('la lista es un único punto de tabulación con flechas, Inicio y Fin', async ({ page }) => {
+    // DEF-01: en Firefox, `#lista-scroll` (desplazable) era un punto de tabulación más, sin
+    // nombre, entre «Activar avisos» y la lista. Ahora lleva `tabindex="-1"`.
     // Permiso «sin decidir», como en un navegador recién instalado (Chromium sin interfaz lo
     // deniega por defecto).
     await espiarNotificaciones(page, { permiso: 'default' });

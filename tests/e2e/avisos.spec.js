@@ -2,6 +2,7 @@
 
 import {
   AHORA,
+  ESCRITORIO_ALTO,
   avisos,
   espiarNotificaciones,
   expect,
@@ -12,6 +13,9 @@ import {
 } from './apoyo.js';
 
 const MIN = 60_000;
+
+// El bloque «Avisos» está en el panel de filtros: escritorio alto, con el panel siempre abierto.
+test.use({ viewport: ESCRITORIO_ALTO });
 
 // Se ejecuta en el proyecto `chromium-avisos` (modo sin interfaz nuevo; ver playwright.config.js).
 

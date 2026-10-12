@@ -1,9 +1,20 @@
-import { contarConsultas, expect, filas, pararReloj, simular, test } from './apoyo.js';
+import {
+  ESCRITORIO_ALTO,
+  contarConsultas,
+  expect,
+  filas,
+  pararReloj,
+  simular,
+  test,
+} from './apoyo.js';
 
 /** Espera de los filtros antes de consultar (`ESPERA_MS` de public/js/filtros-ui.js). */
 const ESPERA_MS = 400;
 
 test.describe('filtros aplicados al momento (HU-03 a HU-06)', () => {
+  // Escritorio alto: el panel de filtros está siempre abierto (C7).
+  test.use({ viewport: ESCRITORIO_ALTO });
+
   test('valores por defecto: tres países, 2.0 o más y últimas 24 h', async ({ page }) => {
     await simular(page);
     await page.goto('/');

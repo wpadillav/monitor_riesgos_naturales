@@ -20,6 +20,11 @@ test.describe('móvil (360 × 740, por debajo de 700 px)', () => {
 
     await expect(page.locator('.aviso-ppal')).toBeInViewport();
     await expect(page.locator('.atribucion')).toBeInViewport();
+    // C5: en el mapa, una sola línea con «Powered by Esri»; los proveedores van en el pie.
+    const atribucionMapa = page.locator('.leaflet-control-attribution');
+    await expect(atribucionMapa).toContainText('Powered by Esri');
+    await expect(atribucionMapa.locator('.atrib-fuentes')).toBeHidden();
+    expect((await atribucionMapa.boundingBox())?.height ?? 99).toBeLessThanOrEqual(24);
     await expect(page.getByRole('button', { name: 'Leyenda' })).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -67,6 +72,10 @@ test.describe('móvil (360 × 740, por debajo de 700 px)', () => {
     await fuentes.click();
     await expect(fuentes).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('#nota-colombia')).toBeVisible();
+    await expect(page.locator('.pie-mapa')).toBeVisible();
+    await expect(page.locator('.pie-mapa')).toContainText(
+      'Mapa: Powered by Esri. Fuentes del mapa: Esri, HERE, Garmin, © colaboradores de OpenStreetMap',
+    );
     await expect(page.getByRole('link', { name: /SINAPROC/ })).toHaveAttribute(
       'rel',
       'noopener noreferrer',

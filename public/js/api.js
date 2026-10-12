@@ -1,6 +1,6 @@
 /**
- * Cliente de la API local (mismo origen; `connect-src 'self'`). T4.6b añadirá aquí, o en
- * `stream.js`, la suscripción a `/api/stream`.
+ * Cliente de la API local (mismo origen; `connect-src 'self'`): `GET /api/sismos` y
+ * `GET /api/salud`. La suscripción a `/api/stream` está en `stream.js`.
  */
 
 import { construirQuery } from './filtros.js';

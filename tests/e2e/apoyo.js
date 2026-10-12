@@ -18,6 +18,13 @@ const PNG = Buffer.from(
   'base64',
 );
 
+/**
+ * Escritorio alto: por encima de 900 px de alto el panel «Filtros y avisos» está siempre abierto
+ * (C7 de la revisión T5.5). Los proyectos de escritorio de Playwright usan 1280 × 720, donde el
+ * panel se pliega; las pruebas que manejan los filtros sin pasar por el botón usan este tamaño.
+ */
+export const ESCRITORIO_ALTO = Object.freeze({ width: 1280, height: 1000 });
+
 /** Aviso conocido de Chrome con `Permissions-Policy` (cabecera fijada por T4.1). */
 const AVISO_BLUETOOTH = /Permissions-Policy.*bluetooth/;
 
@@ -345,6 +352,19 @@ export { expect };
  */
 export function filas(page) {
   return page.locator('#lista-sismos button.item');
+}
+
+/**
+ * Despliega el panel «Filtros y avisos» si está plegado (móvil o ventana de 900 px de alto o
+ * menos, C7). En escritorio alto el botón no se muestra y no hace nada.
+ * @param {import('@playwright/test').Page} page
+ */
+export async function abrirFiltros(page) {
+  const boton = page.locator('#btn-filtros');
+  if ((await boton.isVisible()) && (await boton.getAttribute('aria-expanded')) !== 'true') {
+    await boton.click();
+    await expect(boton).toHaveAttribute('aria-expanded', 'true');
+  }
 }
 
 /**

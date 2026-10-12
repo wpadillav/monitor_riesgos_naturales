@@ -172,23 +172,29 @@ export function textoPaises(paises) {
 }
 
 /**
- * Resumen del botón «Filtros y avisos» en móvil: «3 países · 2.0 o más · Últimas 24 h».
- * Sin países: «Ningún país».
+ * Resumen del botón «Filtros y avisos» (panel plegable en móvil y en ventanas de 900 px de alto
+ * o menos): «3 países · 2.0 o más · Últimas 24 h». Sin países: «Ningún país». Con los avisos
+ * activados se añade «· Avisos activados» (C8, textos.md §4).
  * @param {Filtros} filtros
+ * @param {{ avisos?: boolean }} [opciones]
  * @returns {string}
  */
-export function resumenFiltros(filtros) {
-  if (filtros.paises.length === 0) return 'Ningún país';
-  return [
-    textoPaises(filtros.paises),
-    textoMagnitud(filtros.magMin),
-    textosPeriodo(filtros.periodo).texto,
-  ].join(' · ');
+export function resumenFiltros(filtros, { avisos = false } = {}) {
+  const partes =
+    filtros.paises.length === 0
+      ? ['Ningún país']
+      : [
+          textoPaises(filtros.paises),
+          textoMagnitud(filtros.magMin),
+          textosPeriodo(filtros.periodo).texto,
+        ];
+  if (avisos) partes.push('Avisos activados');
+  return partes.join(' · ');
 }
 
 /**
- * ¿Cumple un sismo los filtros de la lista? Lo usará el stream (T4.6b) para decidir si pinta un
- * sismo que llega en vivo; la magnitud se compara redondeada (D1).
+ * ¿Cumple un sismo los filtros de la lista? Lo usa el stream (`stream.js`) para decidir si pinta
+ * un sismo que llega en vivo; la magnitud se compara redondeada (D1).
  * @param {{ pais: string, magnitud: number, tiempo: string }} sismo
  * @param {Filtros} filtros
  * @param {number} ahora ms

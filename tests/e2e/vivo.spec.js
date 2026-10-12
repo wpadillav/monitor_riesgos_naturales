@@ -1,7 +1,7 @@
 // Datos en vivo por SSE (T4.6b; PRD HU-01 y HU-02; wireframes §6). El stream lo sirve el
 // servidor SSE simulado de cada prueba (`sse`, en apoyo.js).
 
-import { AHORA, expect, filas, simular, sismo, test } from './apoyo.js';
+import { AHORA, abrirFiltros, expect, filas, simular, sismo, test } from './apoyo.js';
 
 const MIN = 60_000;
 
@@ -217,7 +217,7 @@ test.describe('datos en vivo (HU-01, HU-02)', () => {
       await page.goto('/');
       await expect(filas(page)).toHaveCount(5);
       await expect(page.locator('#estado-texto')).toHaveText(
-        'Tiempo real no disponible: hay demasiadas pestañas abiertas. Reintentando…',
+        'Sin actualizaciones en vivo: hay demasiadas pestañas abiertas. Cierra alguna. Reintentando…',
       );
       await expect(page.locator('#estado-ind')).toHaveClass(/e-aviso/);
       await expect(page.locator('#estado-complemento')).toHaveText(/^· 5 sismos/);
@@ -231,7 +231,7 @@ test.describe('datos en vivo (HU-01, HU-02)', () => {
       await expect.poll(() => sse.conexiones.length).toBeGreaterThan(intentos);
       await expect.poll(() => sse.comprobaciones.length).toBeGreaterThan(comprobaciones);
       await expect(page.locator('#estado-texto')).toHaveText(
-        'Tiempo real no disponible: hay demasiadas pestañas abiertas. Reintentando…',
+        'Sin actualizaciones en vivo: hay demasiadas pestañas abiertas. Cierra alguna. Reintentando…',
       );
       await expect(page.locator('#estado-texto')).not.toHaveText(/Sin conexión/);
 
@@ -253,6 +253,7 @@ test.describe('datos en vivo (HU-01, HU-02)', () => {
     const { peticiones } = await simular(page);
     await page.goto('/');
     await expect(page.locator('#estado-texto')).toHaveText('En vivo');
+    await abrirFiltros(page);
     await page.getByRole('checkbox', { name: 'Panamá' }).uncheck();
     await expect.poll(() => peticiones.length).toBe(2);
     await expect.poll(() => sse.conexiones.length).toBe(2);
