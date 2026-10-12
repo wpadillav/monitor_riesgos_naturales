@@ -32,12 +32,12 @@ Pantallas de referencia: [wireframes.html](wireframes.html). Colores y tamaños:
 | `<title>` con avisos nuevos y la pestaña en segundo plano (opcional, *Could*) | `({n}) Monitor de Riesgos Naturales` — vuelve al original al ver la pestaña |
 | Enlace para saltar (primer elemento enfocable) | `Ir a la lista de sismos` |
 | `h1` | `Monitor de Riesgos Naturales` |
-| Botón de tema en modo oscuro — texto visible | `Modo día` |
-| Botón de tema en modo oscuro — `aria-label` | `Cambiar a modo día` |
-| Botón de tema en modo día — texto visible | `Modo oscuro` |
-| Botón de tema en modo día — `aria-label` | `Cambiar a modo oscuro` |
+| Selector de tema — `legend` (oculta visualmente) | `Tema` |
+| Opción 1 (por defecto) — texto visible / `title` | `Sistema` / `Seguir el tema del sistema` |
+| Opción 2 — texto visible | `Oscuro` |
+| Opción 3 — texto visible | `Día` |
 
-El texto visible está contenido en el nombre accesible (2.5.3). El botón no usa `aria-pressed`: su texto dice a qué modo cambia.
+El tema se elige con un grupo de tres botones de opción (`fieldset` con `input type="radio"`), aprobado por el Director en la Fase 3. El nombre accesible de cada opción es su texto visible (2.5.3), y el estado seleccionado lo anuncia el propio control de opción.
 
 ## 3. Indicador «en vivo» y línea de estado
 
