@@ -7,6 +7,7 @@ import { crearEstado } from '../../../public/js/estado.js';
 import { resumenFiltros } from '../../../public/js/filtros.js';
 import {
   MAX_PULSOS,
+  crearPulsos,
   elegirPulsos,
   ordenDibujo,
   posicionDibujo,
@@ -97,6 +98,59 @@ describe('agrupador de cambios por frame (P-01)', () => {
     expect(pintar).toHaveBeenCalledTimes(2);
     expect(pintar.mock.calls[1][0].ids).toEqual(new Set(['b']));
   });
+
+  it('si pintar lanza, reprograma y el siguiente lote es completo (N-01)', () => {
+    const reloj = programadorManual();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let fallar = true;
+    /** @type {{ completo: boolean, ids: ReadonlySet<string> }[]} */
+    const lotes = [];
+    const pintar = vi.fn((lote) => {
+      lotes.push({ completo: lote.completo, ids: new Set(lote.ids) });
+      if (fallar) {
+        fallar = false;
+        throw new Error('fallo de pintado');
+      }
+    });
+    const a = crearAgrupador({ pintar, programar: reloj.programar });
+    a.anotar({ tipo: 'nuevo', ids: ['a', 'b'] });
+
+    expect(() => reloj.frame()).not.toThrow();
+    expect(lotes[0]).toEqual({ completo: false, ids: new Set(['a', 'b']) });
+    expect(error).toHaveBeenCalledTimes(1);
+    // Los cambios no se pierden: sigue pendiente y hay otro frame programado.
+    expect(a.pendiente).toBe(true);
+    expect(reloj.pendientes).toBe(1);
+
+    // Un cambio suelto mientras tanto no rebaja el lote: sigue siendo completo.
+    a.anotar({ tipo: 'nuevo', ids: ['c'] });
+    expect(reloj.pendientes).toBe(1);
+    reloj.frame();
+    expect(pintar).toHaveBeenCalledTimes(2);
+    expect(lotes[1]).toEqual({ completo: true, ids: new Set() });
+    expect(a.pendiente).toBe(false);
+    expect(reloj.pendientes).toBe(0);
+    error.mockRestore();
+  });
+
+  it('un fallo en vaciar() no se propaga al que lo llama y se recupera en el frame (N-01)', () => {
+    const reloj = programadorManual();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const pintar = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('fallo de pintado');
+      })
+      .mockImplementation(() => {});
+    const a = crearAgrupador({ pintar, programar: reloj.programar });
+    a.anotar({ tipo: 'actualizado', ids: ['a'] });
+    expect(() => a.vaciar()).not.toThrow();
+    reloj.frame();
+    expect(pintar).toHaveBeenCalledTimes(2);
+    expect(pintar.mock.calls[1][0].completo).toBe(true);
+    expect(a.pendiente).toBe(false);
+    error.mockRestore();
+  });
 });
 
 describe('estado: orden incremental (P-01)', () => {
@@ -185,6 +239,84 @@ describe('mapa: orden de dibujo y pulsos (P-01, P-06)', () => {
     expect(elegirPulsos(c, 0)).toEqual([]);
     expect(elegirPulsos(c, -2)).toEqual([]);
     expect(elegirPulsos(c.slice(0, 2), 5)).toHaveLength(2);
+  });
+});
+
+describe('mapa: registro de pulsos por id (N-04)', () => {
+  function montar() {
+    const reloj = programadorManual();
+    /** @type {Set<string>} capas en el mapa */
+    const enMapa = new Set();
+    const cancelados = [];
+    const alTerminar = vi.fn();
+    const pulsos = crearPulsos({
+      crear: (/** @type {string} */ nombre) => {
+        enMapa.add(nombre);
+        return nombre;
+      },
+      retirar: (capa) => enMapa.delete(capa),
+      duracionMs: 5000,
+      alTerminar,
+      programar: reloj.programar,
+      cancelar: (t) => cancelados.push(t),
+    });
+    return { reloj, enMapa, cancelados, alTerminar, pulsos };
+  }
+
+  it('quitar el sismo retira su pulso en el acto y libera el hueco del límite', () => {
+    const { reloj, enMapa, cancelados, alTerminar, pulsos } = montar();
+    pulsos.lanzar('a', 'capa-a');
+    pulsos.lanzar('b', 'capa-b');
+    expect(pulsos.activos).toBe(2);
+
+    expect(pulsos.quitar('a')).toBe(true);
+    expect(pulsos.activos).toBe(1);
+    expect(enMapa).toEqual(new Set(['capa-b']));
+    expect(cancelados).toHaveLength(1);
+    expect(pulsos.quitar('a')).toBe(false);
+
+    // El temporizador del pulso ya retirado no descuenta otra vez.
+    reloj.frame();
+    expect(pulsos.activos).toBe(0);
+    expect(enMapa.size).toBe(0);
+    expect(alTerminar).toHaveBeenCalledTimes(1);
+  });
+
+  it('retenerSolo (sincronización) retira los pulsos de los sismos que ya no están', () => {
+    const { enMapa, pulsos } = montar();
+    for (const id of ['a', 'b', 'c']) pulsos.lanzar(id, `capa-${id}`);
+    pulsos.retenerSolo(new Set(['b', 'x']));
+    expect(pulsos.activos).toBe(1);
+    expect(pulsos.capa('b')).toBe('capa-b');
+    expect(pulsos.capa('a')).toBeUndefined();
+    expect(enMapa).toEqual(new Set(['capa-b']));
+  });
+
+  it('relanzar el mismo id sustituye el pulso sin contarlo dos veces', () => {
+    const { reloj, enMapa, pulsos } = montar();
+    pulsos.lanzar('a', 'capa-1');
+    pulsos.lanzar('a', 'capa-2');
+    expect(pulsos.activos).toBe(1);
+    expect(enMapa).toEqual(new Set(['capa-2']));
+    reloj.frame();
+    expect(pulsos.activos).toBe(0);
+    expect(enMapa.size).toBe(0);
+  });
+
+  it('por defecto usa setTimeout y clearTimeout', () => {
+    vi.useFakeTimers();
+    try {
+      const retirar = vi.fn();
+      const pulsos = crearPulsos({ crear: () => 'capa', retirar, duracionMs: 1000 });
+      pulsos.lanzar('a', null);
+      pulsos.lanzar('b', null);
+      pulsos.quitar('b');
+      vi.advanceTimersByTime(1000);
+      expect(retirar).toHaveBeenCalledTimes(2);
+      expect(pulsos.activos).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

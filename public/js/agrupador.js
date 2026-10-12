@@ -9,6 +9,9 @@
  * - Un `reemplazo` (carga) o demasiados ids sueltos convierten el lote en «completo».
  * - La memoria está acotada: como mucho `limite` ids; por encima, el lote pasa a completo.
  * - `vaciar()` pinta en el acto lo pendiente (antes de usar la lista o el mapa por un clic).
+ * - Si `pintar` lanza (N-01), los ids del lote ya se han soltado: el siguiente lote se marca como
+ *   completo para resincronizar todo, se reprograma otro frame y el error se registra. El error no
+ *   se propaga, para no romper al que llamó a `vaciar()` (un clic) ni el bucle de frames.
  */
 
 /** Por encima de estos ids sueltos en un frame se repinta entero (es más barato). */
@@ -35,6 +38,14 @@ export function crearAgrupador({
   let programado = false;
   let hayCambios = false;
 
+  function programarFrame() {
+    if (programado) return;
+    programado = true;
+    programar(() => {
+      if (programado) vaciar();
+    });
+  }
+
   function vaciar() {
     programado = false;
     if (!hayCambios) return;
@@ -42,7 +53,16 @@ export function crearAgrupador({
     completo = false;
     ids = new Set();
     hayCambios = false;
-    pintar(lote);
+    try {
+      pintar(lote);
+    } catch (err) {
+      // El mapa o la lista pueden haber quedado a medias: el próximo pintado es completo (N-01).
+      completo = true;
+      ids = new Set();
+      hayCambios = true;
+      programarFrame();
+      console.error('agrupador: falló el pintado; se repintará entero en el siguiente frame', err);
+    }
   }
 
   return Object.freeze({
@@ -59,12 +79,7 @@ export function crearAgrupador({
           for (const id of cambio.ids) ids.add(id);
         }
       }
-      if (!programado) {
-        programado = true;
-        programar(() => {
-          if (programado) vaciar();
-        });
-      }
+      programarFrame();
     },
 
     /** Pinta ya lo pendiente (si lo hay); el frame programado ya no hace nada. */

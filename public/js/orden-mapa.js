@@ -46,3 +46,85 @@ export function elegirPulsos(candidatos, libres) {
   if (libres <= 0) return [];
   return [...candidatos].sort((a, b) => b.instante - a.instante).slice(0, libres);
 }
+
+/**
+ * Registro de los pulsos vivos por id de sismo (N-04). Cada pulso dura `duracionMs` y después se
+ * retira solo; si el sismo se quita antes (baja, purga o deja de estar entre los filtrados), se
+ * retira en el acto y se cancela su temporizador. El recuento (`activos`) es siempre el número
+ * de pulsos en el mapa, así que el límite de P-06 no se queda ocupado por pulsos huérfanos.
+ *
+ * Sin Leaflet ni DOM: la capa la crean y la retiran las funciones inyectadas.
+ * @template D, C
+ * @param {object} opciones
+ * @param {(datos: D) => C} opciones.crear añade el pulso al mapa y devuelve su capa
+ * @param {(capa: C) => void} opciones.retirar
+ * @param {number} opciones.duracionMs
+ * @param {() => void} [opciones.alTerminar] tras retirar un pulso por fin de su animación
+ * @param {(fn: () => void, ms: number) => unknown} [opciones.programar]
+ * @param {(t: any) => void} [opciones.cancelar]
+ */
+export function crearPulsos({
+  crear,
+  retirar,
+  duracionMs,
+  alTerminar = () => {},
+  programar = (fn, ms) => setTimeout(fn, ms),
+  cancelar = (t) => clearTimeout(t),
+}) {
+  /** @type {Map<string, { capa: C, temporizador: unknown }>} */
+  const vivos = new Map();
+
+  /**
+   * @param {string} id
+   * @returns {boolean} había un pulso y se ha retirado
+   */
+  function quitar(id) {
+    const pulso = vivos.get(id);
+    if (!pulso) return false;
+    vivos.delete(id);
+    cancelar(pulso.temporizador);
+    retirar(pulso.capa);
+    return true;
+  }
+
+  return Object.freeze({
+    /**
+     * @param {string} id
+     * @param {D} datos
+     */
+    lanzar(id, datos) {
+      quitar(id);
+      const capa = crear(datos);
+      const temporizador = programar(() => {
+        if (vivos.get(id)?.capa !== capa) return;
+        vivos.delete(id);
+        retirar(capa);
+        alTerminar();
+      }, duracionMs);
+      vivos.set(id, { capa, temporizador });
+    },
+
+    quitar,
+
+    /**
+     * Retira los pulsos de los ids que ya no están (sincronización completa).
+     * @param {ReadonlySet<string>} vigentes
+     */
+    retenerSolo(vigentes) {
+      for (const id of [...vivos.keys()]) if (!vigentes.has(id)) quitar(id);
+    },
+
+    /**
+     * @param {string} id
+     * @returns {C | undefined} capa del pulso vivo del sismo
+     */
+    capa(id) {
+      return vivos.get(id)?.capa;
+    },
+
+    /** Pulsos en el mapa ahora mismo. */
+    get activos() {
+      return vivos.size;
+    },
+  });
+}

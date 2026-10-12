@@ -26,7 +26,13 @@ import {
   formatearMagnitud,
   radioMarcador,
 } from './magnitud.js';
-import { MAX_PULSOS, elegirPulsos, ordenDibujo, posicionDibujo } from './orden-mapa.js';
+import {
+  MAX_PULSOS,
+  crearPulsos,
+  elegirPulsos,
+  ordenDibujo,
+  posicionDibujo,
+} from './orden-mapa.js';
 import { esUrlFichaValida } from '/shared/enlaces.js';
 import { haceTexto, horaCompleta } from '/shared/hora.js';
 import { sanear } from '/shared/texto.js';
@@ -379,7 +385,6 @@ export function crearMapa({
    * @type {Map<string, number>}
    */
   const pulsados = new Map();
-  let pulsosActivos = 0;
   let numHalos = 0;
 
   /**
@@ -419,27 +424,35 @@ export function crearMapa({
     });
   }
 
-  /** @param {Entrada} entrada */
-  function pulsar(entrada) {
+  /**
+   * Pulsos vivos por id (N-04): se retiran solos al acabar la animación, o en el acto si el sismo
+   * se quita del mapa. Se declara antes de usarse en `contar`.
+   */
+  const pulsos = crearPulsos({
+    crear: (/** @type {Entrada} */ entrada) => crearPulso(entrada),
+    retirar: (/** @type {any} */ capa) => grupoHalos.removeLayer(capa),
+    duracionMs: DURACION_PULSO_MS,
+    alTerminar: () => contar(),
+  });
+
+  /**
+   * @param {Entrada} entrada
+   * @returns {any} capa del pulso, ya en el mapa
+   */
+  function crearPulso(entrada) {
     const { sismo } = entrada;
-    pulsosActivos += 1;
     // Anillo HTML que anima `transform` y `opacity` (CSS): lo mueve el compositor, sin repintar
     // una capa SVG del tamaño del mapa en cada frame (P-06). Tamaño por CSSOM, no por atributo.
     const diametro = 2 * radioMarcador(sismo.magnitud);
     const anillo = crear('span', { clase: `pulso pulso-b${bandaMagnitud(sismo.magnitud)}` });
     anillo.style.width = `${diametro}px`;
     anillo.style.height = `${diametro}px`;
-    const pulso = L.marker([sismo.lat, sismo.lon], {
+    return L.marker([sismo.lat, sismo.lon], {
       pane: 'halos',
       icon: L.divIcon({ className: 'pulso-icono', html: anillo, iconSize: [diametro, diametro] }),
       interactive: false,
       keyboard: false,
     }).addTo(grupoHalos);
-    setTimeout(() => {
-      grupoHalos.removeLayer(pulso);
-      pulsosActivos -= 1;
-      contar();
-    }, DURACION_PULSO_MS);
   }
 
   /**
@@ -474,13 +487,15 @@ export function crearMapa({
     if (movimientoReducido()) return;
     const vista = mapa.getBounds().pad(0.1);
     const visibles = candidatos.filter((e) => vista.contains([e.sismo.lat, e.sismo.lon]));
-    for (const e of elegirPulsos(visibles, MAX_PULSOS - pulsosActivos)) pulsar(e);
+    for (const e of elegirPulsos(visibles, MAX_PULSOS - pulsos.activos)) {
+      pulsos.lanzar(e.sismo.id, e);
+    }
   }
 
   /** Recuento para las pruebas E2E (el canvas no deja contar los halos en el DOM). */
   function contar() {
     contenedor.dataset.halos = String(numHalos);
-    contenedor.dataset.pulsos = String(pulsosActivos);
+    contenedor.dataset.pulsos = String(pulsos.activos);
   }
 
   /** @param {Marca} marca */
@@ -490,8 +505,20 @@ export function crearMapa({
     else orden = orden.filter((m) => m !== marca);
   }
 
-  /** @param {string} id */
+  /**
+   * Quita el sismo del mapa: marcador, halo y pulso (N-04).
+   * @param {string} id
+   */
   function quitar(id) {
+    pulsos.quitar(id);
+    quitarMarca(id);
+  }
+
+  /**
+   * Quita el marcador y el halo, pero no el pulso: para reemplazar una marca por su revisión.
+   * @param {string} id
+   */
+  function quitarMarca(id) {
     const marca = marcas.get(id);
     if (!marca) return;
     grupoMarcadores.removeLayer(marca.marcador);
@@ -501,6 +528,16 @@ export function crearMapa({
     }
     marcas.delete(id);
     sacarDeOrden(marca);
+  }
+
+  /**
+   * Quita la marca anterior de una revisión. El pulso sigue (ya ha pulsado y no se repite), pero
+   * se mueve a la posición revisada.
+   * @param {Entrada} entrada
+   */
+  function reemplazarMarca(entrada) {
+    quitarMarca(entrada.sismo.id);
+    pulsos.capa(entrada.sismo.id)?.setLatLng([entrada.sismo.lat, entrada.sismo.lon]);
   }
 
   /**
@@ -616,7 +653,9 @@ export function crearMapa({
         else if (ajustarHalo(e, marca, t)) candidatos.push(e);
       }
       for (const id of [...marcas.keys()]) if (!vigentes.has(id)) quitar(id);
-      for (const e of nuevas) quitar(e.sismo.id);
+      // N-04: ningún pulso sobrevive a su sismo, aunque ya no tuviera marca.
+      pulsos.retenerSolo(vigentes);
+      for (const e of nuevas) reemplazarMarca(e);
       candidatos.push(...colocar(nuevas, t));
       pulsarCandidatos(candidatos);
       if (ventana && !vigentes.has(ventana.id)) mapa.closePopup(ventana.popup);
@@ -639,7 +678,7 @@ export function crearMapa({
           quitar(id);
           if (ventana?.id === id) mapa.closePopup(ventana.popup);
         } else if (!marca || marca.version !== e.version) {
-          quitar(id);
+          reemplazarMarca(e);
           nuevas.push(e);
         }
       }
