@@ -368,8 +368,37 @@ export function createEmscWs({
     return null;
   }
 
+  /** @param {string} donde @param {unknown} err */
+  function registrarError(donde, err) {
+    log.error('error', {
+      fuente: CANAL_EMSC_WS,
+      mensaje: `${donde}: ${err instanceof Error ? err.message : String(err)}`,
+      pila: err instanceof Error ? err.stack : undefined,
+    });
+  }
+
+  /**
+   * Vacía la cola. Nunca lanza (R-04): corre en `setImmediate`, y una excepción del catálogo
+   * (ingesta o retiro) llegaría a `uncaughtException` y tiraría el proceso. Cada grupo de
+   * ingesta y cada retiro se protege por separado: un fallo se registra y el resto del lote
+   * sigue; el WebSocket no se toca. Lo que no entró lo recupera la consulta FDSN (`updatedafter`).
+   */
   function drenar() {
     drenaje = null;
+    try {
+      drenarLote();
+    } catch (err) {
+      registrarError('Drenaje del WebSocket', err);
+    } finally {
+      if (desbordado) {
+        log.warn('fuente.cola-desbordada', { fuente: CANAL_EMSC_WS, perdidos: perdidosEnRafaga });
+        desbordado = false;
+        perdidosEnRafaga = 0;
+      }
+    }
+  }
+
+  function drenarLote() {
     const lote = cola;
     cola = [];
     const ahora = reloj.ahora();
@@ -381,10 +410,16 @@ export function createEmscWs({
       if (pendientes.length === 0) return;
       const grupo = pendientes;
       pendientes = [];
-      const resultados = catalogo.ingerirLote(
-        grupo.map((p) => p.registro),
-        { recibidoEn: ahora },
-      );
+      let resultados;
+      try {
+        resultados = catalogo.ingerirLote(
+          grupo.map((p) => p.registro),
+          { recibidoEn: ahora },
+        );
+      } catch (err) {
+        registrarError('Ingesta del WebSocket', err);
+        return;
+      }
       resultados.forEach((r, i) => {
         const p = grupo[i];
         const campos = {
@@ -419,8 +454,12 @@ export function createEmscWs({
         contarDescarte(r.motivo);
       } else if (r.tipo === 'retiro') {
         ingerir(); // se respeta el orden de llegada
-        if (catalogo.retirar('emsc', r.idFuente)) {
-          log.info('sismo.retirado', { fuente: 'emsc', canal: 'ws', idFuente: r.idFuente });
+        try {
+          if (catalogo.retirar('emsc', r.idFuente)) {
+            log.info('sismo.retirado', { fuente: 'emsc', canal: 'ws', idFuente: r.idFuente });
+          }
+        } catch (err) {
+          registrarError('Retiro del WebSocket', err);
         }
       } else {
         const zona = zonaDe(r.registro);
@@ -433,15 +472,7 @@ export function createEmscWs({
         pendientes.push({ registro: r.registro, accion: r.accion, llegada: m.llegada, zona });
       }
     }
-    try {
-      ingerir();
-    } finally {
-      if (desbordado) {
-        log.warn('fuente.cola-desbordada', { fuente: CANAL_EMSC_WS, perdidos: perdidosEnRafaga });
-        desbordado = false;
-        perdidosEnRafaga = 0;
-      }
-    }
+    ingerir();
   }
 
   // ---------------------------------------------------------------------------------------

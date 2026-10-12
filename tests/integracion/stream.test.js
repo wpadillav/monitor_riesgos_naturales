@@ -35,7 +35,6 @@ function montar({ maxClientes } = {}) {
     log: silentLog,
     arrancadoEn: ARRANQUE,
     maxClientes,
-    paisesDe: (s) => asignarPais(s.lat, s.lon)?.paisesCandidatos ?? [s.pais],
   });
   limpiezas.push(() => difusor.cerrar());
   const app = createApp({

@@ -402,6 +402,51 @@ describe('fallos de una fuente (HU-02, AM-03)', () => {
     expect(planificador.resincronizar('emsc-fdsn')).toBe(0);
   });
 
+  it('resincronizar se limita a una por intervalo y canal (R-07, RNF-10)', async () => {
+    const { planificador, emsc, log } = montar();
+    await planificador.arrancar();
+    expect(planificador.resincronizar('emsc-fdsn')).toBe(ZONAS.length);
+    await vi.advanceTimersByTimeAsync(0);
+    const n = emsc.llamadas.length;
+
+    // Otra cola desbordada a los 10 s: no se adelanta nada (el intervalo de EMSC es 30 s).
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(planificador.resincronizar('emsc-fdsn')).toBe(0);
+    expect(log.debug).toHaveBeenCalledWith('fuente.resincronizacion-omitida', {
+      fuente: 'emsc-fdsn',
+      esperaMs: 20_000,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(emsc.llamadas).toHaveLength(n);
+
+    // Pasado el intervalo, vuelve a admitirse.
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(planificador.resincronizar('emsc-fdsn')).toBe(ZONAS.length);
+    expect(planificador.resincronizar('canal-desconocido')).toBe(0);
+    planificador.detener();
+  });
+
+  it('resincronizar no adelanta las zonas en espera de reintento (R-07, RNF-06)', async () => {
+    const emsc = adaptador('emsc-fdsn', 'emsc', (llamada) => {
+      if (llamada.zona === 'ES-PEN' && llamada.params.actualizadoDesde !== null) {
+        throw new Error('fallo de la zona');
+      }
+      return { registros: [] };
+    });
+    const { planificador } = montar({ emsc });
+    await planificador.arrancar();
+    // El primer ciclo de ES-PEN (a los 6 s) falla y queda esperando su reintento (5 s).
+    await vi.advanceTimersByTimeAsync(6_500);
+    const n = emsc.llamadas.length;
+
+    expect(planificador.resincronizar('emsc-fdsn')).toBe(ZONAS.length - 1);
+    await vi.advanceTimersByTimeAsync(0);
+    const adelantadas = emsc.llamadas.slice(n).map((l) => l.zona);
+    expect(adelantadas).not.toContain('ES-PEN');
+    expect(adelantadas).toHaveLength(ZONAS.length - 1);
+    planificador.detener();
+  });
+
   it('resincronizar antes de terminar la carga inicial no hace nada', () => {
     const { planificador } = montar();
     expect(planificador.resincronizar('emsc-fdsn')).toBe(0);

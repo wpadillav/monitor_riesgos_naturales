@@ -147,12 +147,17 @@ describe('cumpleFiltro (arquitectura §5.7)', () => {
     ],
   ])('%s', (_caso, datos, filtro, esperado) => {
     const s = sismo(datos);
-    expect(cumpleFiltro(s, [s.pais], filtro, ahora)).toBe(esperado);
+    expect(cumpleFiltro(s, filtro, ahora)).toBe(esperado);
   });
 
   it('un sismo de la franja CO-PA llega a quien marque cualquiera de los dos', () => {
-    const s = sismo({ pais: 'PA' });
-    expect(cumpleFiltro(s, ['PA', 'CO'], { ...FILTRO, paises: ['CO'] }, ahora)).toBe(true);
+    const s = { ...sismo({ pais: 'PA' }), paisesCandidatos: ['CO', 'PA'] };
+    expect(cumpleFiltro(s, { ...FILTRO, paises: ['CO'] }, ahora)).toBe(true);
+    expect(cumpleFiltro(s, { ...FILTRO, paises: ['ES'] }, ahora)).toBe(false);
+  });
+
+  it('lista con la magnitud cruda (R-02): un M 4.96 no entra con magMin 5.0', () => {
+    expect(cumpleFiltro(sismo({ magnitud: 4.96 }), { ...FILTRO, magMin: 5.0 }, ahora)).toBe(false);
   });
 });
 
@@ -372,13 +377,19 @@ describe('filtro por cliente (HU-01, arquitectura §5.7)', () => {
     expect(await es.leer()).toBe('');
   });
 
-  it('usa paisesDe para la franja CO-PA', async () => {
-    const { conectar, catalogo } = crear({ paisesDe: (s) => [s.pais, 'CO'] });
+  it('usa Sismo.paisesCandidatos para la franja CO-PA (R-01, R-11)', async () => {
+    const { conectar, catalogo } = crear();
     const co = conectar({ ...FILTRO, paises: ['CO'] });
     await co.leer();
-    catalogo.alta(sismo({ pais: 'PA' }));
+    const franja = { ...sismo({ pais: 'PA' }), paisesCandidatos: ['CO', 'PA'] };
+    catalogo.alta(franja);
     tras();
     expect(eventos(await co.leer())).toHaveLength(1);
+
+    // Una baja de la franja también llega a quien solo marca Colombia.
+    catalogo.baja(franja, 'retirado');
+    tras();
+    expect(eventos(await co.leer())[0].datos).toMatchObject({ tipo: 'sismo.eliminado' });
   });
 });
 
@@ -760,6 +771,124 @@ describe('mantenimiento, plazas y contrapresión (AM-13)', () => {
     expect(difusor.contarClientes()).toBe(0);
     expect(catalogo.oyentes()).toBe(0);
     expect(difusor.conectar({ filtro: FILTRO })).toBeNull();
+  });
+});
+
+describe('robustez (R-04) y tolerancia del reenvío (R-13)', () => {
+  it('un cambio que no se puede preparar se registra y el resto del lote sale', async () => {
+    const { conectar, catalogo, log } = crear();
+    const c = conectar({ ...FILTRO, magMin: null });
+    await c.leer();
+    const roto = sismo({ id: 'emsc:roto' });
+    const circular = { ...roto, fuentes: [] };
+    circular.fuentes.push(circular); // JSON.stringify lanza en calcularCambios
+    catalogo.actualizacion(circular, revisar(roto, { magnitud: 3.5 }));
+    const bueno = sismo({ id: 'emsc:bueno' });
+    catalogo.alta(bueno);
+
+    expect(() => tras()).not.toThrow();
+
+    expect(log.error).toHaveBeenCalledWith('error', {
+      mensaje: expect.stringMatching(/^Difusor, lote: /),
+    });
+    const lista = eventos(await c.leer());
+    expect(lista.map((m) => m.datos.datos.sismo.id)).toEqual(['emsc:bueno']);
+    // El cambio descartado no consume secuencia.
+    expect(lista[0].id).toBe(`${PREFIJO}-1`);
+  });
+
+  it('un cliente cuyo envío falla se desconecta sin afectar a los demás', async () => {
+    const { conectar, catalogo, difusor, log } = crear();
+    const roto = conectar(/** @type {any} */ ({ ...FILTRO, paises: null }));
+    const bien = conectar();
+    await roto.leer();
+    await bien.leer();
+    catalogo.alta(sismo());
+
+    expect(() => tras()).not.toThrow();
+
+    expect(log.error).toHaveBeenCalledWith('error', {
+      mensaje: expect.stringMatching(/^Difusor, envío: /),
+    });
+    expect(difusor.contarClientes()).toBe(1);
+    expect(eventos(await bien.leer())).toHaveLength(1);
+  });
+
+  it('si el reloj falla al vaciar el lote o en el latido, se registra y no escapa', async () => {
+    let romper = false;
+    const reloj = {
+      ahora: () => {
+        if (romper) throw new Error('reloj roto');
+        return Date.now();
+      },
+    };
+    const { conectar, catalogo, log } = crear({ reloj });
+    const c = conectar();
+    await c.leer();
+    catalogo.alta(sismo());
+    romper = true;
+    expect(() => tras()).not.toThrow();
+    expect(log.error).toHaveBeenCalledWith('error', { mensaje: 'Difusor: reloj roto' });
+    expect(() => vi.advanceTimersByTime(HEARTBEAT_MS)).not.toThrow();
+    expect(log.error).toHaveBeenCalledWith('error', { mensaje: 'Difusor, latido: reloj roto' });
+    romper = false;
+  });
+
+  it('también registra lo que se lanza sin ser un Error', async () => {
+    let romper = false;
+    const reloj = {
+      ahora: () => {
+        if (romper) throw 'reloj sin Error';
+        return Date.now();
+      },
+    };
+    const { conectar, catalogo, difusor, log } = crear({ reloj });
+    const raro = conectar(
+      /** @type {any} */ ({
+        ...FILTRO,
+        paises: {
+          includes: () => {
+            throw 'filtro sin Error';
+          },
+        },
+      }),
+    );
+    await raro.leer();
+    catalogo.alta(sismo());
+    tras();
+    expect(log.error).toHaveBeenCalledWith('error', {
+      mensaje: 'Difusor, envío: filtro sin Error',
+    });
+    expect(difusor.contarClientes()).toBe(0);
+
+    catalogo.alta(sismo());
+    romper = true;
+    tras();
+    expect(log.error).toHaveBeenCalledWith('error', { mensaje: 'Difusor: reloj sin Error' });
+    romper = false;
+  });
+
+  it('la tolerancia del reenvío inicial desaparece cuando el cliente se pone al día', async () => {
+    const maxPendienteBytes = 2000;
+    const { conectar, catalogo, difusor, log } = crear({ maxPendienteBytes });
+    const largo = (i) => sismo({ id: `emsc:largo-${i}`, lugar: 'X'.repeat(200) });
+    for (let i = 0; i < 20; i += 1) catalogo.alta(largo(i));
+    tras();
+
+    // Reenvío inicial de 20 eventos: mucho más que 2 000 bytes, se tolera.
+    const c = conectar({ ...FILTRO, magMin: null }, `${PREFIJO}-0`);
+    expect(difusor.contarClientes()).toBe(1);
+    expect(eventos(await c.leer())).toHaveLength(22); // 20 sismos + 2 estado.fuente
+
+    // Ya al día: el primer lote lo toma la lectura pendiente; el segundo, de más de 2 000 bytes
+    // sin leer, lo desconecta. Con la tolerancia permanente de antes seguía conectado (R-13).
+    for (let i = 20; i < 25; i += 1) catalogo.alta(largo(i));
+    tras();
+    expect(difusor.contarClientes()).toBe(1);
+    for (let i = 25; i < 30; i += 1) catalogo.alta(largo(i));
+    tras();
+    expect(difusor.contarClientes()).toBe(0);
+    expect(log.warn).toHaveBeenCalledWith('sse.cliente-lento', expect.any(Object));
   });
 });
 

@@ -23,9 +23,14 @@
  *   sola línea.
  */
 
-import { AVISO_VENTANA_MIN_POR_DEFECTO, alcanzaAviso, esNotificable } from '../dominio/aviso.js';
+import {
+  MAX_ID_EVENTO,
+  PATRON_ID_EVENTO,
+  algunPaisMarcado,
+  cumpleFiltroStream,
+} from '../../shared/reglas.js';
+import { AVISO_VENTANA_MIN_POR_DEFECTO, esNotificable } from '../dominio/aviso.js';
 import { EVENTOS_CATALOGO, calcularCambios } from '../dominio/catalogo.js';
-import { PERIODOS_MS } from '../dominio/consulta-sismos.js';
 
 export const RETRY_MS = 3000;
 export const LOTE_MS = 250;
@@ -34,9 +39,6 @@ export const HISTORIAL_MAX = 2000;
 export const HISTORIAL_MS = 15 * 60_000;
 export const MAX_PENDIENTE_BYTES = 1024 * 1024;
 export const MAX_CLIENTES = 8;
-
-/** Id de evento del contrato (`IdEvento`). Como máximo 32 caracteres. */
-export const PATRON_ID_EVENTO = /^([0-9a-z]{1,16})-([0-9]{1,15})$/;
 
 /** Tipos de evento (lista cerrada del contrato `Evento.tipo`). */
 export const TIPOS_EVENTO = Object.freeze({
@@ -56,7 +58,7 @@ export const TIPOS_EVENTO = Object.freeze({
  * @typedef {object} FiltroCliente
  * @property {ReadonlyArray<CodigoPais>} paises
  * @property {number | null} magMin `null` = todas
- * @property {keyof typeof PERIODOS_MS} periodo
+ * @property {import('../../shared/reglas.js').Periodo} periodo
  * @property {number | null} avisoMin `null` = sin avisos
  *
  * @typedef {object} CambioSismo
@@ -70,28 +72,22 @@ export const TIPOS_EVENTO = Object.freeze({
  * @property {number} seq
  * @property {string} id
  * @property {number} ocurridoEn ms
- * @property {(CambioSismo & { notificable: boolean, cambios: string[],
- *   paisesAnterior: ReadonlyArray<CodigoPais>, paisesActual: ReadonlyArray<CodigoPais> }) | null}
- *   sismo
+ * @property {(CambioSismo & { notificable: boolean, cambios: string[] }) | null} sismo
  * @property {EstadoFuente | null} estado
  * @property {Map<string, string>} cache mensajes ya serializados por tipo
  */
 
 /**
- * ¿Cumple el sismo el filtro del cliente? (arquitectura §5.7, contrato: país marcado y además
- * lista —magnitud y periodo— o aviso —magnitud redondeada ≥ `avisoMin`—).
+ * ¿Cumple el sismo el filtro del cliente? (arquitectura §5.7, contrato: algún país marcado entre
+ * los `paisesCandidatos` y además lista —magnitud cruda y periodo— o aviso —magnitud redondeada
+ * ≥ `avisoMin`—). Es `cumpleFiltroStream` de `src/shared/reglas.js` (R-01, R-02, R-11).
  * @param {Sismo} sismo
- * @param {ReadonlyArray<CodigoPais>} paisesSismo país asignado y candidatos (frontera CO-PA)
  * @param {FiltroCliente} filtro
  * @param {number} ahora ms
  * @returns {boolean}
  */
-export function cumpleFiltro(sismo, paisesSismo, filtro, ahora) {
-  if (!paisesSismo.some((p) => filtro.paises.includes(p))) return false;
-  const enLista =
-    (filtro.magMin === null || sismo.magnitud >= filtro.magMin) &&
-    Date.parse(sismo.tiempo) >= ahora - PERIODOS_MS[filtro.periodo];
-  return enLista || alcanzaAviso(sismo.magnitud, filtro.avisoMin);
+export function cumpleFiltro(sismo, filtro, ahora) {
+  return cumpleFiltroStream(sismo, filtro, ahora);
 }
 
 /**
@@ -129,7 +125,6 @@ function sobre(tipo, ocurridoEn, datos) {
  * @param {number} deps.arrancadoEn ms: prefijo de los ids (base 36)
  * @param {number} [deps.ventanaAvisoMin] `AVISO_VENTANA_MIN`
  * @param {number} [deps.maxClientes] `SSE_MAX_CLIENTES`
- * @param {(sismo: Sismo) => ReadonlyArray<CodigoPais>} [deps.paisesDe] país y candidatos
  * @param {() => boolean} [deps.enCargaInicial] mientras sea `true`, nada es notificable
  * @param {number} [deps.maxPendienteBytes]
  * @param {number} [deps.historialMax]
@@ -143,7 +138,6 @@ export function createDifusor({
   arrancadoEn,
   ventanaAvisoMin = AVISO_VENTANA_MIN_POR_DEFECTO,
   maxClientes = MAX_CLIENTES,
-  paisesDe = (s) => [s.pais],
   enCargaInicial = () => false,
   maxPendienteBytes = MAX_PENDIENTE_BYTES,
   historialMax = HISTORIAL_MAX,
@@ -225,48 +219,79 @@ export function createDifusor({
   // ---------------------------------------------------------------------------------------
   // Lote → historial → clientes
 
+  /** @param {unknown} err */
+  const mensajeError = (err) => (err instanceof Error ? err.message : String(err));
+
+  /**
+   * Vacía el lote: historial y envío a cada cliente. Nunca lanza (R-04): un cambio que no se
+   * puede preparar se descarta con un log y un cliente que falla se desconecta, sin afectar al
+   * resto ni llegar a `uncaughtException` desde el temporizador.
+   */
   function vaciarLote() {
     tLote = null;
     if (pendientes.size === 0) return;
-    const ahora = reloj.ahora();
-    const cargaInicial = enCargaInicial();
-    /** @type {Entrada[]} */
-    const nuevas = [];
-    for (const p of pendientes.values()) {
-      seq += 1;
-      /** @type {Entrada} */
-      const entrada = {
-        seq,
-        id: idDe(seq),
-        ocurridoEn: ahora,
-        sismo: null,
-        estado: null,
-        cache: new Map(),
-      };
-      if (p.clase === 'estado') {
-        entrada.estado = p.estado;
-      } else {
-        const c = p.cambio;
-        entrada.sismo = {
-          ...c,
-          // ADR-0004: se calcula al emitir; los reenvíos conservan el valor original.
-          notificable:
-            c.actual !== null && !cargaInicial && esNotificable(c.actual, ahora, ventanaAvisoMin),
-          cambios: c.anterior && c.actual ? calcularCambios(c.anterior, c.actual) : [],
-          paisesAnterior: c.anterior ? paisesDe(c.anterior) : [],
-          paisesActual: c.actual ? paisesDe(c.actual) : [],
-        };
+    try {
+      const ahora = reloj.ahora();
+      const cargaInicial = enCargaInicial();
+      const lote = [...pendientes.values()];
+      pendientes.clear();
+      /** @type {Entrada[]} */
+      const nuevas = [];
+      for (const p of lote) {
+        try {
+          nuevas.push(prepararEntrada(p, ahora, cargaInicial));
+        } catch (err) {
+          log.error('error', { mensaje: `Difusor, lote: ${mensajeError(err)}` });
+        }
       }
-      historial.push(entrada);
-      nuevas.push(entrada);
+      for (const entrada of nuevas) historial.push(entrada);
+      recortarHistorial(ahora);
+      for (const cliente of [...clientes]) {
+        try {
+          let texto = '';
+          for (const e of nuevas) texto += mensajePara(e, cliente.filtro, ahora);
+          enviar(cliente, texto);
+        } catch (err) {
+          log.error('error', { mensaje: `Difusor, envío: ${mensajeError(err)}` });
+          quitar(cliente, 'error', err instanceof Error ? err : new Error(String(err)));
+        }
+      }
+    } catch (err) {
+      log.error('error', { mensaje: `Difusor: ${mensajeError(err)}` });
     }
-    pendientes.clear();
-    recortarHistorial(ahora);
-    for (const cliente of [...clientes]) {
-      let texto = '';
-      for (const e of nuevas) texto += mensajePara(e, cliente.filtro, ahora);
-      enviar(cliente, texto);
+  }
+
+  /**
+   * @param {{ clase: 'sismo', cambio: CambioSismo } | { clase: 'estado', estado: EstadoFuente }} p
+   * @param {number} ahora
+   * @param {boolean} cargaInicial
+   * @returns {Entrada}
+   */
+  function prepararEntrada(p, ahora, cargaInicial) {
+    /** @type {Entrada} */
+    const entrada = {
+      seq: seq + 1,
+      id: idDe(seq + 1),
+      ocurridoEn: ahora,
+      sismo: null,
+      estado: null,
+      cache: new Map(),
+    };
+    if (p.clase === 'estado') {
+      entrada.estado = p.estado;
+    } else {
+      const c = p.cambio;
+      entrada.sismo = {
+        ...c,
+        // ADR-0004: se calcula al emitir; los reenvíos conservan el valor original.
+        notificable:
+          c.actual !== null && !cargaInicial && esNotificable(c.actual, ahora, ventanaAvisoMin),
+        cambios: c.anterior && c.actual ? calcularCambios(c.anterior, c.actual) : [],
+      };
     }
+    // La secuencia solo avanza si la entrada se ha podido preparar.
+    seq += 1;
+    return entrada;
   }
 
   /** @param {number} ahora */
@@ -288,19 +313,19 @@ export function createDifusor({
   function mensajePara(e, filtro, ahora) {
     if (e.estado) return cacheado(e, TIPOS_EVENTO.ESTADO, () => e.estado);
     const s = /** @type {NonNullable<Entrada['sismo']>} */ (e.sismo);
-    const antes = s.anterior !== null && cumpleFiltro(s.anterior, s.paisesAnterior, filtro, ahora);
+    const antes = s.anterior !== null && cumpleFiltro(s.anterior, filtro, ahora);
     if (s.actual === null) {
       // Baja: se avisa a quien pudo tenerlo (país marcado), aunque ya no cumpla la magnitud o
       // el periodo. Quitar algo que no se tiene es inocuo; con `fusionado` la página traslada
       // el «ya notificado» a `reemplazadoPor`.
-      if (!s.paisesAnterior.some((p) => filtro.paises.includes(p))) return '';
+      if (s.anterior === null || !algunPaisMarcado(s.anterior, filtro.paises)) return '';
       return cacheado(e, TIPOS_EVENTO.ELIMINADO, () => ({
         id: s.idSismo,
         motivo: s.motivo ?? 'retirado',
         reemplazadoPor: s.reemplazadoPor,
       }));
     }
-    const despues = cumpleFiltro(s.actual, s.paisesActual, filtro, ahora);
+    const despues = cumpleFiltro(s.actual, filtro, ahora);
     if (despues && antes) {
       return cacheado(e, TIPOS_EVENTO.ACTUALIZADO, () => ({
         sismo: s.actual,
@@ -350,6 +375,13 @@ export function createDifusor({
    */
   function enviar(cliente, texto) {
     if (cliente.cerrado || texto === '') return 0;
+    // R-13: la tolerancia del reenvío inicial se reduce a medida que el cliente lee. Nunca
+    // vuelve a crecer: en cuanto lo pendiente baja de 1 MiB, el límite normal vuelve a regir.
+    // (Durante el envío inicial la tolerancia es infinita: la fija `conectar` con lo enviado.)
+    const previo = cliente.controller.desiredSize;
+    if (previo !== null && Number.isFinite(cliente.toleranciaBytes)) {
+      cliente.toleranciaBytes = Math.min(cliente.toleranciaBytes, Math.max(0, -previo));
+    }
     const bytes = encoder.encode(texto);
     try {
       cliente.controller.enqueue(bytes);
@@ -358,7 +390,7 @@ export function createDifusor({
       return 0;
     }
     // El reenvío inicial (hasta 2 000 eventos) puede superar 1 MiB por sí solo: se tolera ese
-    // exceso, pero no que crezca lo pendiente después.
+    // exceso mientras se vacía, pero no que crezca lo pendiente después.
     const libre = cliente.controller.desiredSize;
     if (libre !== null && libre < -cliente.toleranciaBytes) {
       // AM-13: más de 1 MiB pendiente → se desconecta y se libera la memoria.
@@ -395,7 +427,7 @@ export function createDifusor({
   function planReanudacion(ultimoId) {
     if (ultimoId === null || ultimoId === undefined || ultimoId === '') return { tipo: 'nada' };
     // AM-14: longitud y forma acotadas antes de mirar nada más; nunca lanza.
-    const m = ultimoId.length <= 32 ? PATRON_ID_EVENTO.exec(ultimoId) : null;
+    const m = ultimoId.length <= MAX_ID_EVENTO ? PATRON_ID_EVENTO.exec(ultimoId) : null;
     if (!m || m[1] !== prefijo) return { tipo: 'reiniciar', motivo: 'arranque-distinto' };
     const n = Number(m[2]);
     if (n > seq) return { tipo: 'reiniciar', motivo: 'historial-insuficiente' };
@@ -406,18 +438,24 @@ export function createDifusor({
     return { tipo: 'reenviar', desde: n };
   }
 
-  const heartbeat = setInterval(() => {
-    const ahora = reloj.ahora();
-    recortarHistorial(ahora);
-    if (clientes.size === 0) return;
-    // Mismo texto para todos: sin datos del cliente ni de las fuentes (AM-15).
-    const latido = formatearMensaje(
-      idDe(seq),
-      TIPOS_EVENTO.LATIDO,
-      sobre(TIPOS_EVENTO.LATIDO, ahora, {}),
-    );
-    for (const cliente of [...clientes]) enviar(cliente, latido);
-  }, HEARTBEAT_MS);
+  /** Latido: nunca lanza (R-04), para no llegar a `uncaughtException` desde el intervalo. */
+  function latir() {
+    try {
+      const ahora = reloj.ahora();
+      recortarHistorial(ahora);
+      if (clientes.size === 0) return;
+      // Mismo texto para todos: sin datos del cliente ni de las fuentes (AM-15).
+      const latido = formatearMensaje(
+        idDe(seq),
+        TIPOS_EVENTO.LATIDO,
+        sobre(TIPOS_EVENTO.LATIDO, ahora, {}),
+      );
+      for (const cliente of [...clientes]) enviar(cliente, latido);
+    } catch (err) {
+      log.error('error', { mensaje: `Difusor, latido: ${mensajeError(err)}` });
+    }
+  }
+  const heartbeat = setInterval(latir, HEARTBEAT_MS);
   heartbeat.unref?.();
 
   return Object.freeze({

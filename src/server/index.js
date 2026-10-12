@@ -126,8 +126,7 @@ const difusor = createDifusor({
   arrancadoEn,
   ventanaAvisoMin: config.avisoVentanaMin,
   maxClientes: config.sseMaxClientes,
-  // Un sismo en la franja CO-PA llega a quien marque cualquiera de los dos (HU-03).
-  paisesDe: (s) => asignarPais(s.lat, s.lon)?.paisesCandidatos ?? [s.pais],
+  // La franja CO-PA (HU-03) la resuelve el difusor con `Sismo.paisesCandidatos` (R-11).
   enCargaInicial: () => cargaInicialEnCurso,
 });
 
@@ -196,22 +195,59 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
+// Política de errores no capturados (R-04; arquitectura §7):
+// - `unhandledRejection`: se registra y el proceso sigue. Las promesas del servidor (consultas a
+//   las fuentes, carga inicial) ya tratan sus errores; una rechazada sin capturar no deja estado
+//   a medias.
+// - `uncaughtException`: los puntos conocidos (drenaje del WebSocket, lote y latido del difusor,
+//   oyentes del catálogo y de las fuentes) ya capturan y registran sus errores, así que llegar
+//   aquí es un fallo de programación con el estado en duda. Se registra (`proceso.excepcion`), se
+//   intenta un apagado ordenado y se sale con código 1 para que quien lo vigile lo reinicie. No
+//   se sigue sirviendo con un estado posiblemente corrupto. Una segunda excepción durante el
+//   apagado sale al momento.
 process.on('unhandledRejection', (motivo) => {
   log.error('error', { mensaje: motivo instanceof Error ? motivo.message : String(motivo) });
 });
 
-/** @param {NodeJS.Signals} senal */
-function shutdown(senal) {
-  log.info('servidor.parando', { senal });
+let apagando = false;
+
+/**
+ * @param {number} codigo código de salida
+ */
+function apagar(codigo) {
+  if (apagando) {
+    process.exit(codigo);
+    return;
+  }
+  apagando = true;
   emscWs?.detener();
   planificador?.detener();
   retencion.detener();
   // Cierra los flujos SSE: si no, `server.close` esperaría a que los cerrara la página.
   difusor.cerrar();
   clearInterval(resumenHorario);
-  server.close(() => process.exit(0));
+  server.close(() => process.exit(codigo));
   // Si alguna conexión no se cierra en 5 s, se fuerza la salida.
-  setTimeout(() => process.exit(0), 5000).unref();
+  setTimeout(() => process.exit(codigo), 5000).unref();
+}
+
+process.on('uncaughtException', (err, origen) => {
+  log.error('proceso.excepcion', {
+    origen,
+    mensaje: err instanceof Error ? err.message : String(err),
+    pila: err instanceof Error ? err.stack : undefined,
+  });
+  try {
+    apagar(1);
+  } catch {
+    process.exit(1);
+  }
+});
+
+/** @param {NodeJS.Signals} senal */
+function shutdown(senal) {
+  log.info('servidor.parando', { senal });
+  apagar(0);
 }
 process.once('SIGINT', shutdown);
 process.once('SIGTERM', shutdown);

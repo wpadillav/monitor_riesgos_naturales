@@ -683,6 +683,71 @@ describe('casos límite de entrada y del ciclo de vida (T5.1)', () => {
     expect(cliente.estadisticas().cola).toBe(0);
   });
 
+  it('si el catálogo lanza en ingerirLote, se registra y el WebSocket sigue vivo (R-04)', () => {
+    const real = createCatalogo({ asignarPais });
+    let fallar = true;
+    const ingerirLote = vi.fn((registros, opciones) => {
+      if (fallar) throw new Error('catálogo roto');
+      return real.ingerirLote(registros, opciones);
+    });
+    const { ultimo, sockets, log, cliente } = arrancado({ catalogo: { ...real, ingerirLote } });
+    const ws = ultimo();
+    ws.abrir();
+
+    ws.recibir(mensajePanama('20261010_0000201'));
+    // `drenar` corre en setImmediate: si lanzara, sería una excepción no capturada.
+    expect(() => drenar()).not.toThrow();
+    expect(log.error).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({
+        fuente: 'emsc-ws',
+        mensaje: 'Ingesta del WebSocket: catálogo roto',
+      }),
+    );
+    expect(ws.terminado).toBe(false);
+    expect(sockets).toHaveLength(1);
+    expect(cliente.estadisticas()).toMatchObject({ abierto: true, cola: 0 });
+
+    // El siguiente mensaje entra con normalidad.
+    fallar = false;
+    ws.recibir(mensajePanama('20261010_0000202'));
+    drenar();
+    expect(real.obtener('emsc:20261010_0000202')).not.toBeNull();
+  });
+
+  it('si el catálogo lanza al retirar, se registra y sigue con el resto del lote (R-04)', () => {
+    const real = createCatalogo({ asignarPais });
+    const retirar = vi.fn(() => {
+      throw 'retiro roto';
+    });
+    const { ultimo, log } = arrancado({ catalogo: { ...real, retirar } });
+    ultimo().abrir();
+    ultimo().recibir('{"action":"delete","data":{"properties":{"unid":"20261010_0000300"}}}');
+    ultimo().recibir(mensajePanama('20261010_0000301'));
+    expect(() => drenar()).not.toThrow();
+    expect(log.error).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ mensaje: 'Retiro del WebSocket: retiro roto', pila: undefined }),
+    );
+    expect(real.obtener('emsc:20261010_0000301')).not.toBeNull();
+  });
+
+  it('un fallo fuera de la ingesta (p. ej. en conoce) tampoco escapa del drenaje (R-04)', () => {
+    const real = createCatalogo({ asignarPais });
+    const conoce = vi.fn(() => {
+      throw new Error('índice roto');
+    });
+    const { ultimo, log } = arrancado({ catalogo: { ...real, conoce } });
+    ultimo().abrir();
+    // Fuera de las zonas: el drenaje consulta `conoce`.
+    ultimo().recibir(mensajePanama('20261010_0000302', { lat: 50, lon: 10 }));
+    expect(() => drenar()).not.toThrow();
+    expect(log.error).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ mensaje: 'Drenaje del WebSocket: índice roto' }),
+    );
+  });
+
   it('arrancar dos veces no abre dos conexiones', () => {
     const { cliente, sockets } = arrancado();
 

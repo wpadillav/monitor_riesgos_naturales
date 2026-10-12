@@ -7,7 +7,10 @@
  * - 2 fallos seguidos, de cualquier zona → `caida`.
  *
  * Cada cambio de estado escribe **una** línea `fuente.estado` (RNF-15) y emite `cambio`, que
- * el difusor SSE emite como `estado.fuente`. El canal `emsc-ws` usa `registrarEstado` (T4.6).
+ * el difusor SSE emite como `estado.fuente`. Un cambio de `proximoIntentoEn` o de `mensaje` sin
+ * cambio de estado también se emite (la página muestra el próximo intento), pero sin línea de log
+ * (R-12). Los oyentes se invocan uno a uno: si uno lanza, se registra y se sigue con el resto,
+ * como en el catálogo. El canal `emsc-ws` usa `registrarEstado` (T4.6).
  */
 
 import { EventEmitter } from 'node:events';
@@ -63,20 +66,53 @@ export function createEstadoFuentes({ canales, reloj, log }) {
     };
   }
 
+  /** @param {Canal} canal */
+  function emitir(canal) {
+    const carga = aContrato(canal);
+    for (const oyente of emisor.listeners('cambio')) {
+      try {
+        oyente(carga);
+      } catch (err) {
+        log.error('error', {
+          mensaje: `Oyente de fuente.estado: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
+    }
+  }
+
   /**
    * @param {Canal} canal
    * @param {Estado} nuevo
    * @param {string | null} motivo
+   * @param {boolean} [visible] cambió `proximoIntentoEn` o `mensaje`: se emite aunque el estado
+   *   sea el mismo
    */
-  function cambiar(canal, nuevo, motivo) {
+  function cambiar(canal, nuevo, motivo, visible = false) {
     const e = canalesEstado.get(canal);
-    if (!e || e.estado === nuevo) return;
+    if (!e) return;
+    if (e.estado === nuevo) {
+      if (visible) emitir(canal);
+      return;
+    }
     const de = e.estado;
     e.estado = nuevo;
     e.cambiadoEn = reloj.ahora();
     const nivel = nuevo === 'ok' ? 'info' : 'warn';
     log[nivel]('fuente.estado', { fuente: canal, de, a: nuevo, motivo: motivo ?? undefined });
-    emisor.emit('cambio', aContrato(canal));
+    emitir(canal);
+  }
+
+  /**
+   * Actualiza `mensaje` y `proximoIntentoEn`. Devuelve si alguno ha cambiado.
+   * @param {NonNullable<ReturnType<typeof canalesEstado.get>>} e
+   * @param {string | null} mensaje
+   * @param {number | null} proximoIntentoEn
+   */
+  function fijarDetalle(e, mensaje, proximoIntentoEn) {
+    const cambia = e.mensaje !== mensaje || e.proximoIntentoEn !== proximoIntentoEn;
+    e.mensaje = mensaje;
+    e.proximoIntentoEn = proximoIntentoEn;
+    return cambia;
   }
 
   return Object.freeze({
@@ -88,9 +124,10 @@ export function createEstadoFuentes({ canales, reloj, log }) {
       if (!e) return;
       e.fallosSeguidos = 0;
       e.ultimoExitoEn = reloj.ahora();
-      e.proximoIntentoEn = null;
-      e.mensaje = null;
-      cambiar(canal, 'ok', null);
+      // `ultimoExitoEn` cambia en cada ciclo y no se difunde (sería un evento cada pocos
+      // segundos); sí se difunde que desaparezca un próximo intento o un mensaje.
+      const visible = fijarDetalle(e, null, null);
+      cambiar(canal, 'ok', null, visible);
     },
 
     /**
@@ -102,9 +139,13 @@ export function createEstadoFuentes({ canales, reloj, log }) {
       const e = canalesEstado.get(canal);
       if (!e) return;
       e.fallosSeguidos += 1;
-      e.mensaje = mensaje.slice(0, 200);
-      e.proximoIntentoEn = proximoIntentoEn;
-      cambiar(canal, e.fallosSeguidos >= FALLOS_PARA_CAIDA ? 'caida' : 'degradada', mensaje);
+      const visible = fijarDetalle(e, mensaje.slice(0, 200), proximoIntentoEn);
+      cambiar(
+        canal,
+        e.fallosSeguidos >= FALLOS_PARA_CAIDA ? 'caida' : 'degradada',
+        mensaje,
+        visible,
+      );
     },
 
     /**
@@ -119,9 +160,8 @@ export function createEstadoFuentes({ canales, reloj, log }) {
     registrarEstado(canal, nuevo, mensaje, proximoIntentoEn) {
       const e = canalesEstado.get(canal);
       if (!e) return;
-      e.mensaje = mensaje.slice(0, 200);
-      e.proximoIntentoEn = proximoIntentoEn;
-      cambiar(canal, nuevo, mensaje);
+      const visible = fijarDetalle(e, mensaje.slice(0, 200), proximoIntentoEn);
+      cambiar(canal, nuevo, mensaje, visible);
     },
 
     /** Estados en el formato del contrato, en el orden de registro. @returns {EstadoFuente[]} */

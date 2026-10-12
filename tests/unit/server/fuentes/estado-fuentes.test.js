@@ -53,7 +53,9 @@ describe('createEstadoFuentes', () => {
       proximoIntentoEn: null,
     });
 
-    expect(cambios).toEqual(['usgs:degradada', 'usgs:caida', 'usgs:ok']);
+    // El tercer fallo no cambia el estado, pero sí el mensaje y el próximo intento: se
+    // difunde sin línea de log (R-12).
+    expect(cambios).toEqual(['usgs:degradada', 'usgs:caida', 'usgs:caida', 'usgs:ok']);
     // Una línea por cambio de estado (RNF-15), no por fallo.
     expect(log.warn).toHaveBeenCalledTimes(2);
     expect(log.warn).toHaveBeenCalledWith('fuente.estado', {
@@ -104,7 +106,43 @@ describe('createEstadoFuentes', () => {
     estado.registrarEstado('usgs', 'caida', 'Sin conexión', null);
     estado.registrarEstado('emsc-ws', 'caida', 'no registrado', null);
 
-    expect(cambios).toEqual(['degradada', 'caida']);
+    // «Otra vez» cambia mensaje y próximo intento sin cambiar el estado: se difunde (R-12).
+    expect(cambios).toEqual(['degradada', 'degradada', 'caida']);
+  });
+
+  it('repetir el mismo detalle no se difunde de nuevo (R-12)', () => {
+    const { estado } = crear();
+    const cambios = [];
+    estado.alCambiar((e) => cambios.push(e.estado));
+    const proximo = Date.parse('2026-10-10T06:00:01Z');
+    estado.registrarEstado('usgs', 'degradada', 'Conexión cerrada', proximo);
+    estado.registrarEstado('usgs', 'degradada', 'Conexión cerrada', proximo);
+    estado.registrarExito('usgs');
+    estado.registrarExito('usgs');
+    expect(cambios).toEqual(['degradada', 'ok']);
+  });
+
+  it('un oyente que lanza se registra y no impide avisar a los demás (R-12)', () => {
+    const { estado, log } = crear();
+    const otro = vi.fn();
+    estado.alCambiar(() => {
+      throw new Error('oyente roto');
+    });
+    estado.alCambiar(otro);
+    expect(() => estado.registrarExito('usgs')).not.toThrow();
+    expect(otro).toHaveBeenCalledTimes(1);
+    expect(log.error).toHaveBeenCalledWith('error', {
+      mensaje: 'Oyente de fuente.estado: oyente roto',
+    });
+  });
+
+  it('un oyente que lanza algo que no es Error también se registra', () => {
+    const { estado, log } = crear();
+    estado.alCambiar(() => {
+      throw 'cadena';
+    });
+    estado.registrarExito('usgs');
+    expect(log.error).toHaveBeenCalledWith('error', { mensaje: 'Oyente de fuente.estado: cadena' });
   });
 
   it('la suscripción se puede cancelar', () => {

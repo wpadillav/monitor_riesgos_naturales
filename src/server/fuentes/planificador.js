@@ -98,6 +98,8 @@ export function createPlanificador({
   const bloqueadoHasta = new Map();
   /** Consultas de cobertura en vuelo (single-flight). @type {Map<string, Promise<boolean>>} */
   const enVuelo = new Map();
+  /** canal → instante de la última resincronización (R-07). @type {Map<string, number>} */
+  const ultimaResincronizacion = new Map();
   /** @type {Promise<unknown> | null} */
   let cargaInicialEnCurso = null;
   let cargaInicialTerminada = false;
@@ -361,20 +363,39 @@ export function createPlanificador({
      * Adelanta el próximo ciclo de todas las zonas de un canal (AM-17: la cola del WebSocket se
      * desbordó y se perdieron mensajes). Solo afecta a las zonas que esperan su turno: una
      * consulta en curso, la carga inicial o un `Retry-After` vigente se respetan.
+     *
+     * Límites (R-07, RNF-06 y RNF-10):
+     * - como máximo una resincronización por canal en cada `intervaloMs` de su fuente: una
+     *   ráfaga que desborda la cola varias veces no multiplica las peticiones;
+     * - las zonas con fallos seguidos (`fallos > 0`) conservan su espera de reintento.
      * @param {string} canal p. ej. `emsc-fdsn`
      * @returns {number} zonas adelantadas
      */
     resincronizar(canal) {
       if (detenido) return 0;
+      const propias = fuentes.filter((f) => f.adaptador.canal === canal);
+      if (propias.length === 0) return 0;
+      const ahora = reloj.ahora();
+      const intervalo = Math.min(...propias.map((f) => f.intervaloMs));
+      const ultima = ultimaResincronizacion.get(canal);
+      if (ultima !== undefined && ahora - ultima < intervalo) {
+        log.debug('fuente.resincronizacion-omitida', {
+          fuente: canal,
+          esperaMs: intervalo - (ahora - ultima),
+        });
+        return 0;
+      }
       let n = 0;
-      for (const f of fuentes) {
-        if (f.adaptador.canal !== canal) continue;
+      for (const f of propias) {
         for (const z of zonas) {
-          if (estadoDe(f, z).temporizador === null) continue;
+          const st = estadoDe(f, z);
+          if (st.temporizador === null || st.fallos > 0) continue;
           programar(f, z, 0);
           n += 1;
         }
       }
+      // Solo cuenta para el límite si ha adelantado algo.
+      if (n > 0) ultimaResincronizacion.set(canal, ahora);
       log.info('fuente.resincronizacion', { fuente: canal, zonas: n });
       return n;
     },
