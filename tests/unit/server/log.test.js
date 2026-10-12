@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createLog } from '../../../src/server/infra/log.js';
+import { createLog, escaparNoImprimibles } from '../../../src/server/infra/log.js';
 
 function capturar(opciones) {
   const lineas = [];
@@ -42,5 +42,37 @@ describe('createLog', () => {
 
     expect(lineas).toHaveLength(1);
     expect(lineas[0]).toContain('ERROR z');
+  });
+});
+
+describe('secuencias de control en el log (S-01, AM-29)', () => {
+  // El caso del modelo de amenazas: ESC + CSI de 7 bits, salto de línea y CSI de 8 bits.
+  const RUTA = '/a\x1b[2J\n\u009bX\u0085\u007f\u2028';
+
+  it.each(['json', 'texto'])(
+    'formato %s: sin ESC, sin C1, sin DEL y en una sola línea',
+    (formato) => {
+      const { log, lineas } = capturar({ formato });
+      log.error('error', { ruta: RUTA });
+
+      expect(lineas).toHaveLength(1);
+      const linea = lineas[0];
+      expect(linea.includes('\x1b')).toBe(false);
+      expect(linea).not.toMatch(/[\u007f-\u009f\u2028\u2029]/);
+      expect(linea.split('\n')).toHaveLength(2); // solo el salto final
+      expect(linea).toContain('\\u009b');
+      expect(linea).toContain('\\u001b');
+    },
+  );
+
+  it('el JSON escapado se vuelve a leer con el valor original', () => {
+    const { log, lineas } = capturar({ formato: 'json' });
+    log.error('error', { ruta: RUTA });
+    expect(JSON.parse(lineas[0]).ruta).toBe(RUTA);
+  });
+
+  it('escaparNoImprimibles deja intacto el texto normal', () => {
+    expect(escaparNoImprimibles('Panamá ñ €')).toBe('Panamá ñ €');
+    expect(escaparNoImprimibles('a\u0080b')).toBe('a\\u0080b');
   });
 });

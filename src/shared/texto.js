@@ -4,10 +4,12 @@
 
 /**
  * Caracteres que se eliminan: C0 (salvo los espacios en blanco, que se convierten en espacio),
- * DEL, C1 y marcas de dirección bidi (U+061C, U+200E/F, U+202A–202E, U+2066–2069).
+ * DEL, C1 y marcas de dirección bidi (U+061C, U+200E/F, U+202A–202E, U+2066–2069). Todos van
+ * escritos como escapes `\u…`: así se ven en una revisión de código (R-20, S-06).
  */
-// eslint-disable-next-line no-control-regex -- es justo lo que hay que quitar
-const PROHIBIDOS = /[\u0000-\u0008\u000E-\u001F\u007F-\u009F؜‎‏‪-‮⁦-⁩]/g;
+const PROHIBIDOS =
+  // eslint-disable-next-line no-control-regex -- es justo lo que hay que quitar
+  /[\u0000-\u0008\u000E-\u001F\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
 // eslint-disable-next-line no-control-regex -- tabuladores y saltos de línea pasan a espacio
 const ESPACIOS = /[\u0009-\u000D\s]+/g;
 

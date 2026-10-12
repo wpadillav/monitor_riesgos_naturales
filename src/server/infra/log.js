@@ -6,6 +6,25 @@
 const PESO = Object.freeze({ error: 0, warn: 1, info: 2, debug: 3 });
 
 /**
+ * DEL, C1 (U+0080–U+009F, incluido U+009B, el CSI de 8 bits) y los separadores de línea
+ * Unicode: `JSON.stringify` no los escapa (S-01, AM-29). C0 y `\n` ya salen escapados.
+ */
+const NO_IMPRIMIBLES = /[\u007f-\u009f\u2028\u2029]/g;
+
+/**
+ * Escapa los caracteres no imprimibles que deja pasar `JSON.stringify` como `\uXXXX`. Se aplica
+ * a la línea ya serializada, en los dos formatos.
+ * @param {string} linea
+ * @returns {string}
+ */
+export function escaparNoImprimibles(linea) {
+  return linea.replace(
+    NO_IMPRIMIBLES,
+    (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+}
+
+/**
  * @typedef {'error' | 'warn' | 'info' | 'debug'} NivelLog
  * @typedef {Record<string, string | number | boolean | null | undefined>} CamposLog
  * @typedef {{
@@ -41,14 +60,16 @@ export function createLog({
       if (PESO[nivelEvento] > umbral) return;
       const ts = new Date(ahora()).toISOString();
       if (formato === 'json') {
-        salida.write(`${JSON.stringify({ ts, nivel: nivelEvento, evento, version, ...campos })}\n`);
+        const json = JSON.stringify({ ts, nivel: nivelEvento, evento, version, ...campos });
+        salida.write(`${escaparNoImprimibles(json)}\n`);
         return;
       }
       const pares = Object.entries(campos)
         .filter(([, v]) => v !== undefined)
         .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
         .join(' ');
-      salida.write(`${ts} ${nivelEvento.toUpperCase()} ${evento}${pares ? ` ${pares}` : ''}\n`);
+      const linea = `${ts} ${nivelEvento.toUpperCase()} ${evento}${pares ? ` ${pares}` : ''}`;
+      salida.write(`${escaparNoImprimibles(linea)}\n`);
     };
 
   return Object.freeze({
