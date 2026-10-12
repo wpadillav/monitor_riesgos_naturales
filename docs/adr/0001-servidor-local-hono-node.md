@@ -1,6 +1,6 @@
 # 0001. Un único servidor local Node.js + Hono, monolito modular sin paso de build
 
-- Estado: propuesto
+- Estado: aceptado (Fase 3, 2026-10-10). Nota de T6.1 (2026-10-12) al final
 - Fecha: 2026-10-10 · Decisores: arquitecto-software, Director
 
 ## Contexto
@@ -55,7 +55,7 @@ Esto se aparta de la skill `stack-nodejs` («TypeScript estricto»). El motivo e
   - `npm start` es `node src/server/index.js`, sin nada intermedio;
   - lo que se depura es lo que se ejecuta;
   - el navegador importa `/shared/*.js` como módulos ES nativos;
-  - hay 7 dependencias de producción en total: `hono`, `@hono/node-server`, `ws`, `leaflet` y 3 módulos de Turf (ver STACK.lock).
+  - hay 7 dependencias de producción en total: `hono`, `@hono/node-server`, `ws`, `leaflet` y 3 módulos de Turf (ver STACK.lock). **Desde C-A son 6** (ver la nota de T6.1);
 - **Negativas:**
   - sin comprobación de tipos en compilación;
   - `src/shared` no puede importar paquetes npm, porque el navegador no los resolvería sin un mapa de importaciones; ESLint lo impide con una regla;
@@ -63,3 +63,12 @@ Esto se aparta de la skill `stack-nodejs` («TypeScript estricto»). El motivo e
 - **Más difícil:**
   - escalar a varios procesos, porque el estado vive en memoria. No es un objetivo: el uso es local.
 - **Cómo se revierte:** añadir un build no exige reescribir nada. Bastaría con generar `public/` a partir de `src/` y cambiar `npm start`.
+
+## Nota de actualización (T6.1, 2026-10-12)
+
+- La decisión se mantiene y describe el código de `main` (`04bb0c8`): un proceso Node.js + Hono, ESM sin build y estado en memoria.
+- **Desde C-A hay 6 dependencias de producción, no 7:** `hono`, `@hono/node-server`, `ws`, `leaflet`, `@turf/boolean-point-in-polygon` y `@turf/point-to-polygon-distance`. `@turf/distance` pasó a `devDependencies` porque el servidor usa un haversine propio (ADR-0004, R-10).
+- **La frontera de `src/shared` la hace cumplir ESLint** (`eslint.config.js`, bloque `src/shared/**`):
+  - prohíbe importar `node:*`, especificadores sin ruta relativa y cualquier cosa fuera de `src/shared` (`../`);
+  - exige la extensión `.js`;
+  - prohíbe los globales `process`, `Buffer`, `window`, `document` y `require`.

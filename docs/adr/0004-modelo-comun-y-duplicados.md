@@ -1,6 +1,6 @@
 # 0004. Modelo común de sismo y eliminación de duplicados entre fuentes
 
-- Estado: propuesto
+- Estado: aceptado (Fase 3, 2026-10-10). Actualizado en T6.1 (2026-10-12) con la nota del final
 - Fecha: 2026-10-10 · Decisores: arquitecto-software, Director
 
 ## Contexto
@@ -126,9 +126,9 @@ Para el rango 1 se usa el país asignado con la ubicación del registro EMSC. As
 
 ### Notificable
 
-`notificable = (ahora − tiempo) ≤ AVISO_VENTANA_MIN` (60 min por defecto, PRD E4). Se calcula en el servidor **al emitir** y viaja en el evento SSE. La regla completa de aviso se aplica en la página con `src/shared/avisos.js`:
+`notificable = (ahora − tiempo) ≤ AVISO_VENTANA_MIN` (60 min por defecto, PRD E4; `esNotificable` en `src/server/dominio/aviso.js`). Se calcula en el servidor **al emitir** y viaja en el evento SSE. La regla completa de aviso se aplica en la página con `cumpleFiltroAviso` de `src/shared/reglas.js` (en la decisión original, un `src/shared/avisos.js` que no llegó a existir; ver la nota de actualización) más el registro de lo ya notificado de `public/js/avisos.js`:
 - `notificable`;
-- el país está marcado;
+- alguno de sus `paisesCandidatos` está marcado (el país asignado o, en la franja CO-PA, el otro candidato);
 - la magnitud **redondeada a un decimal** es ≥ umbral (D1);
 - el id no se ha notificado ya.
 
@@ -145,4 +145,26 @@ La carga inicial (`GET /api/sismos`) y los eventos reenviados tras `flujo.reinic
   - **ΔM = 1.0 tiene poco margen** (0,9 observado entre ML local y mb telesísmico). Si un par real lo supera, el usuario vería dos elementos del mismo sismo. T4.2 lo calibra con el fixture. Si aparecen más casos, se puede subir a 1.2 sin riesgo apreciable: los eventos distintos más próximos en el tiempo están a más de 99 km o a más de 14 s;
   - en una secuencia muy densa (varias réplicas en 30 s y 100 km), una réplica USGS podría asociarse a la réplica EMSC equivocada. Lo limita la puntuación, que incluye ΔM, y la regla de una fuente por sismo. El fixture no muestra ningún caso.
 - **Más difícil:** añadir una tercera fuente con muchos eventos (por ejemplo, el GeoRSS del IGN) exige revisar la tabla de precedencia. La estructura de «un registro por fuente» ya lo admite.
-- **Cómo se revierte:** los umbrales son configuración. Cambiar el algoritmo afecta solo a `src/server/dominio/catalogo.js` y a sus pruebas.
+- **Cómo se revierte:** los umbrales son configuración. Cambiar el algoritmo afecta solo a las reglas puras de `src/shared/duplicados.js`, al estado y la fusión de `src/server/dominio/catalogo.js` y a sus pruebas.
+
+## Nota de actualización (T6.1, 2026-10-12): comprobación contra el código de `main` (`04bb0c8`)
+
+La decisión **se mantiene sin cambios de umbrales** (30 s, 100 km, ΔM 1.0; `UMBRALES_DEDUP`, `src/shared/constantes.js:37`). Lo que el código añade o concreta:
+
+1. **Haversine propio.** `distanciaKm` (`src/shared/geo.js:18`) con `RADIO_TIERRA_KM` = 6 371,0088 km (`geo.js:6`), el mismo radio que `@turf/distance` 7.4.0. Lo usa `diferencias()` (`src/shared/duplicados.js:68`). La prueba `tests/unit/shared/geo.test.js` lo contrasta con Turf.
+2. **`@turf/distance` 7.4.0 está en `devDependencies`** desde C-A (R-10): solo es la referencia de esa prueba. En producción llega como transitiva de `@turf/point-to-polygon-distance`, pero el código de la aplicación no la importa (`STACK.lock.md`).
+3. **Reglas puras en `src/shared/duplicados.js`; estado en `src/server/dominio/catalogo.js`.**
+   - `cumpleUmbrales` (`:83`) compara con una tolerancia `EPSILON` = 10⁻⁹ (`:39`): 4.5 − 3.5 da 1.0000000000000004 y no debe quedar fuera de un umbral de 1.0.
+   - `mejorCandidato` (`:126`) elige la menor puntuación; en empate (con la misma tolerancia `EPSILON`), el `recibidoEn` más antiguo y después el id menor. Es **común a la asociación por cercanía** (`elegirCandidato`, `:155`) **y a la fusión tardía** (el catálogo la llama con los sismos que cumplen `sePuedenFusionar`, `:172`), de modo que los dos caminos desempatan igual (R-14).
+   - `validarUmbrales` (`:46`) acota las variables de entorno: `DEDUP_DT_S` ≤ 600, `DEDUP_DD_KM` ≤ 1000 y `DEDUP_DM` ≤ 5, todas > 0.
+4. **Reglas del contrato comunes en `src/shared/reglas.js`** (C-A; R-01, R-02 y R-06). Sustituyen a los `filtros.js`, `magnitud.js` y `avisos.js` que preveía la arquitectura:
+   - **lista:** magnitud **cruda** ≥ `magMin` (`cumpleMagMin`, `cumpleFiltroLista`), como `minmag` de FDSN;
+   - **aviso:** magnitud **redondeada a un decimal** ≥ umbral (`redondear1`, `alcanzaAviso`, `cumpleFiltroAviso`; D1: 4.46 avisa con 4.5);
+   - **país:** cuenta cualquiera de los `paisesCandidatos` del sismo (`paisesDelSismo`, `algunPaisMarcado`).
+
+   Las usan el catálogo (`listar`), el difusor (`cumpleFiltroStream`) y la página (`public/js/filtros.js` y `avisos.js`), con el mismo archivo servido en `/shared/reglas.js`.
+5. **El modelo común está en `src/shared/modelo.js`.**
+   - `crearRegistro` es el normalizador único de campos (AM-05); los adaptadores `normalizar-emsc.js` y `normalizar-usgs.js` solo leen las propiedades de cada fuente.
+   - `rangoPrecedencia` (`modelo.js:248`) y `registroPreferido` aplican la precedencia de la tabla de arriba.
+   - `componerSismo` (`modelo.js:289`) compone el `Sismo` del contrato, que desde C-A incluye `paisesCandidatos` (ADR-0005).
+6. **Carga inicial sin avisos.** Mientras dura la carga de 30 días, el difusor no marca nada como notificable (`enCargaInicial`, `src/server/index.js`).

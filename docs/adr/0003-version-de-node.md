@@ -1,6 +1,6 @@
 # 0003. Node.js 24.21.0 ahora y migración planificada a Node 26 LTS
 
-- Estado: propuesto
+- Estado: aceptado (Fase 3, 2026-10-10). Plan actualizado en T6.1 (2026-10-12) con la nota del final
 - Fecha: 2026-10-10 · Decisores: arquitecto-software, Director
 
 ## Contexto
@@ -76,3 +76,20 @@ Datos consultados en vivo el 2026-10-10 con `versiones.py`, la API de endoflife.
 - **Negativas:** una ronda de verificación adicional entre el 28 de octubre y el 15 de noviembre.
 - **Más difícil:** nada relevante. Mientras dura la transición, `engines` admite las dos ramas y la CI local usa la del lock.
 - **Cómo se revierte:** se vuelve a poner `24.21.0` en `.nvmrc` y en el lock. El código es compatible con las dos ramas por construcción (`engines`).
+
+## Nota de actualización (T6.1, 2026-10-12)
+
+**1. El punto 4 del plan no se pudo cumplir y se sustituye.** La Fase 5 (calidad) se cerró el 2026-10-12, antes de que la 26 fuera LTS (2026-10-28). Por eso las pruebas de aceptación se hicieron en **Node 24.21.0**, y **el release de la entrega 1 sale en 24.21.0**, que sigue cumpliendo la regla 1 hasta el 2026-10-30. La migración se mantiene en la ventana del 2026-10-28 al 2026-11-15, con estas condiciones nuevas:
+- repetir en la 26 la E2E completa y la medición de memoria del tope (arquitectura §5.5);
+- la sesión de 24 h (RNF-16), si aún no se ha hecho, se hace ya en la 26.
+
+**2. El punto que había que verificar ya tiene respuesta: la 26 exige `--allow-net`.**
+- **Qué cambia:** desde Node 25.0.0, `--permission` también restringe la red, y `--allow-net` es **booleano** (sin lista de destinos) y está en estabilidad 1.1 (*Active development*; emite un `ExperimentalWarning`). Fuentes: nodejs.org/api/cli.html#--allow-net y nodejs.org/api/permissions.html (v26.11.1, consultadas el 2026-10-12).
+- **Prueba con el binario oficial 26.11.1** (*Current*; SHA-256 comprobado):
+  - con el `npm start` actual, el `listen` en `127.0.0.1` lanza `ERR_ACCESS_DENIED`; el proceso registra `proceso.excepcion` y sale con código 1;
+  - `vitest run` da 1334 de 1335: solo falla `tests/integracion/permisos.test.js`;
+  - con `--allow-net`, el servidor arranca, carga EMSC y USGS y `/api/salud` da las tres fuentes en `ok`.
+- **Consecuencia:** el punto 5 («si la 26 exige un permiso de red explícito, se añade a `npm start`») se aplica.
+- **Plan detallado:** está en `STACK.lock.md`, «Plan de migración a Node 26 LTS»: `--allow-net` en `start` y en los scripts de rendimiento, cambio de `permisos.test.js`, E2E, medición de memoria y actualización de AM-31 y S-04.
+
+**3. Lo que no cambia:** la ventana, la fecha límite (2026-11-15) y el plan B (quedarse en la 24 con excepción y revisión mensual hasta el 2027-04-30).
