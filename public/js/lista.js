@@ -364,15 +364,19 @@ export function crearLista({ scroller, ul, ahora = () => Date.now(), alActivar }
 
   return Object.freeze({
     /**
-     * Sustituye las entradas (ya ordenadas, más recientes primero) y repinta.
-     * @param {Entrada[]} nuevas
+     * Sustituye las entradas (ya ordenadas, más recientes primero) y repinta. Se llama como
+     * mucho una vez por frame (P-01): solo se crean o rehacen las filas visibles cuya versión ha
+     * cambiado, y se conservan las alturas medidas de las demás.
+     * @param {Entrada[]} nuevas array del estado, que cambia en el sitio: se guarda una copia
+     *   para que índice y posiciones sigan coherentes hasta el siguiente pintado
      */
     actualizar(nuevas) {
       const ancla = tomarAncla();
       const enfocado = idEnfocado();
       const indicePrevio = idItinerante === null ? undefined : indice.get(idItinerante);
-      entradas = nuevas;
-      indice = new Map(nuevas.map((e, i) => [e.sismo.id, i]));
+      entradas = nuevas.slice();
+      indice = new Map();
+      for (let i = 0; i < entradas.length; i += 1) indice.set(entradas[i].sismo.id, i);
       for (const id of altos.keys()) if (!indice.has(id)) altos.delete(id);
       sucio = true;
       for (const fila of filas.values()) fila.posicion = -1;

@@ -4,8 +4,13 @@
  * `/vendor/leaflet/` (AM-20) y se carga antes como script clásico (`L` global).
  *
  * - Marcadores en un renderizador **canvas** (rinde con miles de sismos). El halo de «última
- *   hora» y el pulso van en un renderizador **SVG** en un panel propio sin eventos de puntero,
- *   para poder animarlos con CSS sin tapar los clics del canvas.
+ *   hora» va en el mismo canvas, sin eventos (P-06: con SVG, mil halos eran mil nodos que se
+ *   recalculaban en cada zoom). El pulso es un anillo HTML (`divIcon`) en un panel sin eventos
+ *   de puntero, animado con CSS en el compositor; hay como mucho `MAX_PULSOS` a la vez, solo de
+ *   sismos a la vista.
+ * - Actualización incremental (P-01): `aplicarCambios(ids)` crea, cambia o quita solo los
+ *   marcadores afectados. El orden de dibujo (los grandes debajo) se mantiene con un array
+ *   ordenado y `bringToFront` solo desde el primer marcador nuevo.
  * - La ventana emergente se construye con nodos DOM y `textContent` (AM-01); nunca con cadenas
  *   HTML. El enlace «Más info» es el que construye el servidor y se vuelve a comprobar (AM-02).
  * - Los marcadores se localizan con un `Map<id, …>` en memoria (AM-24).
@@ -21,6 +26,7 @@ import {
   formatearMagnitud,
   radioMarcador,
 } from './magnitud.js';
+import { MAX_PULSOS, elegirPulsos, ordenDibujo, posicionDibujo } from './orden-mapa.js';
 import { esUrlFichaValida } from '/shared/enlaces.js';
 import { haceTexto, horaCompleta } from '/shared/hora.js';
 import { sanear } from '/shared/texto.js';
@@ -33,9 +39,20 @@ const TESELAS = Object.freeze({
   dia: ['World_Light_Gray_Base', 'World_Light_Gray_Reference'],
 });
 
-/** Atribución de Esri: el `copyrightText` del servicio, traducido (consultado el 2026-10-10). */
+/**
+ * Atribución de Esri (C4 de la revisión T5.5): «Powered by Esri», que exigen sus términos, y los
+ * proveedores del `copyrightText` del servicio, traducido. Constante del código, no un dato de
+ * una fuente: Leaflet la inserta como HTML. En móvil, `.atrib-fuentes` se oculta y la lista de
+ * proveedores pasa al pie (C5).
+ */
 const ATRIBUCION_ESRI =
-  'Teselas © Esri — Esri, HERE, Garmin, © colaboradores de OpenStreetMap y la comunidad de usuarios de SIG';
+  '<span lang="en">Powered by</span> ' +
+  '<a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">Esri<span class="vh"> (se abre en otra pestaña)</span></a>' +
+  '<span class="atrib-fuentes"> | Fuentes: Esri, HERE, Garmin, © colaboradores de OpenStreetMap y la comunidad de usuarios de SIG</span>';
+
+/** Prefijo de la atribución (sin la bandera SVG por defecto de Leaflet). */
+const PREFIJO_LEAFLET =
+  '<a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet<span class="vh"> (se abre en otra pestaña)</span></a>';
 
 /**
  * Capa de teselas compatible con la CSP (`img-src` sin `data:`). Leaflet 1.9.4 cancela las
@@ -114,10 +131,14 @@ const MUESTRAS = Object.freeze([
  * @typedef {'oscuro' | 'dia'} Tema
  *
  * @typedef {object} Marca
+ * @property {string} id
  * @property {any} marcador
  * @property {any | null} halo
  * @property {number} version
+ * @property {number} magnitud
+ * @property {number} instante
  */
+
 
 /**
  * Contenido de la ventana emergente (textos.md §7).
@@ -298,16 +319,12 @@ export function crearMapa({
   L.control
     .zoom({ position: 'topleft', zoomInTitle: 'Acercar', zoomOutTitle: 'Alejar' })
     .addTo(mapa);
-  // Prefijo constante (sin la bandera SVG por defecto de Leaflet).
-  mapa.attributionControl.setPrefix(
-    '<a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet</a>',
-  );
+  mapa.attributionControl.setPrefix(PREFIJO_LEAFLET);
 
   mapa.createPane('halos');
   const panelHalos = mapa.getPane('halos');
   panelHalos.classList.add('panel-halos');
   const canvas = L.canvas({ padding: 0.5 });
-  const svg = L.svg({ pane: 'halos', padding: 0.5 });
   const grupoMarcadores = L.layerGroup().addTo(mapa);
   const grupoHalos = L.layerGroup().addTo(mapa);
 
@@ -355,8 +372,16 @@ export function crearMapa({
 
   /** @type {Map<string, Marca>} */
   const marcas = new Map();
-  /** @type {Set<string>} */
-  const pulsados = new Set();
+  /** @type {Marca[]} marcas en orden de dibujo ({@link ordenDibujo}) */
+  let orden = [];
+  /**
+   * Sismos que ya han pulsado (o que ya no pulsarán), con su instante. Solo los de la última
+   * hora: los demás se olvidan en `refrescar` (R-18, antes crecía sin límite).
+   * @type {Map<string, number>}
+   */
+  const pulsados = new Map();
+  let pulsosActivos = 0;
+  let numHalos = 0;
 
   /**
    * @param {Entrada} entrada
@@ -384,8 +409,7 @@ export function crearMapa({
   function crearHalo(entrada) {
     const { sismo } = entrada;
     return L.circleMarker([sismo.lat, sismo.lon], {
-      renderer: svg,
-      pane: 'halos',
+      renderer: canvas,
       radius: radioMarcador(sismo.magnitud) + 5,
       color: BORDE[temaActual],
       weight: 1.5,
@@ -393,44 +417,78 @@ export function crearMapa({
       dashArray: '3 3',
       fill: false,
       interactive: false,
-      className: 'marcador-halo',
     });
   }
 
   /** @param {Entrada} entrada */
   function pulsar(entrada) {
     const { sismo } = entrada;
-    pulsados.add(sismo.id);
-    if (movimientoReducido()) return;
-    const pulso = L.circleMarker([sismo.lat, sismo.lon], {
-      renderer: svg,
+    pulsosActivos += 1;
+    // Anillo HTML que anima `transform` y `opacity` (CSS): lo mueve el compositor, sin repintar
+    // una capa SVG del tamaño del mapa en cada frame (P-06). Tamaño por CSSOM, no por atributo.
+    const diametro = 2 * radioMarcador(sismo.magnitud);
+    const anillo = crear('span', { clase: `pulso pulso-b${bandaMagnitud(sismo.magnitud)}` });
+    anillo.style.width = `${diametro}px`;
+    anillo.style.height = `${diametro}px`;
+    const pulso = L.marker([sismo.lat, sismo.lon], {
       pane: 'halos',
-      radius: radioMarcador(sismo.magnitud),
-      color: COLOR_BANDA[bandaMagnitud(sismo.magnitud) - 1],
-      weight: 2,
-      opacity: 1,
-      fill: false,
+      icon: L.divIcon({ className: 'pulso-icono', html: anillo, iconSize: [diametro, diametro] }),
       interactive: false,
-      className: 'marcador-pulso',
+      keyboard: false,
     }).addTo(grupoHalos);
-    setTimeout(() => grupoHalos.removeLayer(pulso), DURACION_PULSO_MS);
+    setTimeout(() => {
+      grupoHalos.removeLayer(pulso);
+      pulsosActivos -= 1;
+      contar();
+    }, DURACION_PULSO_MS);
   }
 
   /**
-   * Halo mientras el sismo tenga menos de 1 h; pulso de 3 ciclos la primera vez que aparece.
+   * Halo mientras el sismo tenga menos de 1 h. Devuelve `true` si el sismo es candidato a pulso
+   * (reciente y sin pulsar todavía).
    * @param {Entrada} entrada
    * @param {Marca} marca
    * @param {number} t
+   * @returns {boolean}
    */
   function ajustarHalo(entrada, marca, t) {
     const reciente = t - entrada.instante < UNA_HORA_MS;
     if (reciente && !marca.halo) {
       marca.halo = crearHalo(entrada).addTo(grupoHalos);
-      if (!pulsados.has(entrada.sismo.id)) pulsar(entrada);
+      numHalos += 1;
     } else if (!reciente && marca.halo) {
       grupoHalos.removeLayer(marca.halo);
       marca.halo = null;
+      numHalos -= 1;
     }
+    return reciente && !pulsados.has(entrada.sismo.id);
+  }
+
+  /**
+   * Pulso de 3 ciclos para los candidatos (P-06): como mucho `MAX_PULSOS` a la vez, los más
+   * recientes y solo los que están a la vista. Todos quedan marcados: no pulsan más tarde.
+   * @param {Entrada[]} candidatos
+   */
+  function pulsarCandidatos(candidatos) {
+    if (candidatos.length === 0) return;
+    for (const e of candidatos) pulsados.set(e.sismo.id, e.instante);
+    if (movimientoReducido()) return;
+    const vista = mapa.getBounds().pad(0.1);
+    const visibles = candidatos.filter((e) => vista.contains([e.sismo.lat, e.sismo.lon]));
+    for (const e of elegirPulsos(visibles, MAX_PULSOS - pulsosActivos)) pulsar(e);
+  }
+
+  /** Recuento para las pruebas E2E (el canvas no deja contar los halos en el DOM). */
+  function contar() {
+    contenedor.dataset.halos = String(numHalos);
+    contenedor.dataset.pulsos = String(pulsosActivos);
+  }
+
+  /** @param {Marca} marca */
+  function sacarDeOrden(marca) {
+    const i = posicionDibujo(orden, marca);
+    if (orden[i] === marca) orden.splice(i, 1);
+    else orden = orden.filter((m) => m !== marca);
   }
 
   /** @param {string} id */
@@ -438,8 +496,52 @@ export function crearMapa({
     const marca = marcas.get(id);
     if (!marca) return;
     grupoMarcadores.removeLayer(marca.marcador);
-    if (marca.halo) grupoHalos.removeLayer(marca.halo);
+    if (marca.halo) {
+      grupoHalos.removeLayer(marca.halo);
+      numHalos -= 1;
+    }
     marcas.delete(id);
+    sacarDeOrden(marca);
+  }
+
+  /**
+   * Crea los marcadores de `nuevas` (ya quitados los anteriores) en su sitio del orden de dibujo.
+   * @param {Entrada[]} nuevas
+   * @param {number} t
+   * @returns {Entrada[]} candidatas a pulso
+   */
+  function colocar(nuevas, t) {
+    /** @type {Entrada[]} */
+    const candidatos = [];
+    if (nuevas.length === 0) return candidatos;
+    /** @type {Marca[]} */
+    const creadas = nuevas.map((e) => ({
+      id: e.sismo.id,
+      marcador: crearMarcador(e),
+      halo: null,
+      version: e.version,
+      magnitud: e.sismo.magnitud,
+      instante: e.instante,
+    }));
+    creadas.sort(ordenDibujo);
+    let desde = orden.length;
+    for (const marca of creadas) {
+      const i = posicionDibujo(orden, marca);
+      orden.splice(i, 0, marca);
+      if (i < desde) desde = i;
+      marcas.set(marca.id, marca);
+      marca.marcador.addTo(grupoMarcadores);
+    }
+    // Los nuevos se han dibujado encima de todo. Si alguno debe ir debajo de marcadores que ya
+    // estaban, se reordena desde el primero nuevo (operaciones de lista, un solo redibujado).
+    if (orden.length - desde > creadas.length) {
+      for (let i = desde; i < orden.length; i += 1) orden[i].marcador.bringToFront();
+    }
+    for (const e of nuevas) {
+      const marca = marcas.get(e.sismo.id);
+      if (marca && ajustarHalo(e, marca, t)) candidatos.push(e);
+    }
+    return candidatos;
   }
 
   /** @type {{ id: string, popup: any, hace: HTMLElement, focoDentro: boolean } | null} */
@@ -497,7 +599,8 @@ export function crearMapa({
 
   return Object.freeze({
     /**
-     * Sincroniza los marcadores con las entradas (diferencias por id y versión).
+     * Sincroniza todos los marcadores con las entradas (carga o cambio de filtros): diferencias
+     * por id y versión.
      * @param {Entrada[]} entradas
      */
     sincronizar(entradas) {
@@ -505,28 +608,44 @@ export function crearMapa({
       const vigentes = new Set();
       /** @type {Entrada[]} */
       const nuevas = [];
+      /** @type {Entrada[]} */
+      const candidatos = [];
       for (const e of entradas) {
         vigentes.add(e.sismo.id);
         const marca = marcas.get(e.sismo.id);
         if (!marca || marca.version !== e.version) nuevas.push(e);
+        else if (ajustarHalo(e, marca, t)) candidatos.push(e);
       }
       for (const id of [...marcas.keys()]) if (!vigentes.has(id)) quitar(id);
       for (const e of nuevas) quitar(e.sismo.id);
-      // Los grandes debajo y los pequeños encima; a igual magnitud, el más reciente encima.
-      nuevas.sort((a, b) => b.sismo.magnitud - a.sismo.magnitud || a.instante - b.instante);
-      for (const e of nuevas) {
-        const marca = {
-          marcador: crearMarcador(e).addTo(grupoMarcadores),
-          halo: null,
-          version: e.version,
-        };
-        marcas.set(e.sismo.id, marca);
-      }
-      for (const e of entradas) {
-        const marca = marcas.get(e.sismo.id);
-        if (marca) ajustarHalo(e, marca, t);
-      }
+      candidatos.push(...colocar(nuevas, t));
+      pulsarCandidatos(candidatos);
       if (ventana && !vigentes.has(ventana.id)) mapa.closePopup(ventana.popup);
+      contar();
+    },
+
+    /**
+     * Aplica solo los cambios de unos ids (stream, P-01): alta, revisión o baja.
+     * @param {Iterable<string>} ids
+     * @param {(id: string) => Entrada | undefined} obtener entrada vigente del estado
+     */
+    aplicarCambios(ids, obtener) {
+      const t = ahora();
+      /** @type {Entrada[]} */
+      const nuevas = [];
+      for (const id of ids) {
+        const e = obtener(id);
+        const marca = marcas.get(id);
+        if (!e) {
+          quitar(id);
+          if (ventana?.id === id) mapa.closePopup(ventana.popup);
+        } else if (!marca || marca.version !== e.version) {
+          quitar(id);
+          nuevas.push(e);
+        }
+      }
+      pulsarCandidatos(colocar(nuevas, t));
+      contar();
     },
 
     /** Recalcula halos y el «hace X» de la ventana abierta (cada 30 s). */
@@ -534,8 +653,13 @@ export function crearMapa({
       const t = ahora();
       for (const e of entradas) {
         const marca = marcas.get(e.sismo.id);
+        // Un sismo que deja de ser reciente no vuelve a ser candidato: aquí no se pulsa.
         if (marca) ajustarHalo(e, marca, t);
       }
+      for (const [id, instante] of pulsados) {
+        if (t - instante >= UNA_HORA_MS) pulsados.delete(id);
+      }
+      contar();
       if (ventana) {
         const e = entradas.find((x) => x.sismo.id === ventana?.id);
         if (e) ventana.hace.textContent = haceTexto(e.instante, t);

@@ -307,6 +307,8 @@ export function crearAnunciadorNuevos({
  * @param {() => number} [deps.ahora]
  * @param {(fn: () => void, ms: number) => unknown} [deps.programar]
  * @param {(t: unknown) => void} [deps.cancelar]
+ * @param {(fn: () => void) => void} [deps.programarPintado] agrupa la renovación del indicador
+ *   (por defecto, en el siguiente frame): en una ráfaga no se reescribe por cada sismo (P-01)
  */
 export function crearConexionVivo({
   estado,
@@ -322,6 +324,10 @@ export function crearConexionVivo({
   ahora = () => Date.now(),
   programar = (fn, ms) => setTimeout(fn, ms),
   cancelar = (t) => clearTimeout(/** @type {any} */ (t)),
+  programarPintado = (fn) => {
+    if (typeof globalThis.requestAnimationFrame === 'function') requestAnimationFrame(fn);
+    else queueMicrotask(fn);
+  },
 }) {
   /** @type {EventSourceMinimo | null} */
   let es = null;
@@ -349,6 +355,17 @@ export function crearConexionVivo({
 
   function ponerEnVivo() {
     barra.poner('en-vivo', { n: estado.tamano, hora: ultimoDato });
+  }
+
+  let indicadorPendiente = false;
+  /** Renueva «En vivo · n sismos · actualizado a las…» una vez por frame como mucho. */
+  function renovarIndicador() {
+    if (indicadorPendiente) return;
+    indicadorPendiente = true;
+    programarPintado(() => {
+      indicadorPendiente = false;
+      if (abierta && barra.estado === 'en-vivo') ponerEnVivo();
+    });
   }
 
   function cerrarFuente() {
@@ -503,7 +520,7 @@ export function crearConexionVivo({
       filtros: obtenerFiltros(),
       ahora: ahora(),
     });
-    if (barra.estado === 'en-vivo') ponerEnVivo();
+    renovarIndicador();
     alEvento(resultado);
   }
 
@@ -536,7 +553,7 @@ export function crearConexionVivo({
 
   // El contador del indicador sigue al estado (altas, bajas y sismos que salen del periodo).
   estado.suscribir(() => {
-    if (abierta && barra.estado === 'en-vivo') queueMicrotask(ponerEnVivo);
+    if (abierta && barra.estado === 'en-vivo') renovarIndicador();
   });
 
   return Object.freeze({

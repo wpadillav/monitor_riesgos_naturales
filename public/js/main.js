@@ -7,8 +7,12 @@
  * dan por conocidos (no se notifican) y el stream se abre con el `ultimoEventoId` de la carga, de
  * modo que no se pierde ni se duplica nada. Con `flujo.reiniciar`, recarga silenciosa y reapertura.
  * El indicador pasa a «En vivo» cuando el stream se abre (wireframes §6).
+ *
+ * Pintado (P-01): los cambios del estado se agrupan por frame (`agrupador.js`). Una carga repinta
+ * la lista y sincroniza todo el mapa; los eventos del stream solo tocan los marcadores afectados.
  */
 
+import { crearAgrupador } from './agrupador.js';
 import { ErrorApi, consultarFuentes, consultarSismos } from './api.js';
 import { crearMostrador, crearNotificador } from './avisos.js';
 import { crearAvisosUI } from './avisos-ui.js';
@@ -109,6 +113,7 @@ let abriendoAutomatica = false;
  * @param {{ enfocar: boolean }} opciones
  */
 function verEnMapa(id, { enfocar }) {
+  agrupador.vaciar();
   const entrada = estado.obtener(id);
   if (!entrada || !mapa) return;
   ventanaAutomatica = null;
@@ -124,6 +129,7 @@ function verEnMapa(id, { enfocar }) {
  * @param {string} id
  */
 function abrirSinFoco(id) {
+  agrupador.vaciar();
   const entrada = estado.obtener(id);
   if (!entrada || !mapa) return;
   const activo = document.activeElement;
@@ -176,6 +182,7 @@ mapa = crearMapa({
   tema: temaEfectivo(),
   leyendaAbierta: !esMovil(),
   alPulsarMarcador(id) {
+    agrupador.vaciar();
     const entrada = estado.obtener(id);
     if (!entrada || !mapa) return;
     seleccion = id;
@@ -220,22 +227,29 @@ let cargaHecha = false;
 let consultando = false;
 /** @type {ErrorApi | null} */
 let errorActual = null;
-let pintadoPendiente = false;
+/** @type {string | null} sismo nuevo cuya ventana se abre sola tras el próximo pintado (§8.4) */
+let ventanaPendiente = null;
 
-function pintarDatos() {
-  pintadoPendiente = false;
+/**
+ * Un pintado por frame como mucho (P-01).
+ * @param {import('./agrupador.js').Lote} lote
+ */
+function pintarDatos(lote) {
   const entradas = estado.lista();
   lista.actualizar(entradas);
-  mapa?.sincronizar(entradas);
-  contador.textContent = cargaHecha ? `(${formatearNumero(entradas.length)})` : '';
+  if (lote.completo) mapa?.sincronizar(entradas);
+  else mapa?.aplicarCambios(lote.ids, (id) => estado.obtener(id));
+  const texto = cargaHecha ? `(${formatearNumero(entradas.length)})` : '';
+  if (contador.textContent !== texto) contador.textContent = texto;
   pintarVacio();
+  // En una ráfaga solo se abre la ventana del último sismo que la pedía, no una por evento.
+  const pendiente = ventanaPendiente;
+  ventanaPendiente = null;
+  if (pendiente !== null) abrirSinFoco(pendiente);
 }
 
-estado.suscribir(() => {
-  if (pintadoPendiente) return;
-  pintadoPendiente = true;
-  queueMicrotask(pintarDatos);
-});
+const agrupador = crearAgrupador({ pintar: pintarDatos });
+estado.suscribir((cambio) => agrupador.anotar(cambio));
 
 /** Estados de la lista (textos.md §6). */
 function pintarVacio() {
@@ -524,8 +538,12 @@ const avisosUI = crearAvisosUI({
   anunciar,
   notificador,
   NotificationImpl: NotificationApi,
-  alCambiar: () => vivo.reabrir(),
+  alCambiar() {
+    filtrosUI.ponerAvisos(avisosUI.estado === 'activados');
+    vivo.reabrir();
+  },
 });
+filtrosUI.ponerAvisos(avisosUI.estado === 'activados');
 
 /* ---------- Datos en vivo (T4.6b) ---------- */
 const anunciadorNuevos = crearAnunciadorNuevos({ anunciar });
@@ -553,7 +571,7 @@ function alEventoVivo(r) {
     redondearMagnitud(r.sismo.magnitud) >= avisosUI.umbral &&
     document.visibilityState === 'visible'
   ) {
-    abrirSinFoco(r.sismo.id);
+    ventanaPendiente = r.sismo.id;
   }
 }
 
