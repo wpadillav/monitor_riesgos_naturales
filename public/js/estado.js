@@ -14,7 +14,7 @@
  * revisiones sueltas: no se reordena todo por cada sismo del stream (P-01).
  */
 
-import { redondearMagnitud } from './magnitud.js';
+import { redondear1 } from '/shared/reglas.js';
 
 /**
  * @typedef {object} Sismo modelo común del contrato (`components.schemas.Sismo`)
@@ -27,6 +27,8 @@ import { redondearMagnitud } from './magnitud.js';
  * @property {string} magnitudTipo
  * @property {string} lugar
  * @property {string} pais
+ * @property {string[]} [paisesCandidatos] países por los que cuenta (franja CO-PA, HU-03).
+ *   Obligatorio en el contrato; si faltara, las reglas usan `pais`
  * @property {string} zona
  * @property {string} zonaHoraria
  * @property {string} autor
@@ -141,7 +143,7 @@ export function crearEstado({ ahora = () => Date.now() } = {}) {
    */
   function crearEntrada(sismo, previa, llegadoEn) {
     let magnitudAnterior = previa?.magnitudAnterior ?? null;
-    if (previa && redondearMagnitud(previa.sismo.magnitud) !== redondearMagnitud(sismo.magnitud)) {
+    if (previa && redondear1(previa.sismo.magnitud) !== redondear1(sismo.magnitud)) {
       magnitudAnterior = previa.sismo.magnitud;
     }
     version += 1;

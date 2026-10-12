@@ -5,8 +5,9 @@
  *
  * Reglas:
  * - solo sismos con `notificable: true` (el servidor ya descarta la carga inicial y los de hace
- *   más de 1 h), de un país marcado y con la magnitud **redondeada** ≥ umbral (D1, D4), aunque no
- *   cumplan los filtros de la lista;
+ *   más de 1 h), con alguno de sus `paisesCandidatos` marcado (R-01) y con la magnitud
+ *   **redondeada** ≥ umbral (D1, D4), aunque no cumplan los filtros de la lista. Es la regla
+ *   `cumpleFiltroAviso` de `src/shared/reglas.js`, la misma que aplica el servidor;
  * - una sola vez por id, también tras una revisión o una fusión entre fuentes (`trasladar`);
  * - una revisión notifica solo si **cruza** el umbral: si el sismo ya se conocía por encima (de
  *   la carga inicial o de antes de activar los avisos), no se notifica;
@@ -15,9 +16,10 @@
  */
 
 import { etiquetaZona, horaCorta } from '/shared/hora.js';
+import { algunPaisMarcado, cumpleFiltroAviso, redondear1 } from '/shared/reglas.js';
 import { sanear } from '/shared/texto.js';
 import { NOMBRE_FUENTE, formatearLugar, lineaPaisProfundidad } from './formato.js';
-import { formatearMagnitud, redondearMagnitud } from './magnitud.js';
+import { formatearMagnitud } from './magnitud.js';
 
 /** Avisos como máximo en `VENTANA_LIMITE_MS` (AM-22). */
 export const LIMITE_AVISOS = 3;
@@ -57,7 +59,8 @@ export function textoUmbral(umbral) {
 /**
  * ¿Se avisa de este sismo? Función pura (PRD E4, HU-11, AM-22).
  * @param {object} p
- * @param {{ pais: string, magnitud: number }} p.sismo
+ * @param {Pick<import('/shared/reglas.js').SismoReglas, 'pais' | 'paisesCandidatos' |
+ *   'magnitud'>} p.sismo
  * @param {boolean} p.notificable `datos.notificable` del stream
  * @param {ReadonlyArray<string>} p.paises países marcados
  * @param {number} p.umbral
@@ -71,9 +74,11 @@ export function decidirAviso({ sismo, notificable, paises, umbral, yaNotificado,
   const no = (/** @type {MotivoAviso} */ motivo) => ({ motivo, antes: null });
   if (yaNotificado) return no('ya-notificado');
   if (notificable !== true) return no('no-notificable');
-  if (!paises.includes(sismo.pais)) return no('pais-no-marcado');
-  const m = redondearMagnitud(sismo.magnitud);
-  if (!(m >= umbral)) return no('bajo-umbral');
+  if (!algunPaisMarcado(sismo, paises)) return no('pais-no-marcado');
+  if (!cumpleFiltroAviso(sismo, notificable, { paises, avisoMin: umbral })) {
+    return no('bajo-umbral');
+  }
+  const m = redondear1(sismo.magnitud);
   if (magnitudPrevia === undefined) return { motivo: 'avisar', antes: null };
   if (magnitudPrevia >= umbral) return no('ya-superaba');
   return { motivo: 'avisar', antes: magnitudPrevia !== m ? magnitudPrevia : null };
@@ -248,7 +253,7 @@ export function crearNotificador({
       return;
     }
     const mayor = pendientes.reduce((a, b) =>
-      redondearMagnitud(b.magnitud) > redondearMagnitud(a.magnitud) ? b : a,
+      redondear1(b.magnitud) > redondear1(a.magnitud) ? b : a,
     );
     const { titulo, cuerpo } = textoAvisoResumen(pendientes.length, umbral, mayor);
     enviar({ tipo: 'resumen', titulo, cuerpo, etiqueta: `resumen-${ahora()}`, sismo: null });
@@ -296,7 +301,7 @@ export function crearNotificador({
       for (const s of sismos) {
         const v = /** @type {Partial<Sismo>} */ (s);
         if (v && typeof v.id === 'string' && typeof v.magnitud === 'number') {
-          recordar(magnitudes, v.id, redondearMagnitud(v.magnitud));
+          recordar(magnitudes, v.id, redondear1(v.magnitud));
         }
       }
     },
@@ -308,7 +313,7 @@ export function crearNotificador({
      */
     procesar({ sismo, notificable, paises }) {
       const previa = magnitudes.get(sismo.id);
-      recordar(magnitudes, sismo.id, redondearMagnitud(sismo.magnitud));
+      recordar(magnitudes, sismo.id, redondear1(sismo.magnitud));
       if (!activo) return 'inactivo';
       const { motivo, antes } = decidirAviso({
         sismo,

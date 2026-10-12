@@ -4,6 +4,7 @@
  * bloqueado o lleno, la página funciona igual con los valores por defecto.
  */
 
+import { AVISO_MIN_POR_DEFECTO, OPCIONES_AVISO_MIN } from '/shared/reglas.js';
 import { filtrosPorDefecto, validarFiltros } from './filtros.js';
 
 export const CLAVE_FILTROS = 'filtros';
@@ -89,13 +90,8 @@ export function guardarTema(almacen, tema) {
 }
 
 /**
- * Umbrales de aviso que admite la página (textos.md §8.2; contrato `avisoMin` de
- * `/api/stream`). Por defecto 4.5 (D1).
- */
-export const OPCIONES_UMBRAL = Object.freeze(['4.0', '4.5', '5.0', '5.5', '6.0']);
-export const UMBRAL_POR_DEFECTO = '4.5';
-
-/**
+ * Umbrales que admite la página: los del contrato (`OPCIONES_AVISO_MIN` y
+ * `AVISO_MIN_POR_DEFECTO` de `src/shared/reglas.js`; textos.md §8.2).
  * @typedef {'4.0' | '4.5' | '5.0' | '5.5' | '6.0'} OpcionUmbral
  * @typedef {{ activos: boolean | null, umbral: OpcionUmbral }} PreferenciaAvisos `activos`:
  *   `null` si el usuario nunca los ha activado ni desactivado
@@ -108,14 +104,14 @@ export const UMBRAL_POR_DEFECTO = '4.5';
  * @returns {PreferenciaAvisos}
  */
 export function leerAvisos(almacen) {
-  const defecto = { activos: null, umbral: /** @type {OpcionUmbral} */ (UMBRAL_POR_DEFECTO) };
+  const defecto = { activos: null, umbral: /** @type {OpcionUmbral} */ (AVISO_MIN_POR_DEFECTO) };
   try {
     const crudo = almacen?.getItem(CLAVE_AVISOS);
     if (typeof crudo !== 'string' || crudo.length > 200) return defecto;
     const v = JSON.parse(crudo);
     if (typeof v !== 'object' || v === null || Array.isArray(v)) return defecto;
     if (typeof v.activos !== 'boolean') return defecto;
-    if (typeof v.umbral !== 'string' || !OPCIONES_UMBRAL.includes(v.umbral)) return defecto;
+    if (typeof v.umbral !== 'string' || !OPCIONES_AVISO_MIN.includes(v.umbral)) return defecto;
     return { activos: v.activos, umbral: /** @type {OpcionUmbral} */ (v.umbral) };
   } catch {
     return defecto;
@@ -129,7 +125,7 @@ export function leerAvisos(almacen) {
  */
 export function guardarAvisos(almacen, { activos, umbral }) {
   try {
-    if (!almacen || typeof activos !== 'boolean' || !OPCIONES_UMBRAL.includes(umbral)) {
+    if (!almacen || typeof activos !== 'boolean' || !OPCIONES_AVISO_MIN.includes(umbral)) {
       return false;
     }
     almacen.setItem(CLAVE_AVISOS, JSON.stringify({ activos, umbral }));

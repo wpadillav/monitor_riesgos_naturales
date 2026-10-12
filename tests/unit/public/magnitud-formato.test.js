@@ -14,7 +14,6 @@ import {
   bordeMarcador,
   formatearMagnitud,
   radioMarcador,
-  redondearMagnitud,
 } from '../../../public/js/magnitud.js';
 
 describe('escala de magnitud (tokens.md §3)', () => {
@@ -35,10 +34,10 @@ describe('escala de magnitud (tokens.md §3)', () => {
     expect(bandaMagnitud(m)).toBe(banda);
   });
 
-  it('redondea como el servidor: 4.35 → 4.4 y 4.45 → 4.5', () => {
-    expect(redondearMagnitud(4.35)).toBe(4.4);
-    expect(redondearMagnitud(4.45)).toBe(4.5);
-    expect(redondearMagnitud(4.44)).toBe(4.4);
+  it('redondea con `redondear1` compartido con el servidor: 4.35 → 4.4 y 4.45 → 4.5 (R-06)', () => {
+    expect(formatearMagnitud(4.35)).toBe('4.4');
+    expect(formatearMagnitud(4.45)).toBe('4.5');
+    expect(formatearMagnitud(4.44)).toBe('4.4');
   });
 
   it('formato con punto decimal y un decimal', () => {

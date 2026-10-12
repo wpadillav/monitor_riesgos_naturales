@@ -8,9 +8,10 @@
  * - El umbral («Avisar desde») y si están activados se guardan en `localStorage` (AM-27).
  */
 
+import { OPCIONES_AVISO_MIN } from '/shared/reglas.js';
 import { crear, icono } from './dom.js';
 import { textoUmbral } from './avisos.js';
-import { OPCIONES_UMBRAL, guardarAvisos, leerAvisos } from './preferencias.js';
+import { guardarAvisos, leerAvisos } from './preferencias.js';
 
 /**
  * @typedef {'no-soportado' | 'inicial' | 'esperando' | 'sin-respuesta' | 'activados' |
@@ -127,7 +128,7 @@ export function crearAvisosUI({
           clase: 'sel',
           atributos: { id: 'umbral-avisos', name: 'umbral-avisos', 'data-foco': 'principal' },
         });
-        for (const valor of OPCIONES_UMBRAL) {
+        for (const valor of OPCIONES_AVISO_MIN) {
           select.append(crear('option', { texto: `${valor} o más`, atributos: { value: valor } }));
         }
         select.value = umbral;
@@ -249,7 +250,7 @@ export function crearAvisosUI({
 
   /** @param {string} valor */
   function cambiarUmbral(valor) {
-    if (!OPCIONES_UMBRAL.includes(valor) || valor === umbral) return;
+    if (!OPCIONES_AVISO_MIN.includes(valor) || valor === umbral) return;
     umbral = /** @type {import('./preferencias.js').OpcionUmbral} */ (valor);
     guardar();
     sincronizarNotificador();

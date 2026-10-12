@@ -13,6 +13,7 @@ import {
 } from '../../../public/js/avisos.js';
 import { estadoInicialAvisos } from '../../../public/js/avisos-ui.js';
 import { CLAVE_AVISOS, guardarAvisos, leerAvisos } from '../../../public/js/preferencias.js';
+import { cumpleFiltroAviso } from '../../../src/shared/reglas.js';
 
 const T0 = Date.parse('2026-10-10T12:30:00Z');
 
@@ -64,6 +65,53 @@ describe('decidirAviso (PRD E4, D1, D4)', () => {
     expect(
       decidirAviso({ ...base, sismo: sismo({ magnitud: 5.1 }), magnitudPrevia: 4.9 }).motivo,
     ).toBe('ya-superaba');
+  });
+});
+
+describe('decidirAviso con las reglas compartidas (R-01, R-02)', () => {
+  const base = { notificable: true, umbral: 4.5, yaNotificado: false, magnitudPrevia: undefined };
+  const franja = sismo({ lat: 9.5, lon: -77.1, pais: 'PA', paisesCandidatos: ['CO', 'PA'] });
+
+  it('franja CO-PA: con solo Colombia marcada, un sismo con pais PA y candidatos [CO, PA] avisa', () => {
+    expect(decidirAviso({ ...base, paises: ['CO'], sismo: franja }).motivo).toBe('avisar');
+    expect(decidirAviso({ ...base, paises: ['PA'], sismo: franja }).motivo).toBe('avisar');
+    expect(decidirAviso({ ...base, paises: ['ES'], sismo: franja }).motivo).toBe('pais-no-marcado');
+  });
+
+  it('sin paisesCandidatos, solo cuenta pais', () => {
+    const solo = { ...franja, paisesCandidatos: undefined };
+    expect(decidirAviso({ ...base, paises: ['CO'], sismo: solo }).motivo).toBe('pais-no-marcado');
+  });
+
+  it('el umbral se compara con la magnitud redondeada: M 4.96 avisa con 5.0', () => {
+    const s = sismo({ magnitud: 4.96 });
+    expect(decidirAviso({ ...base, paises: ['CO'], umbral: 5, sismo: s }).motivo).toBe('avisar');
+  });
+
+  it('coincide con cumpleFiltroAviso de src/shared/reglas.js (R-06)', () => {
+    for (const magnitud of [4.44, 4.45, 4.46, 4.96, 5, 6.1]) {
+      for (const paises of [['CO'], ['PA'], ['ES'], []]) {
+        for (const notificable of [true, false]) {
+          const s = { ...franja, magnitud };
+          const esperado = cumpleFiltroAviso(s, notificable, { paises, avisoMin: 4.5 });
+          const r = decidirAviso({ ...base, notificable, paises, sismo: s });
+          expect(r.motivo === 'avisar').toBe(esperado);
+        }
+      }
+    }
+  });
+
+  it('el notificador avisa del sismo de la franja con solo Colombia marcada', () => {
+    const mostrar = vi.fn();
+    const n = crearNotificador({
+      mostrar,
+      ahora: () => T0,
+      programar: () => 0,
+      cancelar: () => {},
+    });
+    n.configurar({ activo: true, umbral: 4.5 });
+    expect(n.procesar({ sismo: franja, notificable: true, paises: ['CO'] })).toBe('avisar');
+    expect(mostrar).toHaveBeenCalledTimes(1);
   });
 });
 

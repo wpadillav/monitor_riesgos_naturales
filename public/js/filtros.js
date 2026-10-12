@@ -4,45 +4,57 @@
  */
 
 import { PAISES } from '/shared/constantes.js';
-import { redondearMagnitud } from './magnitud.js';
+import {
+  MAG_MIN_POR_DEFECTO,
+  MAG_MIN_TODAS,
+  OPCIONES_MAG_MIN,
+  PERIODOS,
+  PERIODOS_MS,
+  PERIODO_POR_DEFECTO,
+  cumpleFiltroLista,
+} from '/shared/reglas.js';
+import { NOMBRE_PAIS } from './formato.js';
 
 /**
- * @typedef {'ES' | 'CO' | 'PA'} CodigoPais
+ * @typedef {import('/shared/reglas.js').CodigoPais} CodigoPais
+ * @typedef {import('/shared/reglas.js').Periodo} Periodo
  * @typedef {'todas' | '1.0' | '2.0' | '2.5' | '3.0' | '4.0' | '4.5' | '5.0'} OpcionMagnitud
- * @typedef {'1h' | '24h' | '7d' | '30d'} Periodo
  * @typedef {{ paises: CodigoPais[], magMin: OpcionMagnitud, periodo: Periodo }} Filtros
  */
 
-/** Opciones de magnitud mínima (D5). `todas` = sin `magMin` en la petición. */
-export const OPCIONES_MAGNITUD = Object.freeze([
-  Object.freeze({ valor: 'todas', texto: 'Todas' }),
-  Object.freeze({ valor: '1.0', texto: '1.0 o más' }),
-  Object.freeze({ valor: '2.0', texto: '2.0 o más' }),
-  Object.freeze({ valor: '2.5', texto: '2.5 o más' }),
-  Object.freeze({ valor: '3.0', texto: '3.0 o más' }),
-  Object.freeze({ valor: '4.0', texto: '4.0 o más' }),
-  Object.freeze({ valor: '4.5', texto: '4.5 o más' }),
-  Object.freeze({ valor: '5.0', texto: '5.0 o más' }),
-]);
+/**
+ * Opciones de magnitud mínima (D5): `todas` (sin `magMin` en la petición) y las del contrato
+ * (`OPCIONES_MAG_MIN` de `src/shared/reglas.js`). Aquí solo se añade el texto visible.
+ */
+export const OPCIONES_MAGNITUD = Object.freeze(
+  [MAG_MIN_TODAS, ...OPCIONES_MAG_MIN].map((valor) =>
+    Object.freeze({ valor, texto: valor === MAG_MIN_TODAS ? 'Todas' : `${valor} o más` }),
+  ),
+);
 
-/** Opciones de periodo [PRD HU-05], con su duración y el texto en minúsculas de los avisos. */
-export const OPCIONES_PERIODO = Object.freeze([
-  Object.freeze({ valor: '1h', texto: 'Última hora', enFrase: 'la última hora', ms: 3_600_000 }),
-  Object.freeze({
-    valor: '24h',
-    texto: 'Últimas 24 h',
-    enFrase: 'las últimas 24 h',
-    ms: 86_400_000,
-  }),
-  Object.freeze({ valor: '7d', texto: '7 días', enFrase: '7 días', ms: 7 * 86_400_000 }),
-  Object.freeze({ valor: '30d', texto: '30 días', enFrase: '30 días', ms: 30 * 86_400_000 }),
-]);
+/** Textos de cada periodo (textos.md §4): el del selector y el de las frases de los avisos. */
+const TEXTOS_PERIODO = Object.freeze({
+  '1h': { texto: 'Última hora', enFrase: 'la última hora' },
+  '24h': { texto: 'Últimas 24 h', enFrase: 'las últimas 24 h' },
+  '7d': { texto: '7 días', enFrase: '7 días' },
+  '30d': { texto: '30 días', enFrase: '30 días' },
+});
 
-/** Valores por defecto (D5): los tres países, 2.0 o más y últimas 24 h. */
+/**
+ * Opciones de periodo [PRD HU-05]: los periodos y su duración son los del contrato
+ * (`PERIODOS` y `PERIODOS_MS` de `src/shared/reglas.js`); aquí solo se añaden los textos.
+ */
+export const OPCIONES_PERIODO = Object.freeze(
+  PERIODOS.map((valor) =>
+    Object.freeze({ valor, ...TEXTOS_PERIODO[valor], ms: PERIODOS_MS[valor] }),
+  ),
+);
+
+/** Valores por defecto (D5): los tres países, la magnitud y el periodo por defecto del contrato. */
 export const FILTROS_POR_DEFECTO = Object.freeze({
   paises: Object.freeze(/** @type {CodigoPais[]} */ ([...PAISES])),
-  magMin: /** @type {OpcionMagnitud} */ ('2.0'),
-  periodo: /** @type {Periodo} */ ('24h'),
+  magMin: /** @type {OpcionMagnitud} */ (MAG_MIN_POR_DEFECTO),
+  periodo: /** @type {Periodo} */ (PERIODO_POR_DEFECTO),
 });
 
 const VALORES_MAGNITUD = OPCIONES_MAGNITUD.map((o) => o.valor);
@@ -125,7 +137,7 @@ export function construirQuery(filtros) {
   if (paises.length === 0) return null;
   const q = new URLSearchParams();
   q.set('paises', paises.join(','));
-  if (filtros.magMin !== 'todas') q.set('magMin', filtros.magMin);
+  if (filtros.magMin !== MAG_MIN_TODAS) q.set('magMin', filtros.magMin);
   q.set('periodo', filtros.periodo);
   return q.toString();
 }
@@ -136,7 +148,7 @@ export function construirQuery(filtros) {
  * @returns {number}
  */
 export function duracionPeriodo(periodo) {
-  return (OPCIONES_PERIODO.find((o) => o.valor === periodo) ?? OPCIONES_PERIODO[1]).ms;
+  return PERIODOS_MS[periodo] ?? PERIODOS_MS[PERIODO_POR_DEFECTO];
 }
 
 /**
@@ -144,7 +156,12 @@ export function duracionPeriodo(periodo) {
  * @returns {{ texto: string, enFrase: string }}
  */
 export function textosPeriodo(periodo) {
-  return OPCIONES_PERIODO.find((o) => o.valor === periodo) ?? OPCIONES_PERIODO[1];
+  return (
+    OPCIONES_PERIODO.find((o) => o.valor === periodo) ??
+    /** @type {(typeof OPCIONES_PERIODO)[number]} */ (
+      OPCIONES_PERIODO.find((o) => o.valor === PERIODO_POR_DEFECTO)
+    )
+  );
 }
 
 /**
@@ -152,10 +169,11 @@ export function textosPeriodo(periodo) {
  * @returns {string}
  */
 export function textoMagnitud(magMin) {
-  return (OPCIONES_MAGNITUD.find((o) => o.valor === magMin) ?? OPCIONES_MAGNITUD[2]).texto;
+  const opcion =
+    OPCIONES_MAGNITUD.find((o) => o.valor === magMin) ??
+    OPCIONES_MAGNITUD.find((o) => o.valor === MAG_MIN_POR_DEFECTO);
+  return opcion?.texto ?? '';
 }
-
-const NOMBRES = Object.freeze({ ES: 'España', CO: 'Colombia', PA: 'Panamá' });
 
 /**
  * Países en el resumen (textos.md §4): «3 países», «España y Colombia», «Solo Panamá»,
@@ -167,8 +185,8 @@ export function textoPaises(paises) {
   const p = ordenarPaises(paises);
   if (p.length === 0) return 'Ningún país';
   if (p.length === PAISES.length) return `${PAISES.length} países`;
-  if (p.length === 1) return `Solo ${NOMBRES[p[0]]}`;
-  return p.map((c) => NOMBRES[c]).join(' y ');
+  if (p.length === 1) return `Solo ${NOMBRE_PAIS[p[0]]}`;
+  return p.map((c) => NOMBRE_PAIS[c]).join(' y ');
 }
 
 /**
@@ -193,18 +211,37 @@ export function resumenFiltros(filtros, { avisos = false } = {}) {
 }
 
 /**
- * ¿Cumple un sismo los filtros de la lista? Lo usa el stream (`stream.js`) para decidir si pinta
- * un sismo que llega en vivo; la magnitud se compara redondeada (D1).
- * @param {{ pais: string, magnitud: number, tiempo: string }} sismo
+ * `magMin` del filtro como lo esperan las reglas compartidas: número, o `null` con «Todas».
+ * @param {OpcionMagnitud} magMin
+ * @returns {number | null}
+ */
+export function magMinNumero(magMin) {
+  return magMin === MAG_MIN_TODAS ? null : Number(magMin);
+}
+
+/**
+ * Filtros de la página en la forma de `FiltroLista` (`src/shared/reglas.js`).
+ * @param {Filtros} filtros
+ * @returns {import('/shared/reglas.js').FiltroLista}
+ */
+export function filtroLista(filtros) {
+  return {
+    paises: filtros.paises,
+    magMin: magMinNumero(filtros.magMin),
+    periodo: filtros.periodo,
+  };
+}
+
+/**
+ * ¿Entra un sismo en la lista? Lo usa el stream (`stream.js`) para decidir si pinta un sismo que
+ * llega en vivo. Es la regla del servidor (`cumpleFiltroLista` de `src/shared/reglas.js`): algún
+ * país marcado entre sus `paisesCandidatos` (R-01), magnitud **cruda** ≥ `magMin` (R-02) y hora
+ * de origen dentro del periodo.
+ * @param {import('/shared/reglas.js').SismoReglas} sismo
  * @param {Filtros} filtros
  * @param {number} ahora ms
  * @returns {boolean}
  */
 export function cumpleFiltros(sismo, filtros, ahora) {
-  if (!filtros.paises.includes(/** @type {CodigoPais} */ (sismo.pais))) return false;
-  if (filtros.magMin !== 'todas' && redondearMagnitud(sismo.magnitud) < Number(filtros.magMin)) {
-    return false;
-  }
-  const t = Date.parse(sismo.tiempo);
-  return Number.isFinite(t) && t >= ahora - duracionPeriodo(filtros.periodo);
+  return cumpleFiltroLista(sismo, filtroLista(filtros), ahora);
 }

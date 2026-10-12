@@ -7,8 +7,14 @@ import {
   duracionPeriodo,
   filtrosIguales,
   filtrosPorDefecto,
+  OPCIONES_MAGNITUD,
+  OPCIONES_PERIODO,
+  filtroLista,
+  magMinNumero,
   resumenFiltros,
+  textoMagnitud,
   textoPaises,
+  textosPeriodo,
   validarFiltros,
 } from '../../../public/js/filtros.js';
 import {
@@ -19,6 +25,13 @@ import {
   leerTema,
   resolverTema,
 } from '../../../public/js/preferencias.js';
+import {
+  MAG_MIN_POR_DEFECTO,
+  OPCIONES_MAG_MIN,
+  PERIODOS,
+  PERIODO_POR_DEFECTO,
+  cumpleFiltroLista,
+} from '../../../src/shared/reglas.js';
 
 /** Almacén en memoria con la interfaz de `Storage`. */
 function almacen(inicial = {}) {
@@ -147,9 +160,38 @@ describe('cumpleFiltros (para el stream de T4.6b)', () => {
   const base = { pais: 'CO', magnitud: 2.95, tiempo: '2026-10-10T11:00:00Z' };
   const f = { paises: ['CO'], magMin: '3.0', periodo: '24h' };
 
-  it('compara la magnitud redondeada (2.95 → 3.0)', () => {
-    expect(cumpleFiltros(base, f, ahora)).toBe(true);
-    expect(cumpleFiltros({ ...base, magnitud: 2.94 }, f, ahora)).toBe(false);
+  it('compara la magnitud cruda, como el servidor (R-02): 2.95 no entra con 3.0', () => {
+    expect(cumpleFiltros(base, f, ahora)).toBe(false);
+    expect(cumpleFiltros({ ...base, magnitud: 2.999 }, f, ahora)).toBe(false);
+    expect(cumpleFiltros({ ...base, magnitud: 3 }, f, ahora)).toBe(true);
+  });
+
+  it('con magMin 5.0, un M 4.96 no entra en la lista (aunque se muestre «5.0»)', () => {
+    expect(cumpleFiltros({ ...base, magnitud: 4.96 }, { ...f, magMin: '5.0' }, ahora)).toBe(false);
+  });
+
+  it('cuenta cualquiera de los paisesCandidatos (R-01, franja CO-PA)', () => {
+    const franja = { ...base, magnitud: 3.2, pais: 'PA', paisesCandidatos: ['CO', 'PA'] };
+    expect(cumpleFiltros(franja, f, ahora)).toBe(true);
+    expect(cumpleFiltros(franja, { ...f, paises: ['PA'] }, ahora)).toBe(true);
+    expect(cumpleFiltros(franja, { ...f, paises: ['ES'] }, ahora)).toBe(false);
+    // Sin paisesCandidatos, solo cuenta `pais`.
+    expect(cumpleFiltros({ ...franja, paisesCandidatos: undefined }, f, ahora)).toBe(false);
+  });
+
+  it('es exactamente la regla compartida cumpleFiltroLista (R-06)', () => {
+    const casos = [2.94, 2.95, 3, 4.96, 5, -1];
+    for (const magnitud of casos) {
+      for (const magMin of ['todas', '3.0', '5.0']) {
+        const s = { ...base, magnitud };
+        const esperado = cumpleFiltroLista(
+          s,
+          { paises: ['CO'], magMin: magMin === 'todas' ? null : Number(magMin), periodo: '24h' },
+          ahora,
+        );
+        expect(cumpleFiltros(s, { ...f, magMin }, ahora)).toBe(esperado);
+      }
+    }
   });
 
   it('país no marcado o fuera del periodo', () => {
@@ -218,5 +260,36 @@ describe('preferencias en localStorage', () => {
     expect(resolverTema('sistema', false)).toBe('oscuro');
     expect(resolverTema('oscuro', true)).toBe('oscuro');
     expect(resolverTema('dia', false)).toBe('dia');
+  });
+});
+
+describe('opciones y valores por defecto de src/shared/reglas.js (R-06)', () => {
+  it('las opciones de magnitud son «Todas» y las del contrato, con su texto', () => {
+    expect(OPCIONES_MAGNITUD.map((o) => o.valor)).toEqual(['todas', ...OPCIONES_MAG_MIN]);
+    expect(OPCIONES_MAGNITUD[0].texto).toBe('Todas');
+    expect(textoMagnitud('4.5')).toBe('4.5 o más');
+    expect(textoMagnitud(/** @type {any} */ ('9.9'))).toBe(`${MAG_MIN_POR_DEFECTO} o más`);
+  });
+
+  it('los periodos son los del contrato, en su orden y con su duración', () => {
+    expect(OPCIONES_PERIODO.map((o) => o.valor)).toEqual([...PERIODOS]);
+    expect(textosPeriodo('1h').enFrase).toBe('la última hora');
+    expect(textosPeriodo(/** @type {any} */ ('2h')).valor).toBe(PERIODO_POR_DEFECTO);
+    expect(duracionPeriodo(/** @type {any} */ ('2h'))).toBe(duracionPeriodo(PERIODO_POR_DEFECTO));
+  });
+
+  it('los filtros por defecto usan la magnitud y el periodo del contrato', () => {
+    expect(FILTROS_POR_DEFECTO.magMin).toBe(MAG_MIN_POR_DEFECTO);
+    expect(FILTROS_POR_DEFECTO.periodo).toBe(PERIODO_POR_DEFECTO);
+  });
+
+  it('«todas» se convierte en null para las reglas compartidas', () => {
+    expect(magMinNumero('todas')).toBeNull();
+    expect(magMinNumero('4.5')).toBe(4.5);
+    expect(filtroLista({ paises: ['CO'], magMin: '2.5', periodo: '7d' })).toEqual({
+      paises: ['CO'],
+      magMin: 2.5,
+      periodo: '7d',
+    });
   });
 });

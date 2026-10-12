@@ -1,7 +1,11 @@
 /**
- * Escala de magnitud (tokens.md §3). Fija: no depende del umbral de avisos. Se distingue por
- * número, tamaño y grosor del borde, además del color (WCAG 1.4.1).
+ * Presentación de la magnitud: escala de colores, texto, radio y borde (tokens.md §3). Fija: no
+ * depende del umbral de avisos. Se distingue por número, tamaño y grosor del borde, además del
+ * color (WCAG 1.4.1). El redondeo a un decimal es el compartido con el servidor (`redondear1` de
+ * `src/shared/reglas.js`, D1): aquí no hay ninguna regla propia.
  */
+
+import { redondear1 } from '/shared/reglas.js';
 
 /** Colores de relleno por banda (`--mag-1` … `--mag-5`), iguales en los dos temas. */
 export const COLOR_BANDA = Object.freeze(['#4a5568', '#f2c94c', '#f08a3c', '#c62828', '#6a1b9a']);
@@ -16,23 +20,13 @@ export const TEXTO_BANDA = Object.freeze([
 ]);
 
 /**
- * Magnitud redondeada a un decimal, igual que el servidor (`dominio/aviso.js`, D1): el margen
- * corrige la representación binaria (4.35 → 4.4, 4.45 → 4.5).
- * @param {number} magnitud
- * @returns {number}
- */
-export function redondearMagnitud(magnitud) {
-  return Math.round(magnitud * 10 + 1e-9) / 10;
-}
-
-/**
  * Magnitud tal como se muestra: punto decimal y un decimal («4.2», «5.0»).
  * @param {number} magnitud
  * @returns {string}
  */
 export function formatearMagnitud(magnitud) {
   if (!Number.isFinite(magnitud)) return '?';
-  return redondearMagnitud(magnitud).toFixed(1);
+  return redondear1(magnitud).toFixed(1);
 }
 
 /**
@@ -41,7 +35,7 @@ export function formatearMagnitud(magnitud) {
  * @returns {1 | 2 | 3 | 4 | 5}
  */
 export function bandaMagnitud(magnitud) {
-  const m = redondearMagnitud(magnitud);
+  const m = redondear1(magnitud);
   if (!(m >= 3)) return 1;
   if (m < 4) return 2;
   if (m < 4.5) return 3;
@@ -55,7 +49,7 @@ export function bandaMagnitud(magnitud) {
  * @returns {number}
  */
 export function radioMarcador(magnitud) {
-  const m = redondearMagnitud(magnitud);
+  const m = redondear1(magnitud);
   return Number.isFinite(m) ? Math.max(4, m * 2.6) : 4;
 }
 

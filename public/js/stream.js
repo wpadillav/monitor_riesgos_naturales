@@ -22,13 +22,11 @@
  * pruebas unitarias.
  */
 
+import { OPCIONES_AVISO_MIN, esIdEvento } from '/shared/reglas.js';
 import { construirQuery, cumpleFiltros } from './filtros.js';
 import { esSismoValido } from './estado.js';
 import { formatearLugar, nombrePais } from './formato.js';
 import { formatearMagnitud } from './magnitud.js';
-
-/** Id de evento del contrato (`IdEvento`). */
-export const PATRON_ID_EVENTO = /^[0-9a-z]{1,16}-[0-9]{1,15}$/;
 
 /** Tipos de evento del contrato (`Evento.tipo`). */
 export const TIPOS_EVENTO = Object.freeze([
@@ -39,9 +37,6 @@ export const TIPOS_EVENTO = Object.freeze([
   'flujo.reiniciar',
   'latido',
 ]);
-
-/** Umbrales de aviso que admite `/api/stream` (contrato `avisoMin`). */
-const AVISO_MIN = Object.freeze(['4.0', '4.5', '5.0', '5.5', '6.0']);
 
 /** Sin ningún mensaje en este tiempo, se cierra y se reabre (contrato, «Mantenimiento»). */
 export const SIN_DATOS_MS = 45_000;
@@ -94,8 +89,8 @@ export function urlStream(filtros, { avisoMin = null, ultimoId = null } = {}) {
   const query = construirQuery(filtros);
   if (query === null) return null;
   const q = new URLSearchParams(query);
-  if (avisoMin !== null && AVISO_MIN.includes(avisoMin)) q.set('avisoMin', avisoMin);
-  if (ultimoId !== null && PATRON_ID_EVENTO.test(ultimoId)) q.set('ultimoId', ultimoId);
+  if (avisoMin !== null && OPCIONES_AVISO_MIN.includes(avisoMin)) q.set('avisoMin', avisoMin);
+  if (esIdEvento(ultimoId)) q.set('ultimoId', ultimoId);
   return `/api/stream?${q.toString()}`;
 }
 
@@ -204,7 +199,9 @@ export async function comprobarPlazas(url, fetchImpl = globalThis.fetch) {
 
 /**
  * Aplica un evento de sismo al estado de la vista:
- * - si cumple los filtros de la lista, alta o actualización (con la etiqueta «Nuevo»);
+ * - si cumple los filtros de la lista (`cumpleFiltroLista` de `src/shared/reglas.js`: algún país
+ *   marcado entre sus `paisesCandidatos` y magnitud cruda ≥ `magMin`, R-01 y R-02), alta o
+ *   actualización (con la etiqueta «Nuevo»);
  * - si no los cumple (llega solo por el umbral de aviso, o una revisión lo saca), no se pinta y,
  *   si estaba, se quita;
  * - `sismo.eliminado` lo quita.
@@ -489,7 +486,7 @@ export function crearConexionVivo({
    */
   function manejar(tipo, e) {
     marcarDato();
-    if (typeof e.lastEventId === 'string' && PATRON_ID_EVENTO.test(e.lastEventId)) {
+    if (esIdEvento(e.lastEventId)) {
       ultimoId = e.lastEventId;
     }
     const evento = parsearEvento(tipo, e.data);

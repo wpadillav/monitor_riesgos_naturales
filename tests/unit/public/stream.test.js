@@ -181,6 +181,58 @@ describe('aplicarEvento', () => {
     expect(estado.tamano).toBe(0);
   });
 
+  it('franja CO-PA con solo Colombia: entra, sigue tras sismo.actualizado y no se borra (R-01)', () => {
+    const estado = crearEstado({ ahora: () => T0 });
+    const soloCo = { ...filtros, paises: /** @type {any} */ (['CO']) };
+    const franja = sismo({
+      id: 'emsc:franja',
+      lat: 9.5,
+      lon: -77.1,
+      pais: 'PA',
+      paisesCandidatos: ['CO', 'PA'],
+    });
+    // Cargado con `GET /api/sismos` (el servidor ya filtra por paisesCandidatos).
+    estado.reemplazar([franja]);
+    const r = aplicarEvento(
+      {
+        tipo: 'sismo.actualizado',
+        sismo: { ...franja, magnitud: 3.4, revision: 2 },
+        notificable: true,
+        cambios: ['magnitud'],
+      },
+      { estado, filtros: soloCo, ahora: T0 },
+    );
+    expect(r).toMatchObject({ enLista: true, alta: false });
+    expect(estado.obtener('emsc:franja')?.sismo.magnitud).toBe(3.4);
+    // Llega en vivo otro de la franja.
+    const r2 = aplicarEvento(
+      {
+        tipo: 'sismo.nuevo',
+        sismo: { ...franja, id: 'emsc:franja2' },
+        notificable: true,
+        cambios: [],
+      },
+      { estado, filtros: soloCo, ahora: T0 },
+    );
+    expect(r2).toMatchObject({ enLista: true, alta: true });
+    expect(estado.tamano).toBe(2);
+  });
+
+  it('la lista compara la magnitud cruda (R-02): con magMin 5.0, un M 4.96 no entra', () => {
+    const estado = crearEstado({ ahora: () => T0 });
+    const r = aplicarEvento(
+      {
+        tipo: 'sismo.nuevo',
+        sismo: sismo({ magnitud: 4.96 }),
+        notificable: true,
+        cambios: [],
+      },
+      { estado, filtros: { ...filtros, magMin: '5.0' }, ahora: T0 },
+    );
+    expect(r).toMatchObject({ enLista: false, alta: false });
+    expect(estado.tamano).toBe(0);
+  });
+
   it('sismo.eliminado', () => {
     const estado = crearEstado();
     estado.reemplazar([sismo()]);
@@ -289,12 +341,13 @@ class FuenteFalsa {
 }
 
 /**
- * @param {{ avisoMin?: string | null,
+ * @param {{ avisoMin?: string | null, obtenerFiltros?: () => any,
  *   diagnosticar?: (url: string) => Promise<import('../../../public/js/stream.js').Diagnostico> }}
  *   [opciones] `diagnosticar` por defecto: no es falta de plazas
  */
 function montar({
   avisoMin = /** @type {string | null} */ (null),
+  obtenerFiltros = filtrosPorDefecto,
   diagnosticar = vi.fn(async () => ({ sinPlazas: /** @type {const} */ (false) })),
 } = {}) {
   FuenteFalsa.creadas = [];
@@ -318,7 +371,7 @@ function montar({
   const vivo = crearConexionVivo({
     estado,
     barra,
-    obtenerFiltros: filtrosPorDefecto,
+    obtenerFiltros,
     obtenerUltimoEventoId: () => 'abc-1',
     obtenerAvisoMin: () => avisoMin,
     recargar,
@@ -367,6 +420,24 @@ describe('crearConexionVivo', () => {
     expect(m.vivo.ultimoId).toBe('abc-7');
     m.ultima().emitir('sismo.eliminado', { id: 'emsc:1', motivo: 'retirado' }, 'abc-8');
     expect(m.estado.tamano).toBe(0);
+  });
+
+  it('franja CO-PA en vivo con solo Colombia: se pinta y llega a alEvento (R-01)', () => {
+    const m = montar({ obtenerFiltros: () => ({ ...filtrosPorDefecto(), paises: ['CO'] }) });
+    m.vivo.abrir();
+    m.ultima().abrir();
+    const franja = sismo({ lat: 9.5, lon: -77.1, pais: 'PA', paisesCandidatos: ['CO', 'PA'] });
+    m.ultima().emitir('sismo.nuevo', { sismo: franja, notificable: true, cambios: [] }, 'abc-9');
+    expect(m.estado.tamano).toBe(1);
+    expect(m.alEvento).toHaveBeenCalledWith(expect.objectContaining({ alta: true, enLista: true }));
+  });
+
+  it('ignora un Last-Event-ID de más de 32 caracteres (esIdEvento compartido)', () => {
+    const m = montar();
+    m.vivo.abrir();
+    m.ultima().abrir();
+    m.ultima().emitir('latido', {}, `${'a'.repeat(16)}-${'1'.repeat(16)}`);
+    expect(m.vivo.ultimoId).toBe('abc-1');
   });
 
   it('corte: «Reconectando…» y a los 10 s «Sin conexión…»; al volver, «En vivo»', () => {

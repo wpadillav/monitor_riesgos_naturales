@@ -68,7 +68,9 @@ export function sismo(campos) {
   };
   const resto = { ...campos };
   delete resto.unid;
-  return { ...base, ...resto };
+  const completo = { ...base, ...resto };
+  // `paisesCandidatos` es obligatorio en el contrato: por defecto, solo el país asignado.
+  return { ...completo, paisesCandidatos: resto.paisesCandidatos ?? [completo.pais] };
 }
 
 /** Enlace malicioso del fixture XSS (AM-02). Se compone para no disparar `no-script-url`. */
@@ -178,7 +180,8 @@ export function muchosSismos(n) {
 }
 
 /**
- * Simula `/api/sismos` (filtra por la query como el servidor), `/api/salud` y las teselas.
+ * Simula `/api/sismos` (filtra por la query como el servidor: algún país de `paisesCandidatos`
+ * marcado y magnitud **cruda** ≥ `magMin`, R-01 y R-02), `/api/salud` y las teselas.
  * @param {import('@playwright/test').Page} page
  * @param {object} [opciones]
  * @param {object[]} [opciones.sismos]
@@ -225,8 +228,8 @@ export async function simular(page, opciones = {}) {
     const desde = AHORA - PERIODOS[/** @type {'24h'} */ (q.get('periodo') ?? '24h')];
     const filtrados = sismos.filter(
       (s) =>
-        paises.includes(s.pais) &&
-        Math.round(s.magnitud * 10 + 1e-9) / 10 >= magMin &&
+        (s.paisesCandidatos ?? [s.pais]).some((/** @type {string} */ p) => paises.includes(p)) &&
+        s.magnitud >= magMin &&
         Date.parse(s.tiempo) >= desde,
     );
     return ruta.fulfill({

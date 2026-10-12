@@ -12,6 +12,7 @@
  * la lista y sincroniza todo el mapa; los eventos del stream solo tocan los marcadores afectados.
  */
 
+import { alcanzaAviso } from '/shared/reglas.js';
 import { crearAgrupador } from './agrupador.js';
 import { ErrorApi, consultarFuentes, consultarSismos } from './api.js';
 import { crearMostrador, crearNotificador } from './avisos.js';
@@ -24,7 +25,6 @@ import { crearFiltrosUI } from './filtros-ui.js';
 import { formatearNumero } from './formato.js';
 import { textoFuentes } from './fuentes.js';
 import { crearLista } from './lista.js';
-import { redondearMagnitud } from './magnitud.js';
 import { crearMapa } from './mapa.js';
 import {
   almacenNavegador,
@@ -568,7 +568,7 @@ function alEventoVivo(r) {
     r.alta &&
     r.enLista &&
     r.notificable &&
-    redondearMagnitud(r.sismo.magnitud) >= avisosUI.umbral &&
+    alcanzaAviso(r.sismo.magnitud, avisosUI.umbral) &&
     document.visibilityState === 'visible'
   ) {
     ventanaPendiente = r.sismo.id;
