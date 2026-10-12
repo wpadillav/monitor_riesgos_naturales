@@ -20,6 +20,7 @@ import { createHttpClient } from './fuentes/http-cliente.js';
 import { createPlanificador } from './fuentes/planificador.js';
 import { createUsgsFdsn } from './fuentes/usgs-fdsn.js';
 import { FRANJA_KM, asignarPais } from './geo/asignar-pais.js';
+import { createApagado } from './infra/apagado.js';
 import { createLog } from './infra/log.js';
 import { createMetricasLatencia } from './infra/metricas-latencia.js';
 import { systemClock } from './infra/reloj.js';
@@ -203,33 +204,27 @@ server.on('error', (err) => {
 //   oyentes del catálogo y de las fuentes) ya capturan y registran sus errores, así que llegar
 //   aquí es un fallo de programación con el estado en duda. Se registra (`proceso.excepcion`), se
 //   intenta un apagado ordenado y se sale con código 1 para que quien lo vigile lo reinicie. No
-//   se sigue sirviendo con un estado posiblemente corrupto. Una segunda excepción durante el
-//   apagado sale al momento.
+//   se sigue sirviendo con un estado posiblemente corrupto. Una segunda excepción (o una señal)
+//   durante el apagado sale al momento, siempre con el código más alto (N-02).
+//   La prueba de integración es `tests/integracion/excepcion.test.js` (N-03).
 process.on('unhandledRejection', (motivo) => {
   log.error('error', { mensaje: motivo instanceof Error ? motivo.message : String(motivo) });
 });
 
-let apagando = false;
-
-/**
- * @param {number} codigo código de salida
- */
-function apagar(codigo) {
-  if (apagando) {
-    process.exit(codigo);
-    return;
-  }
-  apagando = true;
-  emscWs?.detener();
-  planificador?.detener();
-  retencion.detener();
-  // Cierra los flujos SSE: si no, `server.close` esperaría a que los cerrara la página.
-  difusor.cerrar();
-  clearInterval(resumenHorario);
-  server.close(() => process.exit(codigo));
-  // Si alguna conexión no se cierra en 5 s, se fuerza la salida.
-  setTimeout(() => process.exit(codigo), 5000).unref();
-}
+// El apagado conserva el código de salida más alto (N-02): un SIGTERM durante el apagado por
+// una excepción sale con 1, no con 0.
+const { apagar } = createApagado({
+  pasos: [
+    () => emscWs?.detener(),
+    () => planificador?.detener(),
+    () => retencion.detener(),
+    // Cierra los flujos SSE: si no, `server.close` esperaría a que los cerrara la página.
+    () => difusor.cerrar(),
+    () => clearInterval(resumenHorario),
+  ],
+  cerrarServidor: (alCerrar) => server.close(() => alCerrar()),
+  salir: (codigo) => process.exit(codigo),
+});
 
 process.on('uncaughtException', (err, origen) => {
   log.error('proceso.excepcion', {
