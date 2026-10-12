@@ -1,6 +1,6 @@
 # Plan de pruebas — Entrega 1 (T5.1)
 
-> Última revisión: 2026-10-11 (qa-automatizacion, rama `test/T5.1-qa` sobre `9a0e7cd`).
+> Última revisión: 2026-10-11 (qa-automatizacion, rama `test/D-2-seguridad` sobre `497b45d`: pruebas de seguridad de S-03, §2.1). Revisión anterior: rama `test/T5.1-qa` sobre `9a0e7cd`.
 > Fuente de los requisitos: [PRD](../00-prd.md) (HU-01 a HU-12, RNF-01 a RNF-16), [textos](../diseno/textos.md) y [wireframes](../diseno/wireframes.html) §9 (teclado).
 
 ## 1. Estrategia
@@ -69,7 +69,7 @@ Leyenda de niveles: **U** unitaria, **I** integración, **E** E2E (Chromium + Fi
 | HU-07 Fuente y autor | `carga.spec.js` › «ventana emergente: fuente, autor, hora completa y enlace seguro (HU-07)» | E |
 | HU-07 Aviso y atribución | `carga.spec.js` › «pide los filtros por defecto…»; `movil.spec.js` › «mapa encima de la lista… y pie visible» | E |
 | HU-07 Nota de cobertura (Colombia) | `movil.spec.js` › ««Fuentes y canales oficiales» despliega los enlaces y la nota de Colombia» | E |
-| HU-07 Texto malicioso (RNF-07) | `carga.spec.js` › «texto malicioso: literal en la lista y la ventana…»; `vivo.spec.js` › «un evento mal formado se descarta…»; `texto.test.js` › `sanear`; `enlaces.test.js`; `lint/reglas.test.js` | E, U |
+| HU-07 Texto malicioso (RNF-07) | `seguridad.spec.js` › los 3 *payloads* de `lugar` de `fixtures/maliciosos/xss.json` por la carga y por el stream (§2.1); `carga.spec.js` › «texto malicioso: literal en la lista y la ventana…»; `vivo.spec.js` › «un evento mal formado se descarta…»; `texto.test.js` › `sanear`; `enlaces.test.js`; `lint/reglas.test.js` | E, U |
 | Halo de la última hora | `carga.spec.js` › «un sismo de la última hora lleva halo; uno antiguo no» | E |
 | **HU-08** Canarias, península en invierno, Colombia/Panamá | `hora.test.js` › «horaLista (HU-08, RNF-13)», «horaCompleta y horaCorta», «zona desconocida o inválida… (T5.1)»; `carga.spec.js` › «hora local por zona (HU-08) y textos de reserva» | U, E |
 | **HU-09** Primera visita | `tema.spec.js` › «primera visita: sigue al sistema (claro)…» | E |
@@ -112,16 +112,41 @@ Las pruebas de `avisos.spec.js` se ejecutan en `chromium-avisos` (modo sin inter
 | RNF-04 Respuesta de la API | `integracion/sismos.test.js` | I | Sin prueba de carga de 100 peticiones (T5.4) |
 | RNF-05 Memoria ≤ 300 MB | `catalogo.test.js` › «retención y tope de memoria (AM-16)»; `retencion.test.js` | U | La medición con `ps` es manual (§3) |
 | RNF-06 Resiliencia | `emsc-ws.test.js` › «el primer reintento llega en ≤ 5 s…», `calcularEspera`; `vivo.spec.js` › «corte…», «503…»; `planificador.test.js` | U, E | |
-| RNF-07 XSS | `lint/reglas.test.js`; `carga.spec.js` › «texto malicioso…»; `texto.test.js`; `enlaces.test.js` | U, E | |
+| RNF-07 XSS | `lint/reglas.test.js`; `seguridad.spec.js` (AM-01, AM-02, §2.1); `carga.spec.js` › «texto malicioso…»; `texto.test.js`; `enlaces.test.js` | U, E | |
 | RNF-08 CSP | `integracion/app.test.js` › «cabeceras de seguridad (AM-19, AM-21)»; todas las E2E fallan ante una violación de CSP | I, E | |
-| RNF-09 Solo el propio equipo | `integracion/arranque.test.js`; `integracion/app.test.js` › «lista blanca de Host» | I | Falta el intento real desde otra IP (§3) |
+| RNF-09 Solo el propio equipo | `integracion/loopback.test.js` (socket solo en 127.0.0.1 o ::1 según `/proc/net/tcp{,6}`; conexión rechazada por las IP de red del equipo y por 127.0.0.2); `integracion/arranque.test.js`; `integracion/app.test.js` › «lista blanca de Host»; `seguridad-origen.spec.js` (AM-11) | I, E | Falta el intento desde **otro equipo** (§3) |
 | RNF-10 Frecuencia de consulta | `planificador.test.js` › «ciclos escalonados (RNF-10)»; `fdsn.test.js` | U | |
 | RNF-11 Accesibilidad WCAG 2.2 AA | `accesibilidad.spec.js` (10 estados); `teclado.spec.js`; `movil.spec.js` › «Esc pliega el panel…» | A, E | Falta la revisión manual con Orca (§3) |
 | RNF-12 Chromium y Firefox, 360–2560 px | Toda la E2E en los proyectos `chromium` y `firefox`; `movil.spec.js` a 360 × 740 | E | No se prueba 2560 px automáticamente |
 | RNF-13 Español y zonas horarias | `hora.test.js` (verano e invierno, 5 zonas); `carga.spec.js` › «hora local por zona» | U, E | |
 | RNF-14 Datos personales | `filtros-preferencias.test.js` › «preferencias en localStorage» (solo preferencias) | U | Revisión del tráfico en T5.3 |
-| RNF-15 Observabilidad | `log.test.js`; `planificador.test.js` › `createLimitadorDescartes`; `emsc-ws.test.js` (líneas de log) | U | |
+| RNF-15 Observabilidad | `log.test.js`; `infra/log-controles.test.js` (AM-29); `planificador.test.js` › `createLimitadorDescartes`; `emsc-ws.test.js` (líneas de log) | U | |
 | RNF-16 Sesión de 24 h | — | — | Ver §3 |
+
+### 2.1 Seguridad: pruebas por amenaza (D-2, cierra la deuda de prueba de S-03)
+
+Amenazas de [amenazas.md](../seguridad/amenazas.md) con huecos de prueba según la [revisión T5.3](../seguridad/revision-T5.3.md) (S-03). El resto de amenazas mantiene las pruebas de la tabla de la revisión.
+
+| Amenaza | Pruebas (archivo › nombre) | Nivel | Qué demuestra |
+|---|---|---|---|
+| **AM-01** XSS almacenado | `fixtures/maliciosos/xss.json` (el fixture del modelo: `<img src=x onerror=alert(1)>`, `"><svg onload=alert(1)>` y `<script>alert(1)</script>` en `lugar`; `<b onmouseover=alert(1)>IGN</b>` en autor) | — | Datos sintéticos, sin datos reales |
+| | `seguridad.spec.js` › «el fixture trae los tres payloads de «lugar» que pide el modelo» | E | El fixture no pierde *payloads* |
+| | `seguridad.spec.js` › «carga inicial, payload 1/2/3 (…): literal en la lista y en la ventana, sin ejecución ni enlace» | E | Por cada *payload*: texto literal en la fila y en el título de la ventana, autor literal, 0 diálogos, 0 violaciones de CSP, 0 errores de consola (vigilancia de `apoyo.js`), ningún atributo `on*` ni `<script>` inline en todo el DOM, sin `img[src=x]` ni `svg[onload]` |
+| | `seguridad.spec.js` › «por el stream (sismo.nuevo): los tres payloads salen literales en la lista, la ventana y los anuncios» | E | El camino incremental (SSE) y la región `#anuncios` tampoco interpretan HTML |
+| | `carga.spec.js` › «texto malicioso…» (previa); `lint/reglas.test.js` | E, U | |
+| **AM-02** Enlace «Más info» | `seguridad.spec.js` › las tres pruebas de «carga inicial»: cada sismo trae en `fuentes[].url` las 10 URL del fixture (`javascript:`, `JaVaScRiPt:`, con espacio inicial, `java\tscript:`, `data:`, `vbscript:`, `//evil.example`, `https://evil.example`, `https://www.seismicportal.eu.evil.example` y una ficha con `"><script>`) | E | Ninguna produce enlace (`.p-enlaces` ausente); ningún `a[href]` del documento con protocolo distinto de `http:`, `https:` o `mailto:` ni hacia `evil.example` |
+| | `seguridad.spec.js` › «ficha con una URL válida y otra con javascript:: solo queda el enlace válido» | E | Se filtra enlace a enlace; el válido lleva `rel="noopener noreferrer"` |
+| | `enlaces.test.js` (previa) | U | |
+| **AM-11** Abuso cross-site | `seguridad-origen.spec.js` › «same-site (localhost, otro puerto): fetch a /api/sismos falla, 403 sin CORS y la página no lee nada» y lo mismo con «cross-site (127.0.0.1)» | E | Página servida por un servidor estático propio en otro puerto (el caso de Apache en `localhost:80` es el *same-site*). El navegador envía `Origin` y `Sec-Fetch-Site` reales; el servidor responde **403** `application/problem+json` sin `Access-Control-*` en modo `cors` y `no-cors` (este último sin `Origin`: lo para `Sec-Fetch-Site`); la página no puede leer nada (las dos promesas se rechazan con `TypeError`; en `no-cors` la bloquea además CORP `same-origin`); el log registra `http.rechazo status=403` |
+| | `seguridad-origen.spec.js` › «…: EventSource a /api/stream falla, 403 sin CORS y no ocupa plaza» (los dos orígenes) | E | `EventSource` pasa a `CLOSED` sin mensajes ni reintentos; 403 sin CORS; `clientesSse` sigue en 0 |
+| | `seguridad-origen.spec.js` › «control: desde el mismo origen la página sí lee la API y abre el stream» | E | La protección no rompe el uso legítimo (`Sec-Fetch-Site: same-origin`) |
+| | `integracion/app.test.js` › «Origin y Sec-Fetch-Site en /api/* (AM-11)»; `integracion/stream.test.js` (previas) | I | |
+| **AM-29** Inyección en el terminal o en los logs | `infra/log-controles.test.js` › «U+XXXX en un valor sale escapado, en una sola línea» (67 casos por formato: C0, DEL, C1 —incluido U+009B, el CSI de 8 bits— y U+2028/U+2029) | U | Comprueba los **bytes UTF-8** que llegan al terminal: ni C0, ni DEL, ni `C2 80`–`C2 9F`, ni `E2 80 A8/A9`, salvo el salto final |
+| | `infra/log-controles.test.js` › «el caso del modelo («\x1b[2J» y «\n»)…», «todos los controles juntos y texto con tildes…», «json: el valor original se recupera intacto» | U | Sin ESC ni BEL ni saltos intermedios; «Panamá ñ €» intactos; el JSON se relee igual |
+| | `infra/log-controles.test.js` › «texto: unas comillas en el valor no crean un campo nuevo», «json: un valor con comillas no cambia el nivel ni el evento» | U | No se pueden falsificar campos |
+| | `infra/log-controles.test.js` › «cada llamada a log.error/warn/info/debug de src/ usa un literal en minúsculas» | U (análisis estático) | En formato texto el nombre del evento no pasa por `JSON.stringify`: la prueba falla si alguien registra un evento con un nombre calculado |
+| | `log.test.js` › «secuencias de control en el log (S-01, AM-29)» (previa); `planificador.test.js` › limitador | U | |
+| **AM-09** / RNF-09 Solo loopback | `integracion/loopback.test.js` › «por defecto: una única escucha, en 127.0.0.1», «con HOST=::1: una única escucha, en ::1», «por loopback se conecta y por cualquier otra dirección del equipo se rechaza», «una dirección de loopback que no es la de escucha (127.0.0.2) también se rechaza» | I | Proceso real; el socket se lee de `/proc/net/tcp{,6}` (se omiten las dos primeras si no existe `/proc`). Si el equipo no tiene IP de red, la tercera solo prueba loopback |
 
 ## 3. Lo que no tiene prueba automática y por qué
 
@@ -133,7 +158,7 @@ Las pruebas de `avisos.spec.js` se ejecutan en `chromium-avisos` (modo sin inter
 | HU-11 «al pulsarla se enfoca la pestaña» | El foco de la ventana del sistema no es observable en modo sin interfaz | La E2E simula el clic (`onclick`) y comprueba la ventana emergente; el foco de la pestaña es manual |
 | RNF-03 «ninguna tarea > 200 ms al desplazar» | Requiere el panel Rendimiento o trazas de Chrome; no es fiable en Firefox ni con varios workers | T5.4 |
 | RNF-04 prueba de carga de 100 peticiones | Prueba de rendimiento, no funcional | T5.4 |
-| RNF-09 conexión desde otra IP | Necesita un segundo equipo en la red | Manual (T5.3) |
+| RNF-09 conexión desde **otro equipo** | Necesita un segundo equipo en la red. Desde el propio equipo ya se automatiza: `loopback.test.js` intenta conectar por cada IP de red local y comprueba el socket en `/proc/net/tcp{,6}` | Manual (T5.3) |
 | RNF-11 revisión con Orca y teclado completo | axe detecta como mucho la mitad de los problemas de WCAG; anuncios y orden de lectura requieren un lector de pantalla | Manual (T5.1 manual / T5.2) |
 | RNF-12 a 2560 px | Solo se automatizan 360 px (móvil) y el escritorio por defecto (1280 × 720) | Manual o captura visual |
 | Interfaz `public/js` sin unitarias (`main.js`, `lista.js`, `mapa.js`, `filtros-ui.js`, `barra-estado.js`, `dom.js`, `avisos-ui.js`) | Manipulan el DOM y Leaflet; el entorno de Vitest es `node` y añadir `jsdom` o `happy-dom` sería una dependencia nueva | Se cubren con la E2E; por eso la cobertura total de Vitest (≈ 66 %) es baja |
