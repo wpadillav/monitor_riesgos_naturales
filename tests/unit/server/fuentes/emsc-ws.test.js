@@ -11,6 +11,7 @@ import {
   ESTABLE_MS,
   MAX_COLA,
   MAX_FRAME_BYTES,
+  MENSAJE_INGESTA_FALLIDA,
   PING_MS,
   PONG_TIMEOUT_MS,
   URL_EMSC_WS,
@@ -713,6 +714,51 @@ describe('casos límite de entrada y del ciclo de vida (T5.1)', () => {
     ws.recibir(mensajePanama('20261010_0000202'));
     drenar();
     expect(real.obtener('emsc:20261010_0000202')).not.toBeNull();
+  });
+
+  it('un fallo de ingerirLote deja el canal degradado hasta la siguiente ingesta buena (N-07)', () => {
+    const real = createCatalogo({ asignarPais });
+    let fallar = true;
+    const ingerirLote = vi.fn((registros, opciones) => {
+      if (fallar) throw new Error('catálogo roto');
+      return real.ingerirLote(registros, opciones);
+    });
+    const { ultimo, estadoWs } = arrancado({ catalogo: { ...real, ingerirLote } });
+    const ws = ultimo();
+    ws.abrir();
+    expect(estadoWs().estado).toBe('ok');
+
+    ws.recibir(mensajePanama('20261010_0000203'));
+    drenar();
+    expect(estadoWs()).toMatchObject({
+      estado: 'degradada',
+      mensaje: MENSAJE_INGESTA_FALLIDA,
+      proximoIntentoEn: null,
+    });
+
+    // Un segundo fallo no repite el cambio de estado.
+    ws.recibir(mensajePanama('20261010_0000204'));
+    drenar();
+    expect(estadoWs().estado).toBe('degradada');
+
+    fallar = false;
+    ws.recibir(mensajePanama('20261010_0000205'));
+    drenar();
+    expect(estadoWs()).toMatchObject({ estado: 'ok', mensaje: null });
+  });
+
+  it('un fallo de ingesta tras cerrarse el socket no pisa el estado de la reconexión (N-07)', () => {
+    const real = createCatalogo({ asignarPais });
+    const ingerirLote = vi.fn(() => {
+      throw new Error('catálogo roto');
+    });
+    const { ultimo, estadoWs } = arrancado({ catalogo: { ...real, ingerirLote } });
+    const ws = ultimo();
+    ws.abrir();
+    ws.recibir(mensajePanama('20261010_0000206'));
+    ws.cortar();
+    drenar();
+    expect(estadoWs().mensaje).not.toBe(MENSAJE_INGESTA_FALLIDA);
   });
 
   it('si el catálogo lanza al retirar, se registra y sigue con el resto del lote (R-04)', () => {

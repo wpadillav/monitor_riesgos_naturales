@@ -9,7 +9,8 @@
  * - **Reconexión** con espera creciente: 1 s, 2 s, 4 s… hasta 60 s, con ±20 % de *jitter*
  *   (nunca por encima de 60 s, RNF-06). La espera vuelve a 1 s tras 60 s de conexión estable.
  * - **Estado** del canal `emsc-ws`: `open` → `ok`; cierre → `degradada`; sin reconectar en 30 s
- *   → `caida` (arquitectura §5.3). Se ve en `/api/salud` y llega a la página por `estado.fuente`.
+ *   → `caida` (arquitectura §5.3). Un fallo de `ingerirLote` también lo deja en `degradada`
+ *   hasta la siguiente ingesta buena (N-07). Se ve en `/api/salud` y llega a la página por `estado.fuente`.
  * - **Ingesta por lotes:** cada frame se mide antes de parsear (≤ 64 KiB) y entra en una cola
  *   acotada a 1 000 mensajes. La cola se vacía en el siguiente turno del bucle de eventos: se
  *   parsea con `try/catch`, se normaliza con `normalizarFeatureEmsc`, se descarta lo que cae
@@ -60,6 +61,9 @@ const DESCARTES_NORMALES = Object.freeze(['fuera-de-zonas']);
 
 const MENSAJE_CERRADA = 'Conexión cerrada; reintentando';
 const MENSAJE_CAIDA = 'Sin conexión con el WebSocket de EMSC';
+/** N-07: la ingesta falló; el catálogo lo repara la siguiente consulta FDSN (arquitectura §7). */
+export const MENSAJE_INGESTA_FALLIDA =
+  'Error al guardar sismos del tiempo real; la consulta periódica los recupera';
 
 /**
  * Espera antes del intento `intento` (0 = primer reintento): 1 s · 2^intento, como máximo 60 s,
@@ -174,6 +178,8 @@ export function createEmscWs({
   let intento = 0;
   let enCaida = false;
   let abierto = false;
+  /** La última ingesta falló y el canal está en `degradada` por ello (N-07). */
+  let ingestaFallida = false;
   let ultimoFallo = MENSAJE_CERRADA;
 
   /** @type {Array<{ datos: any, esBinario: boolean, llegada: number }>} */
@@ -270,6 +276,7 @@ export function createEmscWs({
   function alAbrir(ws) {
     totales.conexiones += 1;
     abierto = true;
+    ingestaFallida = false;
     enCaida = false;
     ultimoFallo = MENSAJE_CERRADA;
     if (tCaida) clearTimeout(tCaida);
@@ -300,6 +307,7 @@ export function createEmscWs({
   /** @param {number | null} codigo código de cierre WebSocket, si lo hay */
   function reprogramar(codigo) {
     abierto = false;
+    ingestaFallida = false;
     limpiarConexion();
     if (detenido) return;
     const esperaMs = calcularEspera(intento, aleatorio);
@@ -417,8 +425,18 @@ export function createEmscWs({
           { recibidoEn: ahora },
         );
       } catch (err) {
+        // N-07: el catálogo se considera recuperable (arquitectura §7): no se tira el proceso.
+        // El canal pasa a `degradada` hasta la próxima ingesta buena.
         registrarError('Ingesta del WebSocket', err);
+        if (abierto && !ingestaFallida) {
+          ingestaFallida = true;
+          estado.registrarEstado(CANAL_EMSC_WS, 'degradada', MENSAJE_INGESTA_FALLIDA, null);
+        }
         return;
+      }
+      if (ingestaFallida && abierto) {
+        ingestaFallida = false;
+        estado.registrarExito(CANAL_EMSC_WS);
       }
       resultados.forEach((r, i) => {
         const p = grupo[i];
