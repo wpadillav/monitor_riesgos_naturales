@@ -12,6 +12,7 @@ import {
   PERIODOS,
   PERIODOS_MS,
 } from '../../shared/reglas.js';
+import { silentLog } from '../infra/log.js';
 import { problemResponse } from './errores.js';
 
 /** Tamaño máximo de la *query* en bytes (AM-08). */
@@ -141,11 +142,17 @@ const CABECERAS_JSON = Object.freeze({ 'Content-Type': 'application/json; charse
  * consumidor pide más (`pull`): en memoria solo hay un trozo por petición, y la contrapresión del
  * socket frena la serialización si el cliente lee despacio. El JSON resultante es idéntico al de
  * `JSON.stringify(cuerpo)`, con `sismos` como último campo.
+ *
+ * Un error al serializar (N-08) ya no pasa por `app.onError`, porque las cabeceras ya salieron:
+ * se registra como `http.error` y el flujo se aborta con `controller.error`, así que el cliente
+ * recibe una respuesta cortada (JSON inválido), nunca un JSON completo con datos de menos.
  * @param {{ sismos: ReadonlyArray<object> } & Record<string, unknown>} cuerpo
- * @param {number} [trozoBytes]
+ * @param {object} [opciones]
+ * @param {number} [opciones.trozoBytes]
+ * @param {import('../infra/log.js').Log} [opciones.log]
  * @returns {ReadableStream<Uint8Array>}
  */
-export function serializarRespuesta(cuerpo, trozoBytes = TROZO_BYTES) {
+export function serializarRespuesta(cuerpo, { trozoBytes = TROZO_BYTES, log = silentLog } = {}) {
   const { sismos, ...resto } = cuerpo;
   const encoder = new TextEncoder();
   const cabeza = JSON.stringify({ ...resto, sismos: [] }).slice(0, -2);
@@ -153,21 +160,30 @@ export function serializarRespuesta(cuerpo, trozoBytes = TROZO_BYTES) {
   return new ReadableStream(
     {
       pull(controller) {
-        let texto = '';
-        if (i < 0) {
-          texto = cabeza;
-          i = 0;
+        try {
+          let texto = '';
+          if (i < 0) {
+            texto = cabeza;
+            i = 0;
+          }
+          while (i < sismos.length && texto.length < trozoBytes) {
+            texto += (i === 0 ? '' : ',') + JSON.stringify(sismos[i]);
+            i += 1;
+          }
+          if (i >= sismos.length) {
+            controller.enqueue(encoder.encode(`${texto}]}`));
+            controller.close();
+            return;
+          }
+          controller.enqueue(encoder.encode(texto));
+        } catch (err) {
+          log.error('http.error', {
+            ruta: '/api/sismos',
+            mensaje: err instanceof Error ? err.message : String(err),
+            pila: err instanceof Error ? err.stack : undefined,
+          });
+          controller.error(err);
         }
-        while (i < sismos.length && texto.length < trozoBytes) {
-          texto += (i === 0 ? '' : ',') + JSON.stringify(sismos[i]);
-          i += 1;
-        }
-        if (i >= sismos.length) {
-          controller.enqueue(encoder.encode(`${texto}]}`));
-          controller.close();
-          return;
-        }
-        controller.enqueue(encoder.encode(texto));
       },
     },
     // Un trozo en cola como máximo: `pull` solo se llama cuando el anterior ya salió.
@@ -177,9 +193,10 @@ export function serializarRespuesta(cuerpo, trozoBytes = TROZO_BYTES) {
 
 /**
  * @param {import('hono').Hono} app
- * @param {{ servicio: import('../dominio/consulta-sismos.js').ServicioSismos }} deps
+ * @param {{ servicio: import('../dominio/consulta-sismos.js').ServicioSismos,
+ *   log?: import('../infra/log.js').Log }} deps
  */
-export function registerSismosRoutes(app, { servicio }) {
+export function registerSismosRoutes(app, { servicio, log = silentLog }) {
   app.get('/api/sismos', async (c) => {
     const resultado = parsearConsultaSismos(new URL(c.req.url).search);
     if (!resultado.ok) {
@@ -197,6 +214,9 @@ export function registerSismosRoutes(app, { servicio }) {
     if (c.req.method === 'HEAD')
       return new Response(null, { status: 200, headers: CABECERAS_JSON });
     const cuerpo = await servicio.consultar(resultado.filtro);
-    return new Response(serializarRespuesta(cuerpo), { status: 200, headers: CABECERAS_JSON });
+    return new Response(serializarRespuesta(cuerpo, { log }), {
+      status: 200,
+      headers: CABECERAS_JSON,
+    });
   });
 }

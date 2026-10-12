@@ -90,6 +90,7 @@ export function createApp(deps) {
   });
 
   registerSismosRoutes(app, {
+    log,
     servicio:
       deps.consultaSismos ??
       createConsultaSismos({

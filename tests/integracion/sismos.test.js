@@ -459,11 +459,11 @@ describe('serializarRespuesta (P-03)', () => {
 
   it.each([0, 1, 7, 200])('con %s sismos produce el mismo JSON que JSON.stringify', async (n) => {
     const c = cuerpo(n);
-    expect(await leerTodo(serializarRespuesta(c, 64))).toBe(JSON.stringify(c));
+    expect(await leerTodo(serializarRespuesta(c, { trozoBytes: 64 }))).toBe(JSON.stringify(c));
   });
 
   it('trocea la respuesta: un trozo por petición del consumidor', async () => {
-    const lector = serializarRespuesta(cuerpo(200), 256).getReader();
+    const lector = serializarRespuesta(cuerpo(200), { trozoBytes: 256 }).getReader();
     let trozos = 0;
     for (let r = await lector.read(); !r.done; r = await lector.read()) {
       trozos += 1;
@@ -471,5 +471,58 @@ describe('serializarRespuesta (P-03)', () => {
       expect(r.value.byteLength).toBeLessThan(512);
     }
     expect(trozos).toBeGreaterThan(10);
+  });
+
+  it('un error al serializar se registra como http.error y aborta el flujo (N-08)', async () => {
+    const log = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+    const roto = {
+      id: 'emsc:roto',
+      toJSON() {
+        throw new Error('sismo imposible de serializar');
+      },
+    };
+    const c = { ...cuerpo(3), sismos: [...cuerpo(3).sismos, roto] };
+    await expect(leerTodo(serializarRespuesta(c, { trozoBytes: 16, log }))).rejects.toThrow(
+      'sismo imposible de serializar',
+    );
+    expect(log.error).toHaveBeenCalledWith(
+      'http.error',
+      expect.objectContaining({ ruta: '/api/sismos', mensaje: 'sismo imposible de serializar' }),
+    );
+  });
+
+  it('el error de un valor no Error también llega al log (N-08)', async () => {
+    const log = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+    const roto = {
+      toJSON() {
+        throw 'texto';
+      },
+    };
+    await expect(leerTodo(serializarRespuesta({ sismos: [roto] }, { log }))).rejects.toBe('texto');
+    expect(log.error).toHaveBeenCalledWith('http.error', {
+      ruta: '/api/sismos',
+      mensaje: 'texto',
+      pila: undefined,
+    });
+  });
+
+  it('en la ruta, el error de serialización llega al log de la aplicación (N-08)', async () => {
+    const log = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+    const roto = {
+      toJSON() {
+        throw new Error('fallo en la ruta');
+      },
+    };
+    const consultar = vi.fn(async () => ({ generadoEn: 'x', sismos: [roto] }));
+    const app = createApp({ port: PORT, log, consultaSismos: { consultar } });
+    const res = await app.request('/api/sismos?paises=ES', {
+      headers: { host: `localhost:${PORT}` },
+    });
+    expect(res.status).toBe(200);
+    await expect(res.text()).rejects.toThrow('fallo en la ruta');
+    expect(log.error).toHaveBeenCalledWith(
+      'http.error',
+      expect.objectContaining({ mensaje: 'fallo en la ruta' }),
+    );
   });
 });
