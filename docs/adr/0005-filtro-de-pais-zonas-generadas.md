@@ -91,7 +91,9 @@
 1. Candidatas: las zonas cuyo `rectangulo` contiene el punto y cuyo polígono `zona` también lo contiene.
 2. Si ninguna zona lo contiene, el sismo no es de ningún país. Se guarda para deduplicar, pero no se sirve.
 3. Si las candidatas son de un solo país, se asigna ese país, con la zona y la zona horaria de la candidata.
-4. Si son de varios países (frontera CO-PA en el mar), se asigna el país cuyo polígono `tierra` esté más cerca (`pointToPolygonDistance`). En HU-03 se muestra si **cualquiera** de los países candidatos está marcado. Para ello el sismo lleva internamente `paisesCandidatos`; el contrato solo expone `pais`.
+4. Si son de varios países (frontera CO-PA en el mar), se asigna el país cuyo polígono `tierra` esté más cerca (`pointToPolygonDistance`). En HU-03 se muestra si **cualquiera** de los países candidatos está marcado.
+   - *Actualización C-A (2026-10-11, R-01):* el `Sismo` del contrato expone `paisesCandidatos` (antes era interno), y la lista, el stream y los avisos lo comparan con los países marcados mediante `src/shared/reglas.js`, igual en el servidor y en la página.
+   - *Actualización C-A (P-02):* `pointToPolygonDistance` cuesta de 15 a 45 ms por llamada en la franja. El desempate calcula primero una distancia aproximada propia (`distanciaABordeKm`, proyección equirrectangular local, sin crear objetos) y solo llama a Turf cuando las dos mejores distancias quedan a menos de 1 km + 2 %. El error de la aproximada frente a Turf es < 1 % a estas distancias, así que el resultado es el de Turf (comprobado en todos los puntos de la malla de 0,1° de la franja, `tests/unit/shared/pais.test.js`). El servidor guarda además los resultados en una caché LRU de 10 000 posiciones.
 
 **Zona horaria por zona:**
 
@@ -123,5 +125,5 @@
   - el archivo `zonas.json` pesa del orden de cientos de KB, que solo carga el servidor;
   - los rectángulos derivados son más amplios que los de T1.2 (por ejemplo, `ES-PEN` crece hacia el norte y el oeste), así que llegarán más eventos de fuera que se descartan. Es un coste despreciable.
 - **Más difícil:** cambiar la franja (D2) exige `FRANJA_KM=<km> npm run zonas` y volver a pasar las pruebas. No es una variable de ejecución. El servidor registra al arrancar el `franjaKm` del artefacto.
-- **Entrega 2 (filtro de radio):** es un predicado más (`@turf/distance`) sobre el mismo sismo. No toca las zonas.
+- **Entrega 2 (filtro de radio):** es un predicado más (haversine propio de `src/shared/geo.js`, contrastado con `@turf/distance`) sobre el mismo sismo. No toca las zonas.
 - **Cómo se revierte:** se regenera el archivo con otros parámetros u otra fuente de contornos. La interfaz de `asignarPais(lat, lon)` no cambia.

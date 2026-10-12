@@ -105,7 +105,7 @@ flowchart TB
 | Contenedor | Tecnología (STACK.lock) | Responsabilidad | Persistencia |
 |---|---|---|---|
 | Página | HTML, CSS, JS ESM; Leaflet 1.9.4 desde `node_modules` | Filtros, lista, mapa, hora local, tema, avisos y preferencias | `localStorage`: solo preferencias (AM-27) |
-| Servidor | Node.js 24.21.0; Hono 4.13.13; `@hono/node-server` 2.1.4; `ws` 8.22.0; `@turf/boolean-point-in-polygon`, `@turf/point-to-polygon-distance` y `@turf/distance` 7.4.0 | Ingesta, normalización, duplicados, memoria, API, SSE y estáticos | Ninguna: memoria del proceso (≤ 30 días) |
+| Servidor | Node.js 24.21.0; Hono 4.13.13; `@hono/node-server` 2.1.4; `ws` 8.22.0; `@turf/boolean-point-in-polygon` y `@turf/point-to-polygon-distance` 7.4.0 (`@turf/distance` solo en desarrollo desde C-A) | Ingesta, normalización, duplicados, memoria, API, SSE y estáticos | Ninguna: memoria del proceso (≤ 30 días) |
 | `src/shared` | JS ESM sin dependencias | Reglas comunes al servidor y a la página | — |
 
 No hay base de datos, ni caché externa, ni colas, ni contenedores Docker.
@@ -131,7 +131,7 @@ flowchart LR
   subgraph dominio["src/server/dominio"]
     CAT["catalogo<br/>(memoria, duplicados,<br/>precedencia)"]
     COB["cobertura<br/>(qué magnitud mínima<br/>está cargada)"]
-    RET["retencion<br/>(purga 30 d, tope 50 000)"]
+    RET["retencion<br/>(purga 30 d, tope 15 000)"]
     GEO["geo/asignar-pais<br/>+ zonas.json"]
   end
   subgraph http["src/server/http"]
@@ -177,7 +177,7 @@ flowchart LR
 | Estado de fuentes | `fuentes/estado-fuentes.js` | Máquina de estados `iniciando`/`ok`/`degradada`/`caida` por canal; emite `estado.fuente` y registra en el log | T4.3, T4.6 |
 | Catálogo | `dominio/catalogo.js` | Memoria, índices, asociación, fusión, precedencia, `revision`; devuelve la lista de cambios | T4.2 |
 | Cobertura | `dominio/cobertura.js` | Recuerda la magnitud mínima cargada por zona; decide si `GET /api/sismos` necesita consultar las fuentes (§5.6) | T4.3 |
-| Retención | `dominio/retencion.js` | Purga cada 60 s; tope de 50 000 (AM-16) | T4.3 |
+| Retención | `dominio/retencion.js` | Purga cada 60 s; tope de 15 000 con histéresis al 95 % (AM-16, C-A) | T4.3 |
 | Asignar país | `geo/asignar-pais.js`, `geo/zonas.json` (generado) | ADR-0005 | T4.2 |
 | Difusor SSE | `stream/difusor.js` | Ids `<arranque>-<secuencia>`, historial de 2 000 eventos o 15 min, plazas (8), filtro por cliente, lotes cada 250 ms, contrapresión de 1 MiB, evento `latido` cada 20 s (T5.0; antes, un comentario `: ping` invisible para `EventSource`) | **T4.6** |
 | Log y métricas | `infra/log.js`, `infra/metricas-latencia.js` | Líneas estructuradas, latencias por fuente y resúmenes horarios (§8.3) | T4.1, T4.3 |
@@ -294,7 +294,8 @@ Evidencia: 54 pares reales, con Δt ≤ 9,2 s, Δd ≤ 35,3 km y ΔM ≤ 0,9 ([f
 
 | Estructura | Contenido | Límite |
 |---|---|---|
-| `sismos: Map<id, Sismo>` | Sismos canónicos con sus `RegistroFuente` | Tope duro de **50 000** (AM-16): si se supera, se descartan los más antiguos y se registra un aviso |
+| `sismos: Map<id, Sismo>` | Sismos canónicos con sus `RegistroFuente` | Tope duro de **15 000** (AM-16; 50 000 hasta C-A): si se supera, se descartan los más antiguos hasta quedar en el **95 %** (histéresis, R-15) y se registra un aviso |
+| `indice` (por tiempo) | Las mismas entradas ordenadas por `tiempo` (P-04) | Se rehace de forma perezosa tras los cambios; sirve a `/api/sismos`, a la retención y al tope |
 | `porFuente: Map<'fuente:idFuente', id>` | Índice por id de fuente; en USGS, todos los de `ids` | Se purga con el sismo |
 | `porMinuto: Map<minutoUTC, Set<id>>` | Índice temporal para buscar candidatos en O(1) | Ídem |
 | `cobertura: Map<zona, magMin>` | Magnitud mínima cargada por zona | 5 entradas |
@@ -308,7 +309,21 @@ Evidencia: 54 pares reales, con Δt ≤ 9,2 s, Δd ≤ 35,3 km y ΔM ≤ 0,9 ([f
   - 10 000 sismos (techo de RNF-03) son unos 20 MB y 50 000 unos 100 MB;
   - el volumen medido el 2026-10-10 con **todas** las magnitudes y 30 días en EMSC es de 368 (`ES-PEN`), 55 (`ES-CAN`) y 291 (rectángulo de América);
   - el proceso base de Node más Hono ocupa unos 60–80 MB;
-  - **RNF-05 (≤ 300 MB) se cumple con mucho margen.**
+  - ~~RNF-05 (≤ 300 MB) se cumple con mucho margen~~: la medición T5.4 (P-03) mostró que el heap usado se ajusta a la estimación, pero el RSS no (V8 retiene el heap y cada respuesta de 30 días creaba 15 MB de temporales). Ver la medición de C-A.
+
+**Tope medido (C-A, 2026-10-11).** `node scripts/rendimiento/medir-servidor.js` con el servidor sintético (50 % de duplicados, 8 clientes SSE, 200 peticiones por consulta con concurrencia 1 y 8). RSS medido con `ps`; carga media del equipo de 2 a 3,4:
+
+| Sismos en memoria | RSS en reposo | Pico sirviendo 30 días (c = 8) | RSS tras ráfagas SSE |
+|---|---|---|---|
+| 10 000 | 164 MB | 269 MB | 276 MB |
+| **15 000 (tope)** | **179 MB** | **280 MB** | **288 MB** |
+| 20 000 | 212 MB | 302 MB | 309 MB |
+| 30 000 | 278 MB | 321 MB | 326 MB |
+| 50 000 (tope anterior) | 333 MB | 366 MB | 382 MB |
+
+- Con 20 000 ya se pasa de 300 MB bajo carga. **15 000** es el mayor tope medido que cumple RNF-05 en todos los escenarios, con 12–20 MB de margen, y es 1,5 veces el techo de RNF-03 (10 000 visibles): deja sitio a los sismos sin país que se guardan para deduplicar (un 30 % con los datos reales: 629 en memoria para 489 visibles).
+- Con el volumen real (unos 700 en memoria) el tope no se alcanza nunca: es una protección (AM-16), no un límite de uso.
+- El pico al servir 30 días bajó de 486 a 269 MB con 10 000 sismos gracias a la respuesta en trozos (§5.6).
 
 ### 5.6 Carga inicial y cobertura (`GET /api/sismos`)
 
@@ -327,7 +342,10 @@ Evidencia: 54 pares reales, con Δt ≤ 9,2 s, Δd ≤ 35,3 km y ΔM ≤ 0,9 ([f
    4. desde entonces el planificador usa esa `minmag` para la zona.
 4. Si el arranque aún no ha terminado, la petición espera a la carga en curso (*single-flight*) hasta 8 s.
 5. **Respuesta:**
-   - los sismos con `pais` en `paises`, `magnitud ≥ magMin` y `tiempo ≥ ahora − periodo`, ordenados por `tiempo` descendente, como máximo 10 000;
+   - los sismos con **algún país de `paisesCandidatos`** en `paises`, `magnitud ≥ magMin` (**sin redondear**, R-02) y `tiempo ≥ ahora − periodo`, ordenados por `tiempo` descendente, como máximo 10 000. Es `cumpleFiltroLista` de `src/shared/reglas.js`;
+   - el catálogo mantiene un **índice por tiempo** (P-04): busca `desde` por bisección y recorre solo los sismos del periodo, sin ordenar en cada petición. El índice se rehace de forma perezosa tras los cambios (TimSort sobre un vector casi ordenado);
+   - la respuesta se envía **en trozos de unos 64 KiB** que se serializan cuando el cliente los pide (P-03): no se crea la cadena JSON entera (7 MB con 10 000 sismos) ni su copia en UTF-8;
+   - `HEAD` valida los parámetros y responde sin consultar las fuentes ni leer la memoria (R-21);
    - `completo: false` si alguna consulta necesaria falló;
    - `fuentes` y `ultimoEventoId`.
 
@@ -349,9 +367,9 @@ Ver [ADR-0002](adr/0002-tiempo-real-websocket-emsc-y-sse.md) y el contrato.
 2. Pinta. La carga inicial nunca notifica.
 3. Abre `new EventSource('/api/stream?paises=…&magMin=…&periodo=…&avisoMin=…&ultimoId=<ultimoEventoId>')`.
 
-**Filtro por cliente:**
-- se envía si `pais ∈ paises` y además
-  - (`magnitud ≥ magMin` y `tiempo ≥ ahora − periodo`) **o**
+**Filtro por cliente** (`cumpleFiltroStream` de `src/shared/reglas.js`):
+- se envía si algún país de `paisesCandidatos` está en `paises` (franja CO-PA, R-01 y R-11: el difusor usa el campo del `Sismo`, sin volver a calcularlo con Turf) y además
+  - (`magnitud ≥ magMin`, sin redondear, y `tiempo ≥ ahora − periodo`) **o**
   - (`avisoMin` presente y `redondear1(magnitud) ≥ avisoMin`), por D4;
 - si una revisión hace que un sismo deje de cumplir el filtro del cliente, se le envía `sismo.eliminado` con `motivo: fuera-de-filtro`;
 - si una revisión hace que empiece a cumplirlo, se le envía `sismo.nuevo`.
@@ -367,9 +385,9 @@ Ver [ADR-0002](adr/0002-tiempo-real-websocket-emsc-y-sse.md) y el contrato.
 
 **Cambio de filtros:** la página cierra el stream y repite la secuencia.
 
-**Lo que decide la página** con `src/shared`:
-- `cumpleFiltroLista()` → pinta o no;
-- `debeNotificar()` → avisa o no. Tiene en cuenta `notificable`, el país marcado, el umbral redondeado y los ids ya notificados;
+**Lo que decide la página** con `src/shared/reglas.js` (las mismas reglas que el servidor; la página las adopta en una tarea aparte):
+- `cumpleFiltroLista()` → pinta o no (magnitud cruda, algún país candidato marcado, periodo);
+- `cumpleFiltroAviso()` → candidato a aviso (`notificable`, algún país candidato marcado, magnitud redondeada ≥ umbral). Lo ya notificado y las revisiones que cruzan el umbral los decide la página (`avisos.js`);
 - con `sismo.eliminado` y `motivo: fusionado`, traslada el estado «ya notificado» a `reemplazadoPor`;
 - cada 30 s quita de la lista los sismos que han salido del periodo (HU-05).
 
@@ -388,15 +406,24 @@ ESLint lo hace cumplir en `src/shared/**`: `no-restricted-imports` con los patro
 
 **Módulos previstos:**
 
+**Módulos** (estado tras C-A, 2026-10-11; la tabla original preveía `filtros.js`, `magnitud.js` y `avisos.js`, que se han reunido en `reglas.js`):
+
 | Módulo | Contenido |
 |---|---|
-| `constantes.js` | Países, zonas, periodos (ms), opciones de magnitud y de umbral, tipos de evento SSE, etiquetas de zona horaria («hora peninsular», «hora de Canarias»…) |
-| `filtros.js` | `parsearFiltro(URLSearchParams)` con listas blancas → `{ok, filtro, errores}`; `serializarFiltro(filtro)`; `cumpleFiltroLista(sismo, filtro, ahora)`; `cumpleFiltroAviso(...)`. Son predicados componibles (§12) |
-| `magnitud.js` | `redondear1()` (D1: 4.46 → 4.5, 4.44 → 4.4) y `formatearMagnitud()` |
-| `avisos.js` | `debeNotificar(datosEvento, preferencias, notificados)` |
+| `constantes.js` | Nombre, países, zonas, zona horaria por zona, fuentes, agencias nacionales y umbrales de duplicados |
+| `reglas.js` | **Reglas del contrato comunes al servidor y a la página** (R-01, R-02, R-06). Ver la lista de exportaciones más abajo |
+| `modelo.js` | Normalizador único (`crearRegistro`, AM-05), precedencia y `componerSismo` (con `paisesCandidatos`) |
+| `duplicados.js` | Reglas de duplicados (ADR-0004), incluido `mejorCandidato`, el desempate común a la asociación y a la fusión tardía |
+| `pais.js` y `zonas.js` | Asignación de país con primitivas inyectadas (ADR-0005) y zonas generadas |
+| `geo.js` | Haversine (`distanciaKm`), distancia aproximada a un borde (`distanciaABordeKm`, P-02) y `normalizarLongitud` |
 | `hora.js` | `horaLocal(tiempo, zonaHoraria)` con `Intl.DateTimeFormat` (horario de verano incluido, RNF-13) y `haceCuanto(ahora, tiempo)` |
-| `texto.js` | `sanear(texto, max)`: elimina C0/C1 y marcas bidi y recorta (AM-05, AM-23) |
+| `texto.js` | `sanear(texto, max)`: elimina C0/C1 y marcas bidi (escritas como escapes `\u…`) y recorta (AM-05, AM-23) |
 | `enlaces.js` | `urlFicha(fuente, id)` y `esUrlFichaValida(url)`: plantillas fijas de EMSC y USGS (AM-02) |
+
+**Exportaciones de `reglas.js`:**
+- constantes: `OPCIONES_MAG_MIN` (`'1.0'` … `'5.0'`), `MAG_MIN_TODAS` (`'todas'`), `MAG_MIN_POR_DEFECTO` (`'2.0'`), `PERIODOS_MS`, `PERIODOS`, `PERIODO_POR_DEFECTO` (`'24h'`), `OPCIONES_AVISO_MIN` (`'4.0'` … `'6.0'`), `AVISO_MIN_POR_DEFECTO` (`'4.5'`), `PATRON_ID_EVENTO`, `MAX_ID_EVENTO`;
+- funciones: `esIdEvento(id)`, `redondear1(magnitud)`, `paisesDelSismo(sismo)`, `algunPaisMarcado(sismo, paises)`, `cumpleMagMin(magnitud, magMin)`, `cumplePeriodo(tiempo, periodo, ahora)`, `cumpleFiltroLista(sismo, { paises, magMin, periodo }, ahora)`, `alcanzaAviso(magnitud, avisoMin)`, `cumpleFiltroAviso(sismo, notificable, { paises, avisoMin })` y `cumpleFiltroStream(sismo, { paises, magMin, periodo, avisoMin }, ahora)`;
+- `magMin` y `avisoMin` son números o `null` (= todas / sin avisos); un `sismo` sin `paisesCandidatos` cuenta solo por `pais`.
 
 **Leaflet:** se sirve desde `node_modules/leaflet/dist` con **rutas explícitas** (`/vendor/leaflet/leaflet.js`, `leaflet.css` e `images/*`), nunca `node_modules` entero (AM-20, AM-30). Se carga como `<script src>` clásico (UMD, `L` global) antes del módulo principal.
 
@@ -429,8 +456,8 @@ terremotos/
 │   └── datos/territorios-extra.geojson
 ├── src/
 │   ├── shared/               # módulos ES sin dependencias, servidos en /shared/
-│   │   ├── constantes.js · filtros.js · magnitud.js · avisos.js
-│   │   └── hora.js · texto.js · enlaces.js
+│   │   ├── constantes.js · reglas.js · modelo.js · duplicados.js
+│   │   └── pais.js · zonas.js · geo.js · hora.js · texto.js · enlaces.js
 │   └── server/
 │       ├── index.js          # arranque (npm start)
 │       ├── config.js
@@ -439,7 +466,7 @@ terremotos/
 │       ├── fuentes/          # puerto.js · emsc-ws.js · emsc-fdsn.js · usgs-fdsn.js
 │       │                     # normalizar-*.js · http-cliente.js · planificador.js · estado-fuentes.js
 │       ├── dominio/          # catalogo.js · cobertura.js · retencion.js
-│       ├── geo/              # asignar-pais.js · zonas.json (generado y versionado)
+│       ├── geo/              # asignar-pais.js (Turf + caché LRU); zonas en shared/zonas.js
 │       ├── stream/           # difusor.js
 │       └── infra/            # log.js · metricas-latencia.js · reloj.js
 ├── public/
@@ -468,7 +495,7 @@ terremotos/
 | Script | Comando |
 |---|---|
 | `start` | `node --env-file-if-exists=.env --permission --allow-fs-read=<proyecto> src/server/index.js` (AM-31; si `--permission` no es viable, T4.8 lo documenta) |
-| `dev` | `node --watch --env-file-if-exists=.env src/server/index.js` |
+| `dev` | `node --watch --env-file-if-exists=.env src/server/index.js`. **Sin `--permission`:** en Node 24, `--watch` necesita lanzar procesos hijos y vigilar archivos, y falla con el modelo de permisos (S-04, comprobado en C-A; documentado en el README) |
 | `test` | `vitest run` |
 | `test:e2e` | `playwright test` |
 | `lint` | `eslint .` y `prettier --check .` |
@@ -491,6 +518,9 @@ terremotos/
 | El servidor se reinicia | El id es de otro arranque → `flujo.reiniciar` → la página recarga con `GET /api/sismos` sin notificar | ADR-0002 |
 | Respuesta gigante o infinita | Límite de bytes y timeout de 10 s | AM-04 |
 | Excepción no capturada en un adaptador | `try/catch` por fuente; `unhandledRejection` va al log; el proceso sigue | AM-03 |
+| Excepción en el drenaje del WebSocket, en el lote o el latido del difusor, o en un oyente | Cada punto la captura y la registra (`error`) sin cortar el WebSocket ni el stream: el drenaje protege cada ingesta y cada retiro; el lote descarta el cambio que no puede preparar y desconecta al cliente cuyo envío falla; los oyentes del catálogo y del estado de las fuentes se invocan uno a uno. Lo perdido lo recupera la consulta FDSN (`updatedafter`) | R-04, AM-03 |
+| Excepción que llega a `uncaughtException` | **Política (C-A, R-04):** es un fallo de programación con el estado en duda. Se registra `proceso.excepcion` (origen, mensaje y pila), se intenta el apagado ordenado (cierra el WebSocket, el planificador, la retención y los flujos SSE) y se sale con código 1, para que quien vigile el proceso lo reinicie. No se sigue sirviendo con un estado posiblemente corrupto. Una segunda excepción durante el apagado sale al momento. `unhandledRejection` solo se registra | R-04 |
+| La cola del WebSocket se desborda varias veces seguidas | Una sola resincronización FDSN por canal e intervalo (30 s en EMSC); las zonas en espera de reintento conservan su espera | R-07, RNF-06, RNF-10 |
 
 ---
 
@@ -588,8 +618,11 @@ Variables de entorno. `.env` es opcional y se carga con `--env-file-if-exists`. 
 | `FUENTE_TIMEOUT_MS` | `10000` | 1000–15000 | AM-04 |
 | `SSE_MAX_CLIENTES` | `8` | 1–16 | AM-13 |
 | `RETENCION_DIAS` | `30` | 1–30 | PRD §8 |
+| `FUENTES_ACTIVAS` | `si` | `si` o `no` (con `no` no se consulta ninguna fuente: pruebas y trabajo sin red) | T4.8 |
 
 **Notas:**
+- El **tope de sismos en memoria** (`TOPE_SISMOS`, §5.5) **no** es una variable de entorno: es un límite de seguridad (AM-16) calibrado con RNF-05, y subirlo rompería el presupuesto de memoria. Se cambia en el código, con una medición nueva.
+- Las opciones de `INGESTA_MAG_MIN` salen de `OPCIONES_MAG_MIN` de `src/shared/reglas.js` más `todas`.
 - La franja marina (`FRANJA_KM`) **no** es una variable de ejecución: es un parámetro del script de zonas (ADR-0005).
 - Las URL de las fuentes son constantes del código, no configuración (AM-06).
 
@@ -639,7 +672,7 @@ flowchart LR
 | RNF-02 | ≤ 10 s en tiempo real y ≤ 90 s en consulta periódica | WebSocket de unos 2 s; FDSN cada 30 s y USGS cada 60 s con `updatedafter`; métricas por fuente en el log (§8.3) |
 | RNF-03 | 10 000 sismos en ≤ 3 s; ninguna tarea > 200 ms | Un solo JSON; inserción en el DOM por lotes con `DocumentFragment`; marcadores en un `layerGroup` con `preferCanvas`. La virtualización de la lista la decide T4.5/T5.4 si hace falta |
 | RNF-04 | p95 ≤ 300 ms desde memoria; ≤ 10 s si hay que consultar | 30 días cargados al arrancar; cobertura por magnitud; 8 s de límite por fuente; *single-flight* |
-| RNF-05 / RNF-16 | ≤ 300 MB y 24 h estables | Purga cada 60 s; tope de 50 000; historial SSE acotado; contrapresión; `memoria.resumen` cada hora |
+| RNF-05 / RNF-16 | ≤ 300 MB y 24 h estables | Purga cada 60 s; tope de 15 000 (medido en §5.5); respuesta de `/api/sismos` en trozos; historial SSE acotado; contrapresión; `memoria.resumen` cada hora |
 | RNF-06 | Reintento ≤ 5 s y máximo 60 s; 0 pérdidas en 30 s | §7 |
 | RNF-07 / RNF-08 | Sin XSS y CSP sin `unsafe-*` | §8.1, amenazas §7 |
 | RNF-09 | Solo loopback | §8.1 |
@@ -681,7 +714,7 @@ Nada de lo siguiente se construye en la entrega 1. Solo se reserva el sitio.
 | Fuentes de tsunami (NOAA Atom/CAP, GDACS, DIMAR) cada 60 s | `planificador` y `estado-fuentes` son genéricos por canal; puerto `FuenteConsulta` | Adaptadores nuevos en `fuentes/` (con un parser XML sin DTD, amenazas §9) y un `dominio/avisos-tsunami.js` |
 | Eventos `tsunami.nuevo`, `tsunami.actualizado` y `tsunami.finalizado` | El sobre `Evento` y la regla «los clientes ignoran los tipos desconocidos» (contrato) | Añadir tipos al enum y a la página. No rompe la compatibilidad |
 | `GET /api/tsunamis` | Rutas por módulo en `http/` | Ruta nueva |
-| Filtro de radio | Los filtros son **predicados componibles** en `shared/filtros.js`; la API ignora `radio` en la entrega 1 (400 si llega, AM-08) | Predicado nuevo con haversine en `src/shared` (sin dependencias). Por privacidad, el filtro se aplica en la página o con un punto redondeado (amenazas §9). `@turf/distance` ya está en el lock |
+| Filtro de radio | Los filtros son **predicados componibles** en `shared/filtros.js`; la API ignora `radio` en la entrega 1 (400 si llega, AM-08) | Predicado nuevo con haversine en `src/shared` (sin dependencias). Por privacidad, el filtro se aplica en la página o con un punto redondeado (amenazas §9). `@turf/distance` está en el lock como dependencia de desarrollo (referencia de las pruebas del haversine propio) |
 | Notificar tsunamis | `shared/avisos.js` admite varias reglas | Regla nueva: siempre se notifica (plan §3.5) |
 | `Permissions-Policy: geolocation=(self)` | Middleware de cabeceras centralizado | Cambiar un valor |
 

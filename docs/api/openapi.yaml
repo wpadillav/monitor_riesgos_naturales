@@ -56,8 +56,20 @@ paths:
         rectángulo de cada zona y la magnitud mínima, con un tiempo límite por fuente; si una
         fuente falla, responde igualmente con lo que tenga y lo indica en `completo` y `fuentes`.
 
+        **Filtro de la lista** (`src/shared/reglas.js`, decisión R-02 del 2026-10-11): un sismo
+        sale si **alguno de sus `paisesCandidatos`** está en `paises` (franja CO-PA, HU-03), su
+        magnitud **sin redondear** es ≥ `magMin` (como el `minmag` de FDSN) y su `tiempo` está
+        dentro del periodo. El redondeo a un decimal solo se aplica a los avisos (D1).
+
         El campo `ultimoEventoId` permite abrir después `GET /api/stream?ultimoId=…` sin perder
         ni duplicar eventos entre la carga y la suscripción.
+
+        `HEAD` valida los parámetros igual que `GET` y responde con las mismas cabeceras, sin
+        cuerpo y **sin consultar las fuentes** ni leer la memoria.
+
+        La respuesta se envía en trozos (`Transfer-Encoding: chunked`, sin `Content-Length`): el
+        servidor serializa los sismos a medida que el cliente lee, para acotar la memoria con
+        respuestas de 30 días (RNF-05).
       parameters:
         - $ref: '#/components/parameters/Paises'
         - $ref: '#/components/parameters/MagMin'
@@ -88,6 +100,33 @@ paths:
           $ref: '#/components/responses/HostNoPermitido'
         '500':
           $ref: '#/components/responses/ErrorInterno'
+    head:
+      tags: [sismos]
+      operationId: comprobarSismos
+      summary: Valida los filtros sin consultar las fuentes ni la memoria.
+      description: |
+        Valida los mismos parámetros que `GET /api/sismos` y responde con sus cabeceras, sin
+        cuerpo. No pide cobertura a las fuentes ni lee la memoria (R-21): es barato y no genera
+        tráfico hacia EMSC ni USGS.
+      parameters:
+        - $ref: '#/components/parameters/Paises'
+        - $ref: '#/components/parameters/MagMin'
+        - $ref: '#/components/parameters/Periodo'
+      responses:
+        '200':
+          description: Parámetros válidos. Mismas cabeceras que `GET`, sin cuerpo.
+          headers:
+            Cache-Control:
+              description: Siempre `no-store`.
+              schema:
+                type: string
+                const: no-store
+        '400':
+          $ref: '#/components/responses/ParametroInvalido'
+        '403':
+          $ref: '#/components/responses/OrigenNoPermitido'
+        '421':
+          $ref: '#/components/responses/HostNoPermitido'
   /api/stream:
     get:
       tags: [sismos]
@@ -106,11 +145,12 @@ paths:
         | `flujo.reiniciar` | El servidor no puede reanudar desde el id pedido | `DatosFlujoReiniciar` |
         | `latido` | Cada 20 s, para que la página sepa que la conexión sigue viva | `DatosLatido` (`{}`) |
 
-        **Filtrado por cliente.** El servidor solo envía un sismo si su `pais` está en `paises` y
-        además cumple (`magnitud ≥ magMin` y `tiempo ≥ ahora − periodo`) **o**, si viene
-        `avisoMin`, su magnitud redondeada a un decimal es ≥ `avisoMin` (decisión D4: los avisos
-        no dependen de la magnitud mínima de la lista ni del periodo). La página decide con
-        `src/shared` si lo pinta, si lo notifica o ambas cosas.
+        **Filtrado por cliente.** El servidor solo envía un sismo si alguno de sus
+        `paisesCandidatos` está en `paises` y además cumple (`magnitud ≥ magMin`, sin redondear, y
+        `tiempo ≥ ahora − periodo`) **o**, si viene `avisoMin`, su magnitud redondeada a un
+        decimal es ≥ `avisoMin` (decisión D4: los avisos no dependen de la magnitud mínima de la
+        lista ni del periodo). La página decide con `src/shared/reglas.js` si lo pinta
+        (`cumpleFiltroLista`), si lo notifica (`cumpleFiltroAviso`) o ambas cosas.
 
         **Reanudación.** Los `id` tienen la forma `<arranque>-<secuencia>`. El navegador reenvía
         el último en la cabecera `Last-Event-ID` al reconectar; la primera conexión puede pasarlo
@@ -495,7 +535,7 @@ components:
         según la precedencia: autor nacional (IGN en ES-*, IGC en PA) dentro de EMSC → EMSC →
         USGS. Todos los textos son datos externos: la página los inserta como texto, nunca como
         HTML (RNF-07).
-      required: [id, tiempo, lat, lon, profundidadKm, magnitud, magnitudTipo, lugar, pais, zona, zonaHoraria, autor, fuentePreferida, url, fuentes, actualizadoEn, recibidoEn, revision]
+      required: [id, tiempo, lat, lon, profundidadKm, magnitud, magnitudTipo, lugar, pais, paisesCandidatos, zona, zonaHoraria, autor, fuentePreferida, url, fuentes, actualizadoEn, recibidoEn, revision]
       properties:
         id:
           type: string
@@ -524,7 +564,9 @@ components:
             (foco sobre el nivel del mar, rango de AM-05). `null` si la fuente no la da.
         magnitud:
           type: number
-          description: Sin redondear. La página muestra y compara con un decimal (D1).
+          description: |
+            Sin redondear. La lista y `magMin` comparan este valor tal cual; la página lo muestra
+            con un decimal y los avisos comparan el valor redondeado (D1, `src/shared/reglas.js`).
         magnitudTipo:
           type: string
           maxLength: 16
@@ -535,6 +577,19 @@ components:
           description: '`flynn_region` de EMSC o `place` de USGS, tal cual.'
         pais:
           $ref: '#/components/schemas/CodigoPais'
+        paisesCandidatos:
+          type: array
+          description: |
+            Países cuya zona (territorio más franja marina) contiene el epicentro (ADR-0005).
+            Siempre incluye `pais`. En la frontera marina CO-PA son dos: `pais` es el de la tierra
+            más cercana, pero el sismo cuenta para la lista y los avisos si **cualquiera** de
+            ellos está marcado (HU-03). Los clientes de versiones anteriores lo pueden ignorar.
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/CodigoPais'
+          examples: [[PA], [CO, PA]]
         zona:
           $ref: '#/components/schemas/Zona'
         zonaHoraria:
@@ -670,7 +725,9 @@ components:
           description: Hora de origen dentro de la ventana de aviso (1 h por defecto) al emitir.
         cambios:
           type: array
-          description: Campos que cambiaron (vacío en `sismo.nuevo` por alta).
+          description: |
+            Campos que cambiaron (vacío en `sismo.nuevo` por alta). `pais` incluye los cambios de
+            `zona` y de `paisesCandidatos`.
           items:
             type: string
             enum: [magnitud, ubicacion, profundidad, tiempo, lugar, pais, fuentes, preferida]
@@ -784,6 +841,7 @@ components:
             magnitudTipo: m
             lugar: PANAMA
             pais: PA
+            paisesCandidatos: [PA]
             zona: PA
             zonaHoraria: America/Panama
             autor: IGC

@@ -66,6 +66,8 @@ Si no hay archivo `.env`, Node escribe antes `.env not found. Continuing without
 
 `npm start` ejecuta Node con su **modelo de permisos** (`--permission`): el proceso solo puede leer `package.json`, `src/`, `public/` y `node_modules/` del proyecto, y no puede escribir archivos, lanzar otros programas ni crear *workers*. Así, una dependencia comprometida no puede tocar el resto del equipo. La red sí está permitida: el servidor la necesita para escuchar en `127.0.0.1` y consultar las fuentes.
 
+**`npm run dev` no tiene ese aislamiento** (S-04). En Node 24, `--watch` no es compatible con `--permission`: el proceso vigilante necesita lanzar el servidor como proceso hijo (`--allow-child-process`, que según Node «puede invalidar el modelo de permisos») y vigilar archivos fuera de las rutas permitidas, así que falla con `ERR_ACCESS_DENIED` (comprobado con Node 24.21.0). Por eso `dev` arranca sin *sandbox*. Úsalo solo para desarrollar y con dependencias instaladas con `npm ci`; para el uso diario, `npm start`. Se revisará en la migración a Node 26 (ADR-0003).
+
 ### Configuración (opcional)
 
 Todo funciona sin configurar nada. Para cambiar algún valor, copia la plantilla y quita el `#` de la línea que quieras cambiar:

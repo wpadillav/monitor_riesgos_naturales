@@ -256,6 +256,12 @@ Escenario: Subir la magnitud mínima
   Entonces la petición al servidor incluye la magnitud 3.0
   Y no se muestra ningún sismo con magnitud menor de 3.0
 
+Escenario: La lista compara la magnitud sin redondear (aclaración del 2026-10-11, R-02)
+  Dado la magnitud mínima en 5.0
+  Cuando llega un sismo de magnitud 4.96, que se muestra como «5.0»
+  Entonces no aparece en la lista, ni al llegar ni al recargar
+  Y sí puede avisar con el umbral 5.0, porque los avisos comparan la magnitud redondeada (D1)
+
 Escenario: Sin resultados
   Dado magnitud mínima 5.0 y filtro de 1 hora
   Cuando no hay sismos que cumplan
