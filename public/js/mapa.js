@@ -139,7 +139,6 @@ const MUESTRAS = Object.freeze([
  * @property {number} instante
  */
 
-
 /**
  * Contenido de la ventana emergente (textos.md §7).
  * @param {Entrada} entrada
