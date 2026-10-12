@@ -402,6 +402,14 @@ describe('fallos de una fuente (HU-02, AM-03)', () => {
     expect(planificador.resincronizar('emsc-fdsn')).toBe(0);
   });
 
+  it('resincronizar sin zonas que adelantar no registra fuente.resincronizacion (N-09)', () => {
+    const { planificador, log } = montar();
+    // Sin arrancar no hay ningún ciclo programado: no hay nada que adelantar.
+    expect(planificador.resincronizar('emsc-fdsn')).toBe(0);
+    expect(log.info).not.toHaveBeenCalledWith('fuente.resincronizacion', expect.anything());
+    planificador.detener();
+  });
+
   it('resincronizar se limita a una por intervalo y canal (R-07, RNF-10)', async () => {
     const { planificador, emsc, log } = montar();
     await planificador.arrancar();

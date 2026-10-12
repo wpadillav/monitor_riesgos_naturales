@@ -8,7 +8,8 @@
  *   (`distanciaABordeKm`) y solo llama a `pointToPolygonDistance` de Turf cerca de la línea
  *   equidistante;
  * - el resultado se guarda en una caché LRU por posición: el catálogo y la recomposición de un
- *   sismo piden varias veces la misma posición.
+ *   sismo piden varias veces la misma posición. La caché supone zonas estáticas (N-10, ver
+ *   `conCache`).
  */
 
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
@@ -32,6 +33,11 @@ export const CACHE_POSICIONES = 10_000;
 /**
  * Envuelve una función de asignación con una caché LRU por `(lat, lon)`. Los resultados están
  * congelados (`crearAsignadorPais`), así que se pueden compartir.
+ *
+ * **Supone que las zonas son estáticas (N-10):** la clave es solo la posición, no la versión de
+ * las zonas. Es válido porque `ZONAS` (`src/shared/zonas.js`, generado con `npm run zonas`) se
+ * carga una vez al arrancar y no cambia mientras el proceso vive. Si algún día las zonas se
+ * recargaran en caliente, habría que vaciar la caché o meter la versión de las zonas en la clave.
  * @param {AsignarPais} asignar
  * @param {number} [maximo]
  * @returns {AsignarPais & { tamano: () => number }}

@@ -394,9 +394,11 @@ export function createPlanificador({
           n += 1;
         }
       }
-      // Solo cuenta para el límite si ha adelantado algo.
-      if (n > 0) ultimaResincronizacion.set(canal, ahora);
-      log.info('fuente.resincronizacion', { fuente: canal, zonas: n });
+      // Solo cuenta para el límite, y solo se registra (N-09), si ha adelantado algo.
+      if (n > 0) {
+        ultimaResincronizacion.set(canal, ahora);
+        log.info('fuente.resincronizacion', { fuente: canal, zonas: n });
+      }
       return n;
     },
 
