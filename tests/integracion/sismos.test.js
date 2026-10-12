@@ -11,7 +11,7 @@ import { createEstadoFuentes } from '../../src/server/fuentes/estado-fuentes.js'
 import { createHttpClient } from '../../src/server/fuentes/http-cliente.js';
 import { createPlanificador } from '../../src/server/fuentes/planificador.js';
 import { createUsgsFdsn } from '../../src/server/fuentes/usgs-fdsn.js';
-import { parsearConsultaSismos } from '../../src/server/http/rutas-sismos.js';
+import { parsearConsultaSismos, serializarRespuesta } from '../../src/server/http/rutas-sismos.js';
 import { asignarPais } from '../../src/server/geo/asignar-pais.js';
 import { ZONAS } from '../../src/shared/zonas.js';
 
@@ -199,6 +199,8 @@ describe('GET /api/sismos: respuesta y filtros', () => {
       expect(s.id).toMatch(/^(emsc|usgs):[A-Za-z0-9_.-]{1,64}$/);
       expect(s.revision).toBeGreaterThanOrEqual(1);
       expect(s.fuentes.length).toBeGreaterThanOrEqual(1);
+      // R-01: el contrato publica los países candidatos; siempre incluyen `pais`.
+      expect(s.paisesCandidatos).toContain(s.pais);
     }
   });
 
@@ -417,5 +419,57 @@ describe('GET /api/salud con fuentes', () => {
         proximoIntentoEn: expect.any(String),
       }),
     ]);
+  });
+});
+
+describe('HEAD /api/sismos (R-21)', () => {
+  it('valida la query y responde 200 sin cuerpo y sin consultar fuentes ni catálogo', async () => {
+    const consultar = vi.fn();
+    const app = createApp({ port: PORT, consultaSismos: { consultar } });
+    const res = await app.request('/api/sismos?paises=ES&periodo=30d', {
+      method: 'HEAD',
+      headers: { host: `localhost:${PORT}` },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/json; charset=utf-8');
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await res.text()).toBe('');
+    expect(consultar).not.toHaveBeenCalled();
+  });
+
+  it('una query inválida sigue dando 400', async () => {
+    const consultar = vi.fn();
+    const app = createApp({ port: PORT, consultaSismos: { consultar } });
+    const res = await app.request('/api/sismos?paises=XX', {
+      method: 'HEAD',
+      headers: { host: `localhost:${PORT}` },
+    });
+    expect(res.status).toBe(400);
+    expect(consultar).not.toHaveBeenCalled();
+  });
+});
+
+describe('serializarRespuesta (P-03)', () => {
+  const leerTodo = async (flujo) => new Response(flujo).text();
+  const cuerpo = (n) => ({
+    generadoEn: '2026-10-10T08:00:00.000Z',
+    total: n,
+    sismos: Array.from({ length: n }, (_, i) => ({ id: `emsc:${i}`, lugar: `Lugar ñ ${i}` })),
+  });
+
+  it.each([0, 1, 7, 200])('con %s sismos produce el mismo JSON que JSON.stringify', async (n) => {
+    const c = cuerpo(n);
+    expect(await leerTodo(serializarRespuesta(c, 64))).toBe(JSON.stringify(c));
+  });
+
+  it('trocea la respuesta: un trozo por petición del consumidor', async () => {
+    const lector = serializarRespuesta(cuerpo(200), 256).getReader();
+    let trozos = 0;
+    for (let r = await lector.read(); !r.done; r = await lector.read()) {
+      trozos += 1;
+      // ~256 caracteres más, como mucho, un sismo.
+      expect(r.value.byteLength).toBeLessThan(512);
+    }
+    expect(trozos).toBeGreaterThan(10);
   });
 });

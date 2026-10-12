@@ -5,6 +5,7 @@ import {
   cumpleUmbrales,
   diferencias,
   elegirCandidato,
+  mejorCandidato,
   puntuacion,
   sePuedenFusionar,
   sonDuplicados,
@@ -231,5 +232,34 @@ describe('sePuedenFusionar (fusión tardía, ADR-0004 paso 4)', () => {
         { fuentes: ['usgs'], preferido: { ...p, magnitud: 5.5 } },
       ),
     ).toBe(false);
+  });
+});
+
+describe('mejorCandidato (R-14: mismo desempate en la fusión tardía)', () => {
+  const punto = { tiempo: 0, lat: 0, lon: 0, magnitud: 4 };
+  const candidato = (id, recibidoEn, magnitud) => ({
+    id,
+    recibidoEn,
+    preferido: { tiempo: 0, lat: 0, lon: 0, magnitud },
+  });
+
+  it('sin candidatos devuelve null', () => {
+    expect(mejorCandidato(punto, [])).toBeNull();
+  });
+
+  it('gana la menor puntuación', () => {
+    expect(mejorCandidato(punto, [candidato('b', 1, 4.5), candidato('a', 2, 4.1)])?.id).toBe('a');
+  });
+
+  it('una diferencia de coma flotante (< EPSILON) es empate: gana el más antiguo', () => {
+    // 0.3 − 0.1 = 0.19999999999999998 frente a 0.5 − 0.3 = 0.2: es un empate.
+    const p = { ...punto, magnitud: 0.3 };
+    expect(0.3 - 0.1).toBeLessThan(0.5 - 0.3);
+    const r = mejorCandidato(p, [candidato('nuevo', 2, 0.1), candidato('viejo', 1, 0.5)]);
+    expect(r?.id).toBe('viejo');
+  });
+
+  it('en empate total desempata por id', () => {
+    expect(mejorCandidato(punto, [candidato('b', 1, 4), candidato('a', 1, 4)])?.id).toBe('a');
   });
 });

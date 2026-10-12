@@ -27,8 +27,9 @@
 import { EventEmitter } from 'node:events';
 
 import { UMBRALES_DEDUP } from '../../shared/constantes.js';
-import { elegirCandidato, puntuacion, sePuedenFusionar } from '../../shared/duplicados.js';
+import { elegirCandidato, mejorCandidato, sePuedenFusionar } from '../../shared/duplicados.js';
 import { componerSismo, idEstable, registroPreferido } from '../../shared/modelo.js';
+import { algunPaisMarcado, cumpleMagMin } from '../../shared/reglas.js';
 
 /** Nombres de los eventos internos. */
 export const EVENTOS_CATALOGO = Object.freeze({
@@ -38,8 +39,19 @@ export const EVENTOS_CATALOGO = Object.freeze({
   PURGA: 'purga',
 });
 
-/** Tope duro de sismos en memoria (AM-16: 5 veces el volumen de diseño). */
-export const TOPE_SISMOS = 50_000;
+/**
+ * Tope duro de sismos en memoria, con y sin país (AM-16). C-A lo baja de 50 000 a 15 000 para
+ * cumplir RNF-05 (≤ 300 MB de RSS) con margen también bajo carga: 1,5 veces el techo de diseño
+ * de RNF-03 (10 000 visibles), que deja sitio a los sismos sin país que se guardan para
+ * deduplicar (un 30 % con los datos reales). Medición en arquitectura §5.5.
+ */
+export const TOPE_SISMOS = 15_000;
+
+/**
+ * Histéresis del tope (R-15, P-05): al superarlo se baja al 95 %, así que el recorte (que es
+ * O(n)) se hace una vez cada `5 %` de altas y no en cada ingesta.
+ */
+export const HISTERESIS_TOPE = 0.95;
 
 /** Máximo de sismos por respuesta de `/api/sismos` (contrato `RespuestaSismos`). */
 export const MAX_RESPUESTA = 10_000;
@@ -71,8 +83,8 @@ const MINUTO_MS = 60_000;
  * @property {number} revision
  * @property {boolean} compuesto si ya se compuso al menos una vez
  * @property {Sismo | null} sismo `null` si no tiene país
- * @property {ReadonlyArray<CodigoPais>} paisesCandidatos
  * @property {number} minuto clave en `porMinuto`
+ * @property {number} tIndice `tiempo` con el que está (o estará) en el índice por tiempo
  * @property {Set<string>} claves claves de `porFuente` que apuntan a esta entrada
  */
 
@@ -84,7 +96,13 @@ export function calcularCambios(/** @type {Sismo} */ a, /** @type {Sismo} */ b) 
   if (a.profundidadKm !== b.profundidadKm) cambios.push('profundidad');
   if (a.tiempo !== b.tiempo) cambios.push('tiempo');
   if (a.lugar !== b.lugar) cambios.push('lugar');
-  if (a.pais !== b.pais || a.zona !== b.zona) cambios.push('pais');
+  if (
+    a.pais !== b.pais ||
+    a.zona !== b.zona ||
+    String(a.paisesCandidatos) !== String(b.paisesCandidatos)
+  ) {
+    cambios.push('pais');
+  }
   if (JSON.stringify(a.fuentes) !== JSON.stringify(b.fuentes)) cambios.push('fuentes');
   if (a.fuentePreferida !== b.fuentePreferida || a.autor !== b.autor || a.url !== b.url) {
     cambios.push('preferida');
@@ -119,6 +137,18 @@ export function createCatalogo({
   const porFuente = new Map();
   /** minuto UTC de `tiempo` preferido → ids. @type {Map<number, Set<string>>} */
   const porMinuto = new Map();
+  /**
+   * Índice por tiempo (P-04): entradas por `tIndice` ascendente (y id descendente en empate), de
+   * modo que recorrerlo al revés da el orden de la API. Se mantiene de forma perezosa: las altas
+   * y los cambios de `tiempo` se apuntan en `cambiadas` y las bajas activan `hayBajas`; el índice
+   * se rehace solo cuando alguien lo lee. Como casi todo sigue ordenado, la ordenación (TimSort)
+   * es casi lineal.
+   * @type {Entrada[]}
+   */
+  let indice = [];
+  /** @type {Set<Entrada>} */
+  const cambiadas = new Set();
+  let hayBajas = false;
 
   const retencionMs = retencionDias * DIA_MS;
   const ventanaMs = umbrales.dtS * 1000;
@@ -166,6 +196,45 @@ export function createCatalogo({
     }
     desindexarMinuto(e);
     entradas.delete(e.id);
+    cambiadas.delete(e);
+    hayBajas = true;
+  }
+
+  /** @param {Entrada} a @param {Entrada} b */
+  const porTiempoAsc = (a, b) => a.tIndice - b.tIndice || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
+
+  /** @param {Entrada} e */
+  const viva = (e) => entradas.get(e.id) === e;
+
+  /**
+   * Índice por tiempo al día (ver `indice`).
+   * @returns {Entrada[]}
+   */
+  function indiceOrdenado() {
+    if (cambiadas.size === 0 && !hayBajas) return indice;
+    const base = indice.filter((e) => viva(e) && !cambiadas.has(e));
+    for (const e of cambiadas) if (viva(e)) base.push(e);
+    if (cambiadas.size > 0) base.sort(porTiempoAsc);
+    indice = base;
+    cambiadas.clear();
+    hayBajas = false;
+    return indice;
+  }
+
+  /**
+   * Primera posición del índice con `tIndice ≥ desde` (búsqueda binaria).
+   * @param {Entrada[]} idx
+   * @param {number} desde
+   */
+  function primeraDesde(idx, desde) {
+    let bajo = 0;
+    let alto = idx.length;
+    while (bajo < alto) {
+      const medio = (bajo + alto) >>> 1;
+      if (idx[medio].tIndice < desde) bajo = medio + 1;
+      else alto = medio;
+    }
+    return bajo;
   }
 
   /**
@@ -224,8 +293,11 @@ export function createCatalogo({
     if (nuevo) nuevo.revision = e.revision;
     e.sismo = nuevo;
     e.preferido = preferido;
-    e.paisesCandidatos = ubicar(preferido.lat, preferido.lon)?.paisesCandidatos ?? [];
     indexarMinuto(e);
+    if (e.tIndice !== preferido.tiempo) {
+      e.tIndice = preferido.tiempo;
+      cambiadas.add(e);
+    }
   }
 
   // ---------------------------------------------------------------------------------------
@@ -314,24 +386,12 @@ export function createCatalogo({
    */
   function fusionTardia(e, tx) {
     const propio = comoCandidato(e);
-    let mejor = null;
-    let puntosMejor = Number.POSITIVE_INFINITY;
-    for (const otra of cercanasEnTiempo(e.preferido.tiempo)) {
-      if (otra.id === e.id) continue;
-      const candidato = comoCandidato(otra);
-      if (!sePuedenFusionar(propio, candidato, umbrales)) continue;
-      const puntos = puntuacion(e.preferido, otra.preferido, umbrales);
-      if (
-        mejor === null ||
-        puntos < puntosMejor ||
-        (puntos === puntosMejor &&
-          (otra.recibidoEn < mejor.recibidoEn ||
-            (otra.recibidoEn === mejor.recibidoEn && otra.id < mejor.id)))
-      ) {
-        mejor = otra;
-        puntosMejor = puntos;
-      }
-    }
+    const validos = cercanasEnTiempo(e.preferido.tiempo)
+      .filter((otra) => otra.id !== e.id)
+      .map(comoCandidato)
+      .filter((candidato) => sePuedenFusionar(propio, candidato, umbrales));
+    // Mismo desempate que la asociación por cercanía, con la tolerancia EPSILON (R-14).
+    const mejor = mejorCandidato(e.preferido, validos, umbrales)?.entrada ?? null;
     if (mejor === null) return e;
 
     const eMasAntigua =
@@ -420,8 +480,8 @@ export function createCatalogo({
       revision: 1,
       compuesto: false,
       sismo: null,
-      paisesCandidatos: [],
       minuto: Number.NaN,
+      tIndice: Number.NaN,
       claves: new Set(),
     };
     tx.nueva(id, null);
@@ -433,18 +493,24 @@ export function createCatalogo({
     return { accion: 'alta', id, visible: e.sismo !== null };
   }
 
-  /** Aplica el tope duro: descarta los más antiguos por `tiempo` (AM-16). */
+  /**
+   * Aplica el tope duro (AM-16): si se supera, descarta los más antiguos por `tiempo` hasta
+   * quedar en el 95 % del tope (histéresis, R-15 y P-05). Usa el índice por tiempo, sin ordenar
+   * todo el catálogo.
+   */
   function aplicarTope() {
     if (entradas.size <= tope) return;
-    const exceso = entradas.size - tope;
-    const ordenadas = [...entradas.values()].sort(
-      (a, b) => a.preferido.tiempo - b.preferido.tiempo,
-    );
+    const objetivo = Math.floor(tope * HISTERESIS_TOPE);
+    const exceso = entradas.size - objetivo;
+    const idx = indiceOrdenado();
     const ids = [];
-    for (const e of ordenadas.slice(0, exceso)) {
+    for (const e of idx.slice(0, exceso)) {
       eliminarEntrada(e);
       ids.push(e.id);
     }
+    // Se ha quitado justo el principio del índice: sigue ordenado sin rehacerlo.
+    indice = idx.slice(exceso);
+    hayBajas = false;
     log?.warn('memoria.tope', { descartados: exceso, tope });
     emitir(EVENTOS_CATALOGO.PURGA, { ids, motivo: 'tope' });
   }
@@ -518,22 +584,25 @@ export function createCatalogo({
      * @returns {number} sismos purgados
      */
     purgar(ahora) {
-      const limite = ahora - retencionMs;
+      const idx = indiceOrdenado();
+      const hasta = primeraDesde(idx, ahora - retencionMs);
+      if (hasta === 0) return 0;
       const ids = [];
-      for (const e of [...entradas.values()]) {
-        if (e.preferido.tiempo < limite) {
-          eliminarEntrada(e);
-          ids.push(e.id);
-        }
+      for (const e of idx.slice(0, hasta)) {
+        eliminarEntrada(e);
+        ids.push(e.id);
       }
-      if (ids.length > 0) emitir(EVENTOS_CATALOGO.PURGA, { ids, motivo: 'retencion' });
+      indice = idx.slice(hasta);
+      hayBajas = false;
+      emitir(EVENTOS_CATALOGO.PURGA, { ids, motivo: 'retencion' });
       return ids.length;
     },
 
     /**
      * Sismos visibles que cumplen el filtro, por `tiempo` descendente, como máximo `limite`.
-     * Un sismo en la franja de dos países se incluye si cualquiera de ellos está pedido
-     * (HU-03, `paisesCandidatos`).
+     * Aplica la regla de la lista de `src/shared/reglas.js`: magnitud cruda ≥ `magMin` y algún
+     * país pedido entre los `paisesCandidatos` (HU-03, R-02). Usa el índice por tiempo: solo
+     * recorre los sismos posteriores a `desde`, sin ordenar en cada petición (P-04).
      * @param {object} filtro
      * @param {ReadonlyArray<CodigoPais>} filtro.paises
      * @param {number | null} filtro.magMin `null` = todas
@@ -543,18 +612,19 @@ export function createCatalogo({
      *   que cumplen el filtro, aunque se trunque la lista
      */
     listar({ paises, magMin, desde, limite = MAX_RESPUESTA }) {
-      const encontrados = [];
-      for (const e of entradas.values()) {
-        const s = e.sismo;
-        if (s === null) continue;
-        if (e.preferido.tiempo < desde) continue;
-        if (magMin !== null && s.magnitud < magMin) continue;
-        if (!paises.some((p) => p === s.pais || e.paisesCandidatos.includes(p))) continue;
-        encontrados.push(e);
+      const idx = indiceOrdenado();
+      /** @type {Sismo[]} */
+      const sismos = [];
+      let total = 0;
+      for (let i = idx.length - 1, primera = primeraDesde(idx, desde); i >= primera; i -= 1) {
+        const s = idx[i].sismo;
+        if (s === null || !cumpleMagMin(s.magnitud, magMin) || !algunPaisMarcado(s, paises)) {
+          continue;
+        }
+        total += 1;
+        if (sismos.length < limite) sismos.push(s);
       }
-      encontrados.sort((a, b) => b.preferido.tiempo - a.preferido.tiempo || (a.id < b.id ? -1 : 1));
-      const sismos = encontrados.slice(0, limite).map((e) => /** @type {Sismo} */ (e.sismo));
-      return { sismos, total: encontrados.length, truncado: encontrados.length > limite };
+      return { sismos, total, truncado: total > limite };
     },
 
     /** @param {string} id @returns {Sismo | null} el sismo visible, o `null` */

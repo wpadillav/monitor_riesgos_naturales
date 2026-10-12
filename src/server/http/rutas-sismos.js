@@ -6,14 +6,16 @@
  */
 
 import { PAISES } from '../../shared/constantes.js';
-import { PERIODO_POR_DEFECTO, PERIODOS_MS } from '../dominio/consulta-sismos.js';
+import {
+  OPCIONES_MAG_MIN,
+  PERIODO_POR_DEFECTO,
+  PERIODOS,
+  PERIODOS_MS,
+} from '../../shared/reglas.js';
 import { problemResponse } from './errores.js';
 
 /** Tamaño máximo de la *query* en bytes (AM-08). */
 export const MAX_QUERY_BYTES = 512;
-
-/** Opciones de `magMin` del contrato (ausente = todas). */
-export const OPCIONES_MAG_MIN = Object.freeze(['1.0', '2.0', '2.5', '3.0', '4.0', '4.5', '5.0']);
 
 const PARAMETROS = Object.freeze(['paises', 'magMin', 'periodo']);
 
@@ -23,7 +25,7 @@ const MENSAJES = Object.freeze({
   paisesFalta: `Es obligatorio. Valores permitidos: ${PAISES.join(', ')}.`,
   paises: `Valores permitidos: ${PAISES.join(', ')}, separados por comas y sin repetir.`,
   magMin: `Valores permitidos: ${OPCIONES_MAG_MIN.join(', ')}. Sin el parámetro: todas.`,
-  periodo: `Valores permitidos: ${Object.keys(PERIODOS_MS).join(', ')}.`,
+  periodo: `Valores permitidos: ${PERIODOS.join(', ')}.`,
 });
 
 /**
@@ -125,6 +127,54 @@ export function parsearConsultaSismos(search) {
   return { ok: true, filtro };
 }
 
+/** Tamaño orientativo de cada trozo de la respuesta en streaming (P-03). */
+export const TROZO_BYTES = 64 * 1024;
+
+const CABECERAS_JSON = Object.freeze({ 'Content-Type': 'application/json; charset=utf-8' });
+
+/**
+ * Serializa `RespuestaSismos` como un flujo de trozos de unos 64 KiB (P-03, RNF-05).
+ *
+ * `JSON.stringify` de la respuesta completa crea una cadena de hasta 7 MB y, al enviarla, su copia
+ * en UTF-8; con varias peticiones a la vez el pico de memoria se multiplica. Aquí la lista de
+ * `Sismo` (objetos inmutables, ya elegidos por el catálogo) se serializa sismo a sismo cuando el
+ * consumidor pide más (`pull`): en memoria solo hay un trozo por petición, y la contrapresión del
+ * socket frena la serialización si el cliente lee despacio. El JSON resultante es idéntico al de
+ * `JSON.stringify(cuerpo)`, con `sismos` como último campo.
+ * @param {{ sismos: ReadonlyArray<object> } & Record<string, unknown>} cuerpo
+ * @param {number} [trozoBytes]
+ * @returns {ReadableStream<Uint8Array>}
+ */
+export function serializarRespuesta(cuerpo, trozoBytes = TROZO_BYTES) {
+  const { sismos, ...resto } = cuerpo;
+  const encoder = new TextEncoder();
+  const cabeza = JSON.stringify({ ...resto, sismos: [] }).slice(0, -2);
+  let i = -1; // -1: falta la cabeza
+  return new ReadableStream(
+    {
+      pull(controller) {
+        let texto = '';
+        if (i < 0) {
+          texto = cabeza;
+          i = 0;
+        }
+        while (i < sismos.length && texto.length < trozoBytes) {
+          texto += (i === 0 ? '' : ',') + JSON.stringify(sismos[i]);
+          i += 1;
+        }
+        if (i >= sismos.length) {
+          controller.enqueue(encoder.encode(`${texto}]}`));
+          controller.close();
+          return;
+        }
+        controller.enqueue(encoder.encode(texto));
+      },
+    },
+    // Un trozo en cola como máximo: `pull` solo se llama cuando el anterior ya salió.
+    { highWaterMark: 1 },
+  );
+}
+
 /**
  * @param {import('hono').Hono} app
  * @param {{ servicio: import('../dominio/consulta-sismos.js').ServicioSismos }} deps
@@ -142,9 +192,11 @@ export function registerSismosRoutes(app, { servicio }) {
         },
       );
     }
+    // R-21: HEAD valida la query y responde con las cabeceras, sin pedir cobertura a las fuentes
+    // ni leer el catálogo.
+    if (c.req.method === 'HEAD')
+      return new Response(null, { status: 200, headers: CABECERAS_JSON });
     const cuerpo = await servicio.consultar(resultado.filtro);
-    return c.body(JSON.stringify(cuerpo), 200, {
-      'Content-Type': 'application/json; charset=utf-8',
-    });
+    return new Response(serializarRespuesta(cuerpo), { status: 200, headers: CABECERAS_JSON });
   });
 }

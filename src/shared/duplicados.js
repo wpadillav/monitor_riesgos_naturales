@@ -114,22 +114,20 @@ export function puntuacion(a, b, umbrales = UMBRALES_DEDUP) {
 }
 
 /**
- * Elige el sismo al que se asocia un registro nuevo por cercanía (ADR-0004, pasos 2 y 3): solo
- * los candidatos sin registro de su fuente y que cumplen los umbrales; gana la menor
- * puntuación y, en empate, el `recibidoEn` más antiguo (y después el id, para ser determinista).
- * @template {CandidatoDedup} C
- * @param {PuntoSismo & {fuente: string}} registro
+ * El candidato de menor puntuación frente a `punto`; en empate (con tolerancia `EPSILON`), el de
+ * `recibidoEn` más antiguo y después el de menor id, para ser determinista. No filtra: quien
+ * llama decide antes qué candidatos valen (asociación por cercanía o fusión tardía, R-14).
+ * @template {Pick<CandidatoDedup, 'id' | 'preferido' | 'recibidoEn'>} C
+ * @param {PuntoSismo} punto
  * @param {Iterable<C>} candidatos
  * @param {Umbrales} [umbrales]
  * @returns {C | null}
  */
-export function elegirCandidato(registro, candidatos, umbrales = UMBRALES_DEDUP) {
+export function mejorCandidato(punto, candidatos, umbrales = UMBRALES_DEDUP) {
   let mejor = null;
   let puntosMejor = Number.POSITIVE_INFINITY;
   for (const candidato of candidatos) {
-    if (candidato.fuentes.includes(registro.fuente)) continue;
-    if (!cumpleUmbrales(registro, candidato.preferido, umbrales)) continue;
-    const puntos = puntuacion(registro, candidato.preferido, umbrales);
+    const puntos = puntuacion(punto, candidato.preferido, umbrales);
     if (
       mejor === null ||
       puntos < puntosMejor - EPSILON ||
@@ -142,6 +140,25 @@ export function elegirCandidato(registro, candidatos, umbrales = UMBRALES_DEDUP)
     }
   }
   return mejor;
+}
+
+/**
+ * Elige el sismo al que se asocia un registro nuevo por cercanía (ADR-0004, pasos 2 y 3): solo
+ * los candidatos sin registro de su fuente y que cumplen los umbrales; gana la menor
+ * puntuación (`mejorCandidato`).
+ * @template {CandidatoDedup} C
+ * @param {PuntoSismo & {fuente: string}} registro
+ * @param {Iterable<C>} candidatos
+ * @param {Umbrales} [umbrales]
+ * @returns {C | null}
+ */
+export function elegirCandidato(registro, candidatos, umbrales = UMBRALES_DEDUP) {
+  const validos = [];
+  for (const candidato of candidatos) {
+    if (candidato.fuentes.includes(registro.fuente)) continue;
+    if (cumpleUmbrales(registro, candidato.preferido, umbrales)) validos.push(candidato);
+  }
+  return mejorCandidato(registro, validos, umbrales);
 }
 
 /**

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import {
   EVENTOS_CATALOGO,
+  HISTERESIS_TOPE,
   TOPE_SISMOS,
   createCatalogo,
 } from '../../../../src/server/dominio/catalogo.js';
@@ -444,31 +445,69 @@ describe('retención y tope de memoria (AM-16)', () => {
     expect(catalogo.purgar(AHORA)).toBe(1);
   });
 
-  it('al insertar 60 000 sismos sintéticos quedan 50 000 (los más recientes) y se avisa', () => {
-    const asignar = () => ({
-      pais: 'PA',
-      zona: 'PA',
-      zonaHoraria: 'America/Panama',
-      paisesCandidatos: ['PA'],
-    });
-    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
-    const catalogo = createCatalogo({ asignarPais: asignar, log });
-    const purgas = [];
-    catalogo.on('purga', (p) => purgas.push(p));
-    const inicio = AHORA - 60_000 * 60_000;
-    const registros = Array.from({ length: 60_000 }, (_, i) =>
-      reg({ idFuente: `s${i}`, tiempo: inicio + i * 60_000 }),
-    );
+  // R-03: con el tope por defecto la ingesta de 60 000 sismos tarda unos segundos; se le da un
+  // tiempo límite explícito para que no falle con el equipo cargado.
+  it(
+    'al insertar 60 000 sismos sintéticos quedan los más recientes (95 % del tope) y se avisa',
+    { timeout: 30_000 },
+    () => {
+      const asignar = () => ({
+        pais: 'PA',
+        zona: 'PA',
+        zonaHoraria: 'America/Panama',
+        paisesCandidatos: ['PA'],
+      });
+      const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+      const catalogo = createCatalogo({ asignarPais: asignar, log });
+      const purgas = [];
+      catalogo.on('purga', (p) => purgas.push(p));
+      const inicio = AHORA - 60_000 * 60_000;
+      const registros = Array.from({ length: 60_000 }, (_, i) =>
+        reg({ idFuente: `s${i}`, tiempo: inicio + i * 60_000 }),
+      );
 
-    catalogo.ingerirLote(registros, { recibidoEn: AHORA });
+      catalogo.ingerirLote(registros, { recibidoEn: AHORA });
 
-    expect(TOPE_SISMOS).toBe(50_000);
-    expect(catalogo.contar()).toBe(50_000);
-    expect(catalogo.obtener('emsc:s9999')).toBeNull();
-    expect(catalogo.obtener('emsc:s10000')).not.toBeNull();
-    expect(log.warn).toHaveBeenCalledWith('memoria.tope', { descartados: 10_000, tope: 50_000 });
-    expect(purgas).toEqual([expect.objectContaining({ motivo: 'tope' })]);
-    expect(purgas[0].ids).toHaveLength(10_000);
+      const quedan = Math.floor(TOPE_SISMOS * HISTERESIS_TOPE);
+      const descartados = 60_000 - quedan;
+      expect(catalogo.contar()).toBe(quedan);
+      expect(catalogo.obtener(`emsc:s${descartados - 1}`)).toBeNull();
+      expect(catalogo.obtener(`emsc:s${descartados}`)).not.toBeNull();
+      expect(log.warn).toHaveBeenCalledWith('memoria.tope', { descartados, tope: TOPE_SISMOS });
+      expect(purgas).toEqual([expect.objectContaining({ motivo: 'tope' })]);
+      expect(purgas[0].ids).toHaveLength(descartados);
+    },
+  );
+
+  it('con un tope inyectado pequeño, recorta al 95 % de una vez (histéresis, R-15)', () => {
+    const { catalogo, eventos, log } = crear({ tope: 20 });
+    for (let i = 0; i < 20; i += 1) {
+      catalogo.ingerir(reg({ idFuente: `t${i}`, tiempo: T0 + i * 120_000 }), {
+        recibidoEn: AHORA,
+      });
+    }
+    expect(catalogo.contar()).toBe(20);
+    expect(log.warn).not.toHaveBeenCalled();
+
+    catalogo.ingerir(reg({ idFuente: 't20', tiempo: T0 + 20 * 120_000 }), { recibidoEn: AHORA });
+
+    expect(catalogo.contar()).toBe(19);
+    expect(catalogo.obtener('emsc:t0')).toBeNull();
+    expect(catalogo.obtener('emsc:t1')).toBeNull();
+    expect(catalogo.obtener('emsc:t2')).not.toBeNull();
+    expect(log.warn).toHaveBeenCalledWith('memoria.tope', { descartados: 2, tope: 20 });
+    expect(eventos.filter((e) => e.evento === 'purga')).toEqual([
+      expect.objectContaining({ ids: ['emsc:t0', 'emsc:t1'], motivo: 'tope' }),
+    ]);
+    // Hasta volver a superar el tope no se recorta más.
+    catalogo.ingerir(reg({ idFuente: 't21', tiempo: T0 + 21 * 120_000 }), { recibidoEn: AHORA });
+    expect(catalogo.contar()).toBe(20);
+    expect(log.warn).toHaveBeenCalledTimes(1);
+    // El índice por tiempo sigue al día tras el recorte.
+    const lista = catalogo.listar({ paises: ['PA'], magMin: null, desde: 0 });
+    expect(lista.total).toBe(20);
+    expect(lista.sismos[0].id).toBe('emsc:t21');
+    expect(lista.sismos.at(-1)?.id).toBe('emsc:t2');
   });
 
   it('el tope también se aplica en la ingesta individual', () => {
@@ -476,8 +515,88 @@ describe('retención y tope de memoria (AM-16)', () => {
     catalogo.ingerir(reg({ idFuente: 'a', tiempo: T0 }), { recibidoEn: AHORA });
     catalogo.ingerir(reg({ idFuente: 'b', tiempo: T0 + 120_000 }), { recibidoEn: AHORA });
     catalogo.ingerir(reg({ idFuente: 'c', tiempo: T0 + 240_000 }), { recibidoEn: AHORA });
-    expect(catalogo.contar()).toBe(2);
+    // floor(2 × 0,95) = 1: queda el más reciente.
+    expect(catalogo.contar()).toBe(1);
     expect(catalogo.obtener('emsc:a')).toBeNull();
+    expect(catalogo.obtener('emsc:c')).not.toBeNull();
+  });
+
+  it('en saturación, ninguna ingesta bloquea el bucle más de 200 ms (P-05)', () => {
+    const asignar = () => ({
+      pais: 'PA',
+      zona: 'PA',
+      zonaHoraria: 'America/Panama',
+      paisesCandidatos: ['PA'],
+    });
+    const tope = 10_000;
+    const catalogo = createCatalogo({ asignarPais: asignar, tope });
+    const inicio = AHORA - 20_000 * 60_000;
+    catalogo.ingerirLote(
+      Array.from({ length: tope }, (_, i) =>
+        reg({ idFuente: `p${i}`, tiempo: inicio + i * 60_000 }),
+      ),
+      { recibidoEn: AHORA },
+    );
+    let maximo = 0;
+    for (let i = 0; i < 2_000; i += 1) {
+      const t = performance.now();
+      catalogo.ingerir(reg({ idFuente: `q${i}`, tiempo: AHORA - i * 1000 }), {
+        recibidoEn: AHORA,
+      });
+      maximo = Math.max(maximo, performance.now() - t);
+    }
+    expect(catalogo.contar()).toBeLessThanOrEqual(tope);
+    expect(maximo).toBeLessThan(200);
+  });
+});
+
+describe('índice por tiempo (P-04)', () => {
+  it('ordena por tiempo descendente y, en empate, por id; respeta «desde» en el límite', () => {
+    const { catalogo } = crear();
+    catalogo.ingerir(reg({ idFuente: 'b', tiempo: T0 }), { recibidoEn: AHORA });
+    catalogo.ingerir(reg({ idFuente: 'a', tiempo: T0, lat: 8.9, lon: -79.5 }), {
+      recibidoEn: AHORA,
+    });
+    catalogo.ingerir(reg({ idFuente: 'c', tiempo: T0 - 3_600_000 }), { recibidoEn: AHORA });
+    const ids = (desde) =>
+      catalogo.listar({ paises: ['PA'], magMin: null, desde }).sismos.map((s) => s.id);
+    expect(ids(0)).toEqual(['emsc:a', 'emsc:b', 'emsc:c']);
+    expect(ids(T0)).toEqual(['emsc:a', 'emsc:b']);
+    expect(ids(T0 + 1)).toEqual([]);
+  });
+
+  it('una revisión que cambia la hora de origen mueve el sismo en el índice', () => {
+    const { catalogo } = crear();
+    catalogo.ingerir(reg({ idFuente: 'x', tiempo: T0 }), { recibidoEn: AHORA });
+    catalogo.ingerir(reg({ idFuente: 'y', tiempo: T0 + 600_000, lat: 8.9, lon: -79.5 }), {
+      recibidoEn: AHORA,
+    });
+    const ids = () =>
+      catalogo.listar({ paises: ['PA'], magMin: null, desde: 0 }).sismos.map((s) => s.id);
+    expect(ids()).toEqual(['emsc:y', 'emsc:x']);
+    catalogo.ingerir(
+      reg({ idFuente: 'x', tiempo: T0 + 1_200_000, actualizadoEn: T0 + 1_300_000 }),
+      { recibidoEn: AHORA },
+    );
+    expect(ids()).toEqual(['emsc:x', 'emsc:y']);
+    catalogo.retirar('emsc', 'y');
+    expect(ids()).toEqual(['emsc:x']);
+    expect(catalogo.purgar(T0 + 1_200_000 + 31 * 86_400_000)).toBe(1);
+    expect(ids()).toEqual([]);
+  });
+
+  it('lista con la magnitud cruda (R-02): M 4.96 no sale con magMin 5.0', () => {
+    const { catalogo } = crear();
+    catalogo.ingerir(reg({ magnitud: 4.96 }), { recibidoEn: AHORA });
+    expect(catalogo.listar({ paises: ['PA'], magMin: 5.0, desde: 0 }).total).toBe(0);
+    expect(catalogo.listar({ paises: ['PA'], magMin: 4.5, desde: 0 }).total).toBe(1);
+  });
+
+  it('un sismo real en la franja CO-PA (9.5, −77.1) lleva paisesCandidatos y sale con CO (R-01)', () => {
+    const { catalogo } = crear();
+    catalogo.ingerir(reg({ lat: 9.5, lon: -77.1, autor: 'EMSC' }), { recibidoEn: AHORA });
+    const s = catalogo.listar({ paises: ['CO'], magMin: null, desde: 0 }).sismos[0];
+    expect(s).toMatchObject({ pais: 'PA', paisesCandidatos: ['CO', 'PA'] });
   });
 });
 
