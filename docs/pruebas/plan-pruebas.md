@@ -1,6 +1,6 @@
 # Plan de pruebas — Entrega 1 (T5.1)
 
-> Última revisión: 2026-10-11 (qa-automatizacion, rama `test/D-2-seguridad` sobre `497b45d`: pruebas de seguridad de S-03, §2.1). Revisión anterior: rama `test/T5.1-qa` sobre `9a0e7cd`.
+> Última revisión: 2026-10-12 (qa-automatizacion, rama `test/E-estabilidad` sobre `bc165ca`: umbrales de regresión grosera en las E2E con tiempos y `perf:pagina`). Revisión anterior: rama `test/D-2-seguridad` sobre `497b45d` (§2.1).
 > Fuente de los requisitos: [PRD](../00-prd.md) (HU-01 a HU-12, RNF-01 a RNF-16), [textos](../diseno/textos.md) y [wireframes](../diseno/wireframes.html) §9 (teclado).
 
 ## 1. Estrategia
@@ -106,9 +106,9 @@ Las pruebas de `avisos.spec.js` se ejecutan en `chromium-avisos` (modo sin inter
 
 | RNF | Pruebas | Nivel | Notas |
 |---|---|---|---|
-| RNF-01 Latencia interna p95 ≤ 2 s | — | — | Sin prueba automática: ver §3 |
+| RNF-01 Latencia interna p95 ≤ 2 s | `rafaga.spec.js` › «ráfaga de 1 000 sismos sobre 10 000…» (regresión de P-01): 1 000 sismos por el stream con 10 000 en pantalla, en < 2 s del primer evento a la lista completa; en Chromium, ningún frame con más de 1,5 s de scripts de la página (LoAF) ni tarea entera de 3 s | E | **Detector de regresiones groseras** (roto: ráfagas de 4 a 11 s y tareas de 3 a 9 s). La verificación estricta de RNF-01 y RNF-03 (≤ 200 ms) es `npm run perf:pagina -- rafaga` (§3) |
 | RNF-02 Latencia de extremo a extremo | `metricas-latencia.test.js` (cálculo de p50/p95); `emsc-ws.test.js` › «reproduce mensajes.jsonl… con su latencia» | U | La medición real se hace en la sesión de 24 h (§3) |
-| RNF-03 10 000 sismos | `carga.spec.js` › «lista virtualizada con 10 000 sismos (RNF-03)»: ≤ 3 s de la respuesta a la lista, < 80 filas pintadas, `aria-setsize`/`aria-posinset`, Fin llega al último | E | La medición formal con el panel Rendimiento (tareas > 200 ms) es T5.4 |
+| RNF-03 10 000 sismos | `carga.spec.js` › «lista virtualizada con 10 000 sismos (RNF-03)»: < 8 s de la respuesta a la lista (regresión grosera; libre ~1 s, cargada ~3,2 s), < 80 filas pintadas, `aria-setsize`/`aria-posinset`, Fin llega al último | E | Por encima de 3 s solo se anota (`RNF-03 estricto`). La cifra estricta (≤ 3 s, tareas ≤ 200 ms) la mide `npm run perf:pagina -- carga` (§3) |
 | RNF-04 Respuesta de la API | `integracion/sismos.test.js` | I | Sin prueba de carga de 100 peticiones (T5.4) |
 | RNF-05 Memoria ≤ 300 MB | `catalogo.test.js` › «retención y tope de memoria (AM-16)»; `retencion.test.js` | U | La medición con `ps` es manual (§3) |
 | RNF-06 Resiliencia | `emsc-ws.test.js` › «el primer reintento llega en ≤ 5 s…», `calcularEspera`; `vivo.spec.js` › «corte…», «503…»; `planificador.test.js` | U, E | |
@@ -153,10 +153,10 @@ Amenazas de [amenazas.md](../seguridad/amenazas.md) con huecos de prueba según 
 | Requisito | Motivo | Cómo se verifica |
 |---|---|---|
 | RNF-16 sesión de 24 h, RNF-05 memoria tras 24 h, RNF-02 latencia real y RNF-10 peticiones reales | Necesitan fuentes reales (EMSC, USGS) y 24 h de reloj real; no caben en CI ni son deterministas | Sesión manual de 24 h con `npm start`, revisando los resúmenes horarios del log y `ps` |
-| RNF-01 latencia interna p95 con 50 eventos | Medir p95 en E2E sobre una máquina compartida da resultados ruidosos; el PRD lo asigna a una E2E específica | Pendiente de T5.4, con la máquina descargada |
+| RNF-01 latencia interna p95 con 50 eventos y RNF-01/RNF-03 «≤ 200 ms por tarea» en las ráfagas | Medir p95 o tareas de 200 ms en E2E sobre una máquina compartida da resultados ruidosos: con el equipo cargado, el mismo código dio 218 ms por frame (falló 1 de 8 veces). La E2E (`rafaga.spec.js`) solo detecta regresiones groseras | `scripts/rendimiento/pagina.js rafaga` (`npm run perf:pagina -- rafaga`) con el servidor sintético y la máquina descargada; umbrales en el [informe T5.4](../rendimiento/informe-T5.4.md) |
 | HU-11 notificación con la pestaña **en segundo plano real** | Playwright no puede ocultar de verdad la pestaña ni asegurar que el navegador la frene; los navegadores sin interfaz no muestran notificaciones del sistema | La E2E comprueba la lógica con `Notification` real (Chromium) y simulada; la prueba con la pestaña oculta es manual |
 | HU-11 «al pulsarla se enfoca la pestaña» | El foco de la ventana del sistema no es observable en modo sin interfaz | La E2E simula el clic (`onclick`) y comprueba la ventana emergente; el foco de la pestaña es manual |
-| RNF-03 «ninguna tarea > 200 ms al desplazar» | Requiere el panel Rendimiento o trazas de Chrome; no es fiable en Firefox ni con varios workers | T5.4 |
+| RNF-03 «≤ 3 s con 10 000» y «ninguna tarea > 200 ms al desplazar» | Requiere trazas de Chrome y la máquina descargada; no es fiable en Firefox ni con varios workers (Firefox dio 3,2 s con el equipo cargado) | `scripts/rendimiento/pagina.js carga` (`npm run perf:pagina -- carga`) con el servidor sintético; ver T5.4 |
 | RNF-04 prueba de carga de 100 peticiones | Prueba de rendimiento, no funcional | T5.4 |
 | RNF-09 conexión desde **otro equipo** | Necesita un segundo equipo en la red. Desde el propio equipo ya se automatiza: `loopback.test.js` intenta conectar por cada IP de red local y comprueba el socket en `/proc/net/tcp{,6}` | Manual (T5.3) |
 | RNF-11 revisión con Orca y teclado completo | axe detecta como mucho la mitad de los problemas de WCAG; anuncios y orden de lectura requieren un lector de pantalla | Manual (T5.1 manual / T5.2) |
@@ -201,12 +201,18 @@ npx playwright test --project=firefox            # solo Firefox
 npx playwright test tests/e2e/accesibilidad.spec.js   # solo axe
 npm run lint                     # ESLint + Prettier
 npm run check                    # lint + test + api:lint + audit:prod
+
+# Rendimiento estricto (RNF-01, RNF-03), con la máquina descargada y en otra terminal:
+N_SISMOS=10000 node --expose-gc scripts/rendimiento/servidor-sintetico.js
+npm run perf:pagina -- carga     # o «rafaga» (con el servidor recién arrancado); imprime JSON
 ```
 
 Para depurar una E2E que falla: `npx playwright show-trace test-results/<prueba>/trace.zip` (se guarda la traza de las que fallan).
 
 ## 7. Riesgos de las pruebas
 
-- **Máquina compartida.** La E2E fija 2 workers y amplía el margen de `expect` a 10 s. Si se suben los workers, RNF-03 y las pruebas de Firefox se vuelven lentas.
+- **Máquina compartida.** La E2E fija 2 workers y amplía el margen de `expect` a 10 s. Si se suben los workers, las pruebas de Firefox se vuelven lentas.
+- **Umbrales de tiempo en la E2E (E-QA).** `rafaga.spec.js` y `carga.spec.js` solo detectan regresiones groseras (≤ 1,5 s de scripts por frame, tareas < 3 s, < 2 s por ráfaga, < 8 s para 10 000) y pasan 10 de 10 con 3 procesos de carga artificial (carga media de 13 a 18 en 4 núcleos); lo peor observado fue 518 ms por frame, 1 469 ms de tarea, 1 069 ms de ráfaga y 2 482 ms de carga. No sirven para demostrar RNF-01 ni RNF-03: esa evidencia sale de `scripts/rendimiento/pagina.js`. Una regresión moderada (por ejemplo, la carga de 1 s a 2,5 s) no la detecta la E2E: hay que repetir `perf:pagina` antes de cada entrega.
+- **`chromium-avisos` es independiente.** Ya no depende de `chromium`: un fallo en `chromium` no salta las notificaciones y `--project=chromium-avisos` se ejecuta solo. Puede coincidir en el tiempo con las pruebas con tiempos; sus umbrales lo toleran.
 - **Firefox y COOP.** Con `Cross-Origin-Opener-Policy: same-origin`, Playwright 1.64 pierde en Firefox la emulación de `prefers-color-scheme` en la primera navegación. `tema.spec.js` emula después de cargar y recarga. Revisarlo al subir de Playwright.
 - **El tiempo de RNF-03 se mide dentro de la página**, desde la respuesta hasta la lista. El tiempo de pared incluye pasar unos 7 MB por el protocolo de Playwright y no representa al usuario.

@@ -128,6 +128,18 @@ npx playwright test --project=firefox       # solo Firefox
 
 Las E2E arrancan el servidor en el puerto 3013 sin consultar las fuentes y simulan la red.
 
+Las E2E con tiempos (`rafaga.spec.js` y `carga.spec.js`) solo detectan regresiones **groseras**, con margen de sobra para pasar con el equipo cargado: ráfaga de 1 000 sismos en menos de 2 s y ningún frame con más de 1,5 s de scripts de la página, y 10 000 sismos pintados en menos de 8 s. Si superan la cifra estricta, lo anotan en el informe (`RNF-03 estricto`) sin fallar.
+
+La verificación estricta de RNF-01 y RNF-03 (≤ 3 s para cargar 10 000 sismos, ninguna tarea de más de 200 ms y p95 ≤ 2 s en las ráfagas) se hace con `scripts/rendimiento/pagina.js`, con el equipo descargado y el servidor sintético en marcha en otra terminal:
+
+```bash
+N_SISMOS=10000 node --expose-gc scripts/rendimiento/servidor-sintetico.js   # puertos 3008 y 3009
+npm run perf:pagina -- carga     # RNF-03: utilizableMs, tareasCarga.tareasMas200ms y fluidez
+npm run perf:pagina -- rafaga    # RNF-01: latenciaMs.p95 de cada ráfaga y sus tareas largas
+```
+
+El script imprime un JSON (no falla por sí solo): se compara con los umbrales del [informe T5.4](docs/rendimiento/informe-T5.4.md). Para la ráfaga, arranca el servidor sintético de nuevo, sin ráfagas previas.
+
 ## Fuentes de datos y atribución
 
 - Sismos: [EMSC / seismicportal.eu](https://www.seismicportal.eu/) (CC BY 4.0) y [U.S. Geological Survey](https://earthquake.usgs.gov/).
