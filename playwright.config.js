@@ -14,7 +14,8 @@ export default defineConfig({
   retries: 0,
   // Estabilidad (T5.1): 2 workers fijos, sea cual sea la máquina. Con más, Firefox y Chromium
   // compiten por la CPU (cada página pinta un mapa de Leaflet y la lista) y las pruebas con
-  // tiempos (RNF-03) o con esperas encadenadas se vuelven lentas. Las esperas son siempre por
+  // esperas encadenadas se vuelven lentas. Las pruebas con tiempos usan umbrales de regresión
+  // grosera (ver `rafaga.spec.js`); la medición estricta es `scripts/rendimiento/pagina.js`. Las esperas son siempre por
   // condición: el margen de `expect` se amplía para máquinas cargadas, no para tapar fallos.
   workers: 2,
   timeout: 60_000,
@@ -35,12 +36,15 @@ export default defineConfig({
     {
       // Notificaciones (T4.7): Chromium «headless shell» devuelve `Notification.permission ===
       // 'denied'` aunque el contexto conceda el permiso; el modo sin interfaz nuevo
-      // (`channel: 'chromium'`) se comporta como el navegador normal. Es más pesado, así que va
-      // después del resto para no falsear las pruebas con tiempos (RNF-03).
+      // (`channel: 'chromium'`) se comporta como el navegador normal.
+      // Sin `dependencies`: antes dependía de `chromium` solo para ejecutarse después y no
+      // cargar la máquina durante las pruebas con tiempos, pero un fallo en `chromium` hacía que
+      // se saltasen las notificaciones. Las E2E con tiempos (`rafaga.spec.js`, `carga.spec.js`)
+      // ya solo detectan regresiones groseras y pasan con la máquina cargada; la medición
+      // estricta es `scripts/rendimiento/pagina.js`. Así este proyecto es independiente.
       name: 'chromium-avisos',
       use: { ...devices['Desktop Chrome'], channel: 'chromium' },
       testMatch: '**/avisos.spec.js',
-      dependencies: ['chromium'],
     },
     {
       // Firefox (T5.0L): `npx playwright install firefox`, sin sudo ni `install-deps` (Firefox 157
