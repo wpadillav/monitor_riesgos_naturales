@@ -778,7 +778,7 @@ flowchart LR
 - **Arranque y parada:** el Director ejecuta `npm ci` (una vez) y después `npm start`. Se detiene con Ctrl+C, que dispara un apagado ordenado (§7.1): cierra el WebSocket, el planificador, la retención, los clientes SSE y el servidor HTTP.
 - **Sin** systemd, contenedores, proxy inverso ni publicación. Nadie reinicia el proceso si sale con código 1 (D5).
 - **No hay escalado:** es un proceso para un usuario.
-- **Ubicación:** el proyecto sigue en `/var/www/html/terremotos`, que Apache sirve (AM-32, R8). El Director lo trasladará al terminar; nada en la arquitectura depende de la ruta.
+- **Ubicación:** el proyecto está en `/home/conserje/terremotos` desde el 2026-10-12, fuera de lo que sirve Apache (AM-32 cerrada, R8). Nada en la arquitectura depende de la ruta.
 - **Requisitos del equipo:** Node según el lock (nvm), salida a internet por el 443 y Chrome o Firefox actuales.
 
 ---
@@ -850,7 +850,7 @@ Nada de lo siguiente se construye en la entrega 1. Solo se reserva el sitio.
 | R5 | El modelo de permisos de Node cambia en la 26 | **Medio** (confirmado el 2026-10-12) | En la 26, `npm start` no arranca sin `--allow-net`, que es booleano. Plan de migración en STACK.lock y ADR-0003 |
 | R6 | Las acciones de borrado de EMSC (WebSocket) y de USGS no se han observado en vivo | Bajo | El contrato tiene `sismo.eliminado` con `retirado`, y el código lo trata (`sismo.retirado`). Si no ocurre nunca, el motivo queda sin uso |
 | R7 | La reanudación SSE se pierde al reiniciar el servidor | Bajo | `flujo.reiniciar` → recarga completa sin avisos |
-| R8 | El proyecto sigue bajo `/var/www/html` y Apache lo sirve (AM-32) | Alto mientras dure | Bloquea el release según T5.3. El traslado lo hace el Director al terminar |
+| R8 | El proyecto estaba bajo `/var/www/html` y Apache lo servía (AM-32) | **Cerrado** | Trasladado a `/home/conserje/terremotos` el 2026-10-12 ([traslado-AM-32.md](seguridad/traslado-AM-32.md)) |
 | D1 | Sin tipos estáticos (JavaScript + JSDoc) | Bajo | Pruebas (1335 unitarias y de integración, 172 E2E), ESLint y la opción `checkJs` (ADR-0001) |
 | D2 | Los resúmenes de latencia solo están en el log; no hay panel | Bajo | Suficiente para la sesión de 24 h. Se puede añadir a `/api/salud` si se pide |
 | D3 | **R-19 (T5.2): acoplamientos cruzados entre capas.** `emsc-ws.js:34` importa `createLimitadorDescartes` de `planificador.js:473` (un adaptador depende del planificador), y `normalizar-comun.js:7` importa `FuenteError` de `http-cliente.js:43` (la normalización depende del transporte) | Bajo: no hay ciclos ni fallos, pero cada fuente nueva repetiría el acoplamiento | **Decisión T6.1: se hace en la entrega 2,** como **primera tarea de backend antes del primer adaptador de tsunami** (que necesitará las dos piezas). Es una refactorización sin cambio de comportamiento: `createLimitadorDescartes` → `src/server/infra/limitador-descartes.js` y `FuenteError` → `src/server/fuentes/errores.js`, con reexportaciones temporales si hace falta y las pruebas existentes como red. No se toca en la entrega 1 (release congelado) |

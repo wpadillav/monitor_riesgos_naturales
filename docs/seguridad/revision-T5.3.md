@@ -248,3 +248,14 @@ No hay hallazgos críticos, altos ni medios abiertos en el código.
 **Única condición del release: AM-32** (no es del código). El Director traslada el proyecto fuera de `/var/www/html` y se ejecuta la lista [traslado-AM-32.md](traslado-AM-32.md). Si los pasos C1 a C12 dan el resultado esperado, AM-32 pasa a **Cumple** y el veredicto pasa a **APROBADO**, sin más revisión de seguridad. C13 (RNF-09 desde otro equipo) se recomienda hacerlo en ese mismo momento, pero no bloquea: la integración ya demuestra que el servidor solo escucha en loopback.
 
 **Deuda registrada (baja o informativa, no bloquea):** S-05; S-06 (anchura cero); AM-31 sin límite de red hasta Node 26; `gitleaks` no instalado (sección 1).
+
+## 7. Cierre de AM-32 (traslado, 2026-10-12)
+
+Con la autorización del Director, el coordinador ejecutó la [lista de verificación del traslado](traslado-AM-32.md). El proyecto está ahora en `/home/conserje/terremotos` y C1–C10 y C12 están en verde. Desde `localhost` y desde la IP de red, `.git/HEAD`, `.git/config`, `.git/logs/HEAD`, `package.json`, `node_modules` y `.claude/settings.json` responden **404**.
+
+- **AM-32 pasa a «Cumple».** Quedan 35 de 35 amenazas cumplidas.
+- **Veredicto final: APROBADO**, sin condiciones.
+- Pendientes del Director, que no bloquean:
+  - C11, la revisión visual de la página;
+  - C13, la prueba desde otro equipo de la LAN;
+  - decidir sobre `/var/www/html/terremotos.html`, un archivo suelto fuera del proyecto que es una copia de la página v1 con el XSS original.

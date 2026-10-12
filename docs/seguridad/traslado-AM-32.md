@@ -80,4 +80,15 @@ Si se copia en lugar de mover, la copia de `/var/www/html` hay que borrarla desp
 
 | Fecha | Ejecutó | C1–C13 | AM-32 |
 |---|---|---|---|
-| | | | Abierta |
+| 2026-10-12 | Coordinador, con la autorización del Director | C1–C10 y C12 en verde. C11 (página) comprobada con `curl`: título y aviso presentes; falta la revisión visual del Director. C13 (desde otro equipo de la LAN) pendiente del Director; no bloquea. Destino: `/home/conserje/terremotos` | **Cumple** |
+
+**Notas del traslado (2026-10-12):**
+
+- A1–A7: sin *worktrees* `locked`, ninguna rama sin fusionar, repositorio limpio en `d93f12d`, sin servidores en marcha y destino libre fuera de `/var/www`. Se eliminaron los 16 *worktrees* de los agentes (`git worktree remove`, sin `--force`) y sus 32 ramas, todas ya integradas en `main`.
+- B1: `mv` sin `sudo`.
+- C2: `find` encontró `/var/www/html/terremotos.html`, que **no es parte del proyecto**: es un archivo suelto del Director con fecha del 2026-10-09 y una copia de la página v1, con su XSS original. Su retirada la decide el Director.
+- C3: 404 en las 6 rutas, tanto en `localhost` como en `192.168.40.12`.
+- C4–C6: propietario `conserje`, sin archivos de root, `pwd -P` = `/home/conserje/terremotos`, HEAD `d93f12d`, `fsck` limpio y solo el *worktree* principal.
+- C7–C8: `npm ci` y `npm ls` sin errores, 0 vulnerabilidades, lint en verde y 1335/1335 pruebas.
+- C9–C10: `/api/salud` → 200, 0 `ERR_ACCESS_DENIED`; el proceso es `node --permission --allow-fs-read=./package.json …` y solo escucha en `127.0.0.1:3000`.
+- C12: parado con `kill` del PID y puerto libre.
