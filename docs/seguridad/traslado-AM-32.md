@@ -80,7 +80,7 @@ Si se copia en lugar de mover, la copia de `/var/www/html` hay que borrarla desp
 
 | Fecha | Ejecutó | C1–C13 | AM-32 |
 |---|---|---|---|
-| 2026-10-12 | Coordinador, con la autorización del Director | C1–C10 y C12 en verde. C11 (página) comprobada con `curl`: título y aviso presentes; falta la revisión visual del Director. C13 (desde otro equipo de la LAN) pendiente del Director; no bloquea. Destino: `/home/conserje/terremotos` | **Cumple** |
+| 2026-10-12 | Coordinador, con la autorización del Director | C1–C10 y C12 en verde. C11 (página) comprobada con `curl`: título y aviso presentes; falta la revisión visual del Director (hecha por el Director el 2026-10-12: carga, fuentes en «ok» y sismos en vivo). C13 (desde otro equipo de la LAN) pendiente del Director; no bloquea. Destino: `/home/conserje/terremotos` | **Cumple** |
 
 **Notas del traslado (2026-10-12):**
 

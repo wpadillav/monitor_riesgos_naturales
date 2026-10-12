@@ -4,11 +4,9 @@ Todos los cambios relevantes del proyecto se anotan en este archivo.
 
 El formato sigue [Keep a Changelog 1.1.0](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
-## [2.0.0] — Unreleased
+## [2.0.0] — 2026-10-12
 
 Primera entrega del **Monitor de Riesgos Naturales**: sismos en vivo para España, Colombia y Panamá. Sustituye a la página estática «Terremotos en vivo» (1.x).
-
-Al publicar, cambia «Unreleased» por la fecha del release en formato `AAAA-MM-DD`.
 
 ### Añadido
 
